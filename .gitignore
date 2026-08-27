@@ -13,15 +13,11 @@
 *.pck
 *.zip
 
-# ── .NET / C# ─────────────────────────────────────────────────────────────
-# Godot régénère le .csproj et le .sln, mais on les VERSIONNE quand même :
-# ils portent les références de packages. Seuls les artefacts sont ignorés.
-bin/
-obj/
-*.user
+# ── Éditeurs ──────────────────────────────────────────────────────────────
 .vs/
 .idea/
 *.swp
+*.user
 
 # ── Système ───────────────────────────────────────────────────────────────
 .DS_Store

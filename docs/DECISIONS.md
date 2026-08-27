@@ -95,6 +95,31 @@ Format : une décision, son contexte, ce qui a été écarté, et ses conséquen
 
 ---
 
+## D7 — GDScript plutôt que C#
+**27 août 2026** · remplace le choix de langage du GDD v0.1 §9bis
+
+**Décision.** Le projet est écrit en **GDScript, en typage statique**. Le build .NET de Godot n'est pas utilisé.
+
+**Contexte.** La v0.1 retenait C# pour deux raisons : la cohérence avec le typage fort déjà pratiqué en TypeScript, et la transférabilité vers Unity en cas de changement de moteur.
+
+**Pourquoi le changement.**
+- **Réduire les inconnues simultanées.** Apprendre Godot *et* C#-dans-Godot en même temps rend chaque problème ambigu : moteur, langage, ou binding entre les deux ? Sur un projet solo de cette durée, c'est un coût permanent.
+- **L'écosystème est GDScript-first.** La quasi-totalité des tutoriels, addons et réponses de forum sont en GDScript. Chaque problème rencontré aura sa réponse dans le bon langage.
+- **Itération plus rapide.** Pas d'étape de compilation entre une modification et son test.
+- **Le typage statique de GDScript couvre le besoin d'origine.** `var degats: int`, `func cast(cible: Node3D) -> void` : l'éditeur détecte les erreurs avant l'exécution. La raison qui motivait C# est satisfaite autrement.
+
+**Écarté.** Rester en C# — la transférabilité vers Unity reste théorique et ne justifie pas de payer le coût d'apprentissage tout au long du projet.
+
+**Compromis accepté.** GDScript est plus lent à l'exécution que C#. Sur ce profil de jeu — salles fermées, poignée de monstres simultanés — ce n'est pas contraignant. Si une boucle chaude pose un jour problème, elle se réécrit en GDExtension sans toucher au reste.
+
+**Conséquences.**
+- **Le typage statique n'est pas optionnel.** Sans annotations, GDScript redevient permissif — exactement ce qu'on cherchait à éviter en choisissant C#. C'est une règle de revue, pas une préférence.
+- Le build standard de Godot suffit. Rien à installer côté .NET.
+- Conventions de nommage : `snake_case` pour les variables et fonctions, `PascalCase` pour les classes. Les documents ont été mis à jour en conséquence (`player_id`, `cast()`, `players[0]`).
+- Le spike Steamworks change de périmètre : GodotSteam devient le candidat naturel, au lieu de comparer trois bibliothèques C#.
+
+---
+
 # Questions ouvertes
 
 ## Q1 — Le multiplicateur cumulatif de verrous : par joueur ou par équipe ?

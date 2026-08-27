@@ -4,6 +4,8 @@ Ce document traduit la [section 11 du GDD](GDD.md#11-notes-techniques--architect
 
 **Comment lire ce document :** chaque règle a un *pourquoi*, une *formulation opérationnelle*, et un *test* — une question dont la réponse se vérifie en lisant le code, pas en discutant.
 
+**Le code est en GDScript typé statiquement** ([D7](DECISIONS.md#d7--gdscript-plutôt-que-c)). Les annotations de type ne sont pas une préférence de style : elles remplacent la sécurité que le compilateur C# aurait apportée.
+
 ---
 
 ## R1 — Tout l'état vit dans `GameState`
@@ -22,12 +24,12 @@ Ce document traduit la [section 11 du GDD](GDD.md#11-notes-techniques--architect
 
 ## R2 — Les joueurs sont une collection, jamais un singleton
 
-**Pourquoi.** `Player.Instance` est une hypothèse « il n'y en a qu'un » gravée dans chaque appel. La retirer plus tard, c'est toucher tous les fichiers qui l'utilisent.
+**Pourquoi.** `Player.instance` est une hypothèse « il n'y en a qu'un » gravée dans chaque appel. La retirer plus tard, c'est toucher tous les fichiers qui l'utilisent.
 
 **Opérationnel.**
-- `Players[0]` fonctionne dès le solo. Aucun `Player.Instance` nulle part.
-- Chaque joueur porte un `PlayerId` stable, utilisé par le RNG, les verrous et la réplication.
-- Les systèmes qui agissent sur « le joueur » prennent un `PlayerId` en paramètre.
+- `players[0]` fonctionne dès le solo. Aucun `Player.instance` nulle part.
+- Chaque joueur porte un `player_id` stable, utilisé par le RNG, les verrous et la réplication.
+- Les systèmes qui agissent sur « le joueur » prennent un `player_id` en paramètre.
 
 **Test.** Instancier 4 joueurs locaux casse-t-il un système ? Si oui, ce système suppose l'unicité.
 
@@ -39,9 +41,9 @@ Ce document traduit la [section 11 du GDD](GDD.md#11-notes-techniques--architect
 
 **Opérationnel.**
 - Flux séparés par usage : génération de donjon, re-roll (**un flux par joueur**), loot, comportements.
-- Le flux de re-roll d'un joueur dérive de `seed de run + PlayerId` — déterministe, reproductible, jamais influencé par les autres joueurs ([D4](DECISIONS.md#d4--builds-indépendants-par-joueur)).
+- Le flux de re-roll d'un joueur dérive de `seed de run + player_id` — déterministe, reproductible, jamais influencé par les autres joueurs ([D4](DECISIONS.md#d4--builds-indépendants-par-joueur)).
 - La seed de run est affichée, copiable, et loggée à chaque étage.
-- Aucun appel direct à un générateur aléatoire global.
+- Aucun appel direct à `randi()`, `randf()` ou `RandomNumberGenerator` non seedé.
 
 **Test.** Deux clients qui reçoivent la même seed produisent-ils le même donjon ? Rejouer une seed avec la même équipe redonne-t-il les mêmes re-rolls ?
 
@@ -52,7 +54,7 @@ Ce document traduit la [section 11 du GDD](GDD.md#11-notes-techniques--architect
 **Pourquoi.** C'est la règle la plus exigeante, et celle qui conditionne le reste. Si chaque effet mute l'état dans son coin, l'ordre de résolution dépend de l'ordre d'arrivée réseau — donc diverge entre clients.
 
 **Opérationnel.**
-- `Cast()` **produit une intention**. Il ne mute jamais l'état.
+- `cast()` **produit une intention**. Il ne mute jamais l'état.
 - Aucun effet n'écrit dans `GameState` en dehors du resolver.
 - L'ordre de résolution est déterministe et documenté. Les effets simultanés de plusieurs joueurs sont résolus dans un ordre **stable**, pas dans l'ordre d'arrivée des paquets.
 - Ajouter un effet ne demande aucune modification du resolver.
@@ -92,13 +94,13 @@ Formalise la [section 4bis du GDD](GDD.md#4bis-architecture--contenu-piloté-par
 - Aucune boucle ne suppose une taille de pool fixe. 2 et 5 doivent fonctionner sans cas particulier.
 - Le générateur de donjon ne connaît pas les biomes : ajouter un biome = ajouter un pool de salles.
 
-**Test.** Ajouter un sort, un monstre ou une salle demande-t-il d'ouvrir un fichier `.cs` ? Si oui, la règle est enfreinte.
+**Test.** Ajouter un sort, un monstre ou une salle demande-t-il d'ouvrir un fichier `.gd` ? Si oui, la règle est enfreinte.
 
 ---
 
 ## R7 — Les valeurs numériques sont éditables sans recompiler
 
-**Pourquoi.** L'équilibrage est un travail itératif à haute fréquence. S'il faut une compilation C# par ajustement, il n'aura pas lieu.
+**Pourquoi.** L'équilibrage est un travail itératif à haute fréquence. S'il faut rouvrir un script par ajustement, il n'aura pas lieu.
 
 **Opérationnel.**
 - Une Resource de tuning unique contient : `X` (coût de verrou par sort), `Y` (base catégorie par école), multiplicateurs cumulatifs, rendements de Résonance, courbe de difficulté, règles de tirage de salles.

@@ -2,7 +2,7 @@
 
 > Un donjon roguelite coopératif où la magie ne t'obéit jamais complètement — tes sorts changent de nature à chaque étage, et maîtriser le chaos devient la vraie compétence.
 
-**Godot 4.x (.NET) · C# · 3D stylisé low-poly · co-op 2-4 joueurs via Steam**
+**Godot 4.x · GDScript typé · 3D stylisé low-poly · co-op 2-4 joueurs via Steam**
 
 ---
 
@@ -21,19 +21,13 @@ Le suivi des tâches est dans Plane, projet `DEPTH`.
 
 ## Installation
 
-### 1. Godot — build .NET obligatoire
+### 1. Godot — build standard
 
-⚠️ **Le build standard de Godot ne compile pas de C#.** Il faut explicitement la version *Godot Engine - .NET*.
+Version 4.x, build standard. Le build **.NET n'est pas nécessaire** : le projet est en GDScript ([D7](docs/DECISIONS.md#d7--gdscript-plutôt-que-c)).
 
-Téléchargement : [godotengine.org/download](https://godotengine.org/download) → section **.NET**
+Téléchargement : [godotengine.org/download](https://godotengine.org/download)
 
-### 2. .NET SDK
-
-```bash
-dotnet --version   # 8.0 ou supérieur
-```
-
-### 3. Git LFS
+### 2. Git LFS
 
 Indispensable **avant** de cloner : sans lui, tu récupères des fichiers texte de quelques octets à la place des modèles et des textures.
 
@@ -42,7 +36,7 @@ brew install git-lfs   # macOS
 git lfs install
 ```
 
-### 4. Cloner
+### 3. Cloner
 
 ```bash
 git clone <url-du-dépôt>
@@ -50,7 +44,7 @@ cd DepthCast
 git lfs pull
 ```
 
-Ouvre ensuite `project.godot` depuis Godot .NET. Le premier lancement régénère le cache `.godot/` et les fichiers de build — c'est normal, ils sont ignorés par Git.
+Ouvre ensuite `project.godot` depuis Godot. Le premier lancement régénère le cache `.godot/` — c'est normal, il est ignoré par Git.
 
 ---
 
@@ -63,13 +57,13 @@ DepthCast/
 │   ├── ARCHITECTURE.md   Règles techniques non négociables
 │   └── DECISIONS.md      Journal des décisions et questions ouvertes
 ├── scenes/               Scènes Godot (.tscn)
-├── scripts/              Code C#
+├── scripts/              Code GDScript (typé statiquement)
 ├── resources/            Données de contenu (.tres) — sorts, écoles, monstres, tuning
 ├── art/                  Assets 3D, textures (Git LFS)
 └── audio/                Sons et musique (Git LFS)
 ```
 
-Le découpage `resources/` sépare **la donnée du comportement** : ajouter un sort, un monstre ou une salle ne doit jamais demander d'ouvrir un fichier `.cs`. Voir [R6](docs/ARCHITECTURE.md#r6--le-contenu-est-de-la-donnée-pas-du-code).
+Le découpage `resources/` sépare **la donnée du comportement** : ajouter un sort, un monstre ou une salle ne doit jamais demander d'ouvrir un fichier `.gd`. Voir [R6](docs/ARCHITECTURE.md#r6--le-contenu-est-de-la-donnée-pas-du-code).
 
 ---
 
@@ -78,10 +72,12 @@ Le découpage `resources/` sépare **la donnée du comportement** : ajouter un s
 Détaillées et testables dans [ARCHITECTURE.md](docs/ARCHITECTURE.md). En résumé :
 
 1. **Tout l'état vit dans `GameState`** — sérialisable en entier
-2. **Les joueurs sont une collection**, jamais un singleton — `Players[0]` dès le solo
+2. **Les joueurs sont une collection**, jamais un singleton — `players[0]` dès le solo
 3. **Tout aléatoire passe par un flux seedé et nommé** — un flux de re-roll par joueur
-4. **Un seul Effect Resolver** — `Cast()` produit une intention, ne mute rien
+4. **Un seul Effect Resolver** — `cast()` produit une intention, ne mute rien
 5. **Communication par signals**, pas d'appels directs entre systèmes
+
+Le code est en **GDScript typé statiquement**. Les annotations (`var degats: int`, `func cast(cible: Node3D) -> void`) ne sont pas optionnelles : sans elles, on perd la détection d'erreurs à l'édition.
 
 Le co-op est dans le scope V1. Ces règles ne sont pas des précautions : les enfreindre coûte une réécriture.
 

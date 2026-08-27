@@ -43,7 +43,7 @@ Le co-op est **dans la V1**. C'est un revirement assumé par rapport à la v0.1 
 **Décisions arrêtées :**
 
 - **Topologie : P2P host-autoritatif via Steam.** Un joueur héberge et fait autorité sur l'état du jeu. Pas de serveur dédié — surdimensionné pour du co-op PvE, et coûteux en infra.
-- **Builds indépendants.** Chaque joueur choisit ses 4 écoles librement et re-roll ses propres sorts. Chacun a son propre aléatoire : le flux RNG d'un joueur dérive de `seed de run + PlayerId`, et le re-roll d'un joueur n'affecte jamais les slots d'un autre. Cela tranche la question ouverte de la v0.1 en faveur de la profondeur stratégique individuelle plutôt que du moment social partagé.
+- **Builds indépendants.** Chaque joueur choisit ses 4 écoles librement et re-roll ses propres sorts. Chacun a son propre aléatoire : le flux RNG d'un joueur dérive de `seed de run + player_id`, et le re-roll d'un joueur n'affecte jamais les slots d'un autre. Cela tranche la question ouverte de la v0.1 en faveur de la profondeur stratégique individuelle plutôt que du moment social partagé.
 - **Chat vocal de proximité : hors V1.** Repoussé en Update 2. C'est un chantier à part entière (capture, encodage, spatialisation 3D, contrôles de volume et mute) et les joueurs ont Discord en attendant.
 
 **Ce que le co-op impose techniquement :** autorité d'état claire, RNG déterministe et reproductible par joueur, résolution déterministe des effets simultanés. Ces trois points sont précisément ce que garantissent les règles d'architecture de la [section 11](#11-notes-techniques--architecture), qu'il faut donc respecter dès la première ligne de code et non plus « au cas où ».
@@ -130,7 +130,7 @@ Chaque **école** a une identité claire (thème mécanique cohérent) et un poo
 
 Pattern : **Resources** (fichiers `.tres`) pour toute donnée de contenu, combinées à des classes de comportement génériques et réutilisables.
 
-- **Sorts** : chaque effet = une `Resource` (dégâts, portée, cooldown, `coût_verrou`) + une implémentation de `Cast()`. Ajouter un sort = créer une Resource dans l'éditeur, zéro modification du code central.
+- **Sorts** : chaque effet = une `Resource` (dégâts, portée, cooldown, `coût_verrou`) + une implémentation de `cast()`. Ajouter un sort = créer une Resource dans l'éditeur, zéro modification du code central.
 - **Écoles** : une `Resource` référençant une liste de Resources-sorts de taille variable (2 à 5) — ajuster un pool ne touche à aucun code.
 - **Monstres** : classe de base commune (mouvement, IA générique, dégâts) + une `Resource` de stats par type (vie, vitesse, dégâts, pattern, rendement de Résonance).
 - **Salles** : scène (`.tscn`) avec métadonnées de catégorie (combat/élite/puzzle/repos) et connecteurs standardisés — permet à un non-programmeur de construire des salles dans l'éditeur.
@@ -212,10 +212,9 @@ Piste de départ : le grimoire du joueur est corrompu depuis un événement non 
 
 ## 9bis. Décisions techniques tranchées
 
-- **Moteur : Godot 4.x, build .NET** (4.7.2 au moment de la rédaction). Justifié pour un rendu 3D stylisé low-poly en environnements fermés : ce profil évite les points faibles connus de Godot en 3D (pas de monde ouvert à streamer, pas de photoréalisme, éclairage maîtrisable salle par salle). Licence MIT — zéro royalties.
-  ⚠️ Le build standard de Godot **ne compile pas de C#**. Il faut explicitement la version « .NET ».
-- **Langage : C#** — cohérent avec le typage fort déjà pratiqué (TS), transférable vers Unity si besoin, bon support natif dans Godot 4.
-- **Réseau : Steam P2P host-autoritatif.** L'intégration Steamworks en C# sous Godot 4 fait l'objet d'un spike dédié (GodotSteam C# / Facepunch.Steamworks / Steamworks.NET) — décision à documenter dans [DECISIONS.md](DECISIONS.md).
+- **Moteur : Godot 4.x, build standard** (4.7.2 au moment de la rédaction). Justifié pour un rendu 3D stylisé low-poly en environnements fermés : ce profil évite les points faibles connus de Godot en 3D (pas de monde ouvert à streamer, pas de photoréalisme, éclairage maîtrisable salle par salle). Licence MIT — zéro royalties. Le build .NET n'est **pas** nécessaire.
+- **Langage : GDScript, en typage statique.** Voir [D7](DECISIONS.md#d7--gdscript-plutôt-que-c) — remplace le choix de C# de la v0.1. Les annotations de type (`var degats: int`, `func cast(cible: Node3D) -> void`) sont **obligatoires** : sans elles, GDScript redevient permissif, ce qu'on ne veut pas sur un projet de cette durée.
+- **Réseau : Steam P2P host-autoritatif.** L'intégration Steamworks fait l'objet d'un spike dédié — GodotSteam est le candidat naturel en GDScript (module ou GDExtension), à confirmer. Décision à documenter dans [DECISIONS.md](DECISIONS.md).
 - **Conséquence production :** peu d'assets 3D low-poly prêts à l'emploi dans l'écosystème Godot — la majorité des props et matériaux seront produits en interne plutôt qu'achetés. À anticiper dans le planning, et dans le quota Git LFS.
 
 ---
@@ -234,9 +233,9 @@ Piste de départ : le grimoire du joueur est corrompu depuis un événement non 
 Le co-op étant désormais **dans la V1**, ces règles ne sont plus des précautions « au cas où » : ce sont des prérequis. Détail d'implémentation et critères de vérification dans [ARCHITECTURE.md](ARCHITECTURE.md).
 
 1. **État centralisé** — un objet `GameState` clair (joueurs, ennemis, slots de sorts) plutôt que des propriétés éparpillées sur des nodes Godot. Doit être sérialisable en entier.
-2. **Joueur en liste** — `players[0]` plutôt qu'un singleton `Player.instance`, même à un seul joueur. Chaque joueur porte un `PlayerId` stable.
-3. **RNG seedé explicitement** — flux nommés et séparés par usage. Le flux de reroll d'un joueur dérive de `seed de run + PlayerId`. Seeds loggées dès la V1.
-4. **Résolution des effets centralisée** — un seul module "effect resolver". Un `Cast()` produit une intention, il ne mute jamais l'état. Ordre de résolution déterministe et documenté.
+2. **Joueur en liste** — `players[0]` plutôt qu'un singleton `Player.instance`, même à un seul joueur. Chaque joueur porte un `player_id` stable.
+3. **RNG seedé explicitement** — flux nommés et séparés par usage. Le flux de reroll d'un joueur dérive de `seed de run + player_id`. Seeds loggées dès la V1.
+4. **Résolution des effets centralisée** — un seul module "effect resolver". Un `cast()` produit une intention, il ne mute jamais l'état. Ordre de résolution déterministe et documenté.
 5. **Signals Godot (event-driven)** plutôt que des appels directs entre systèmes.
 
 ---

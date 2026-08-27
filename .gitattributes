@@ -8,7 +8,7 @@
 *.tres   text eol=lf
 *.godot  text eol=lf
 *.cfg    text eol=lf
-*.cs     text eol=lf diff=csharp
+*.gd     text eol=lf
 *.md     text eol=lf
 *.json   text eol=lf
 

@@ -78,6 +78,8 @@ Une branche vit quelques jours, pas quelques semaines. Plus elle vit, plus elle 
 
 Types : `feat`, `fix`, `refactor`, `docs`, `chore`, `content` (ajout de Resources ou de salles).
 
+Le code est en **GDScript typé statiquement** — les annotations de type ne sont pas optionnelles, voir [D7](docs/DECISIONS.md#d7--gdscript-plutôt-que-c).
+
 Le *pourquoi* compte plus que le *quoi* — le diff dit déjà le quoi.
 
 ### Avant d'ouvrir une PR
@@ -88,11 +90,11 @@ Les trois erreurs qui coûtent le plus cher, dans l'ordre :
 
 1. Un effet qui mute l'état sans passer par le resolver — casse le déterminisme co-op
 2. Un `Random` appelé directement — casse le rejeu par seed et la synchronisation
-3. Une valeur d'équilibrage en dur — rend le tuning impossible sans recompilation
+3. Une valeur d'équilibrage en dur — rend le tuning impossible sans rouvrir un script
 
 ### Ajouter du contenu
 
-Créer un sort, un monstre ou une salle **ne doit demander aucune modification de `.cs`**. Si tu dois ouvrir un fichier C# pour ajouter du contenu, le pattern data-driven est cassé quelque part — signale-le plutôt que de contourner.
+Créer un sort, un monstre ou une salle **ne doit demander aucune modification de `.gd`**. Si tu dois ouvrir un script pour ajouter du contenu, le pattern data-driven est cassé quelque part — signale-le plutôt que de contourner.
 
 ---
 
