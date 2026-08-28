@@ -21,6 +21,7 @@ func _ready() -> void:
 	_check_r4_ordre_deterministe()
 	_check_verrou_un_seul_etage()
 	_check_decouverte_portee_etage()
+	_check_monstres()
 
 	print("─────────────────────────────────────────────────")
 	if _failures == 0:
@@ -125,7 +126,55 @@ func _check_decouverte_portee_etage() -> void:
 		not joueur.slots[0].is_discovered_on(nouvel_etage))
 
 
+## Un monstre encaisse, meurt, et verse au pot COMMUN.
+func _check_monstres() -> void:
+	print("Monstres — dégâts, mort et Résonance")
+
+	GameState.start_run(2024, 2)
+	var id: int = GameState.spawn_monster(30, 25)
+	var monstre: MonsterState = GameState.run.get_monster(id)
+
+	_ok("le monstre est enregistré dans l'état de la run", monstre != null and monstre.hp == 30)
+
+	_frappe_monstre(0, id, 10)
+	EffectResolver.resolve_tick()
+	_ok("il encaisse sans mourir", monstre.hp == 20 and monstre.is_alive(),
+		"pv=%d" % monstre.hp)
+	_ok("aucune Résonance tant qu'il vit", GameState.run.resonance_pool == 0)
+
+	# Le joueur 1 porte le coup fatal, mais la récompense va au pot commun.
+	_frappe_monstre(1, id, 50)
+	EffectResolver.resolve_tick()
+	_ok("il meurt sans passer en PV négatifs", monstre.hp == 0 and not monstre.is_alive())
+	_ok("la récompense va au pot commun, pas au tueur",
+		GameState.run.resonance_pool == 25, "pot=%d" % GameState.run.resonance_pool)
+
+	# Frapper un cadavre ne doit pas re-créditer.
+	_frappe_monstre(0, id, 10)
+	EffectResolver.resolve_tick()
+	_ok("un monstre déjà mort ne rapporte pas deux fois",
+		GameState.run.resonance_pool == 25, "pot=%d" % GameState.run.resonance_pool)
+
+	var avant: Dictionary = GameState.serialize()
+	GameState.deserialize(avant)
+	_ok("les monstres survivent à la sérialisation", GameState.serialize() == avant)
+
+	GameState.advance_floor()
+	_ok("les monstres sont vidés au changement d'étage",
+		GameState.run.monsters.is_empty())
+
+
 # ── Utilitaires ───────────────────────────────────────────────────────────
+
+func _frappe_monstre(player_id: int, monster_id: int, degats: float) -> void:
+	var intent := EffectIntent.new()
+	intent.source_player_id = player_id
+	intent.source_slot = 0
+	intent.kind = EffectIntent.Kind.DAMAGE
+	intent.amount = degats
+	intent.target_monsters = PackedInt64Array([monster_id])
+	EffectResolver.submit(intent)
+
 
 func _run_scenario(seed_value: int) -> Array:
 	_rerolls.clear()

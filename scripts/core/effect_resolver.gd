@@ -89,13 +89,28 @@ func _apply(intent: EffectIntent) -> void:
 func _apply_damage(intent: EffectIntent) -> void:
 	if not GameState.is_in_run():
 		return
-	# Les cibles joueur sont traitées ici ; les monstres viendront avec C3.
-	# Note de design ouverte : les sorts ratés peuvent-ils toucher un coéquipier ?
-	# Rien ne l'interdit dans cette structure, c'est un choix de gameplay.
+
+	# Cibles joueurs. Note de design ouverte : les sorts ratés peuvent-ils
+	# toucher un coéquipier ? Rien ne l'interdit dans cette structure — c'est un
+	# choix de gameplay, pas une contrainte technique.
 	for target_id: int in intent.target_ids:
 		var target: PlayerState = GameState.run.get_player(target_id)
 		if target != null:
 			target.hp = maxi(0, target.hp - int(intent.amount))
+
+	# Cibles monstres. La récompense de Résonance part au pot COMMUN (D3),
+	# quel que soit le joueur qui a porté le coup fatal.
+	for monster_id: int in intent.target_monsters:
+		var monster: MonsterState = GameState.run.get_monster(monster_id)
+		if monster == null:
+			continue
+		var tue: bool = monster.take_damage(int(intent.amount))
+		EventBus.monster_damaged.emit(monster_id, monster.hp)
+		if tue:
+			GameState.add_resonance(monster.resonance_reward)
+			EventBus.monster_died.emit(
+				monster_id, intent.source_player_id, monster.resonance_reward
+			)
 
 
 func _apply_heal(intent: EffectIntent) -> void:

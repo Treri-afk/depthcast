@@ -26,9 +26,14 @@ var kind: Kind = Kind.DAMAGE
 ## Identifiant de la Resource d'effet à l'origine de l'intention.
 var effect_id: StringName = &""
 var amount: float = 0.0
-## Cibles, par identifiant. Jamais de référence directe à un node : une intention
-## doit rester sérialisable pour traverser le réseau.
+## Cibles JOUEURS, par identifiant. Jamais de référence directe à un node : une
+## intention doit rester sérialisable pour traverser le réseau.
 var target_ids: PackedInt64Array = PackedInt64Array()
+
+## Cibles MONSTRES. Volontairement un champ séparé plutôt qu'un espace
+## d'identifiants partagé : un id de joueur et un id de monstre ne se
+## confondront jamais par accident, et le resolver n'a rien à deviner.
+var target_monsters: PackedInt64Array = PackedInt64Array()
 ## Charge utile libre pour les effets qui en ont besoin (direction, rayon…).
 var payload: Dictionary = {}
 
@@ -64,6 +69,7 @@ func to_dict() -> Dictionary:
 		"effect_id": String(effect_id),
 		"amount": amount,
 		"target_ids": Array(target_ids),
+		"target_monsters": Array(target_monsters),
 		"payload": payload,
 		"tick": tick,
 		"sequence": sequence,

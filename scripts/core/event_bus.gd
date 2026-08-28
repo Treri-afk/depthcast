@@ -33,6 +33,12 @@ signal slot_kept(player_id: int, slot_index: int)
 ## L'effet vient d'être lancé pour la première fois de l'étage : il sort de l'état `???`.
 signal slot_discovered(player_id: int, slot_index: int)
 
+# ── Monstres ──────────────────────────────────────────────────────────────
+signal monster_spawned(monster_id: int)
+signal monster_damaged(monster_id: int, hp_restant: int)
+## Le feedback de mort et le drop de Résonance écoutent ça.
+signal monster_died(monster_id: int, killer_player_id: int, recompense: int)
+
 # ── Économies ─────────────────────────────────────────────────────────────
 ## Le pot commun a changé. `total` est la valeur autoritaire du host.
 signal resonance_changed(total: int)

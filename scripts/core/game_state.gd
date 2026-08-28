@@ -78,6 +78,24 @@ func _register_player(player_id: int, display_name: String) -> PlayerState:
 	return p
 
 
+# ── Monstres ──────────────────────────────────────────────────────────────
+
+## Enregistre un monstre dans l'état de la run et retourne son identifiant.
+##
+## La scène qui affiche le monstre garde cet id et ne stocke AUCUN point de vie
+## de son côté (R1). Les valeurs passées ici viendront d'une Resource de stats
+## quand elle existera (C3) — ne jamais les coder en dur dans une scène.
+func spawn_monster(max_hp: int, resonance_reward: int,
+		archetype_id: StringName = &"dummy") -> int:
+	if not is_in_run():
+		return -1
+	var id: int = run.next_monster_id
+	run.next_monster_id += 1
+	run.monsters.append(MonsterState.new(id, max_hp, resonance_reward, archetype_id))
+	EventBus.monster_spawned.emit(id)
+	return id
+
+
 # ── Résonance : pot commun, autoritaire host (D3) ─────────────────────────
 
 ## Ajoute au pot commun. Appelé à la mort d'un monstre, quel que soit le tueur.

@@ -13,6 +13,14 @@ var run_seed: int = 0
 var floor_index: int = 0
 var players: Array[PlayerState] = []
 
+## Monstres vivants ou morts de l'étage courant. Vidés à chaque changement
+## d'étage — un monstre ne survit pas à la salle où il a été tué.
+var monsters: Array[MonsterState] = []
+
+## Compteur d'identifiants. Sérialisé lui aussi : sans ça, recharger une partie
+## réattribuerait des ids déjà utilisés et deux monstres se confondraient.
+var next_monster_id: int = 1
+
 ## Pot commun de Résonance (D3). Alimenté par les kills de TOUS les joueurs,
 ## dépensé par chacun pour ses propres verrous. Jamais persisté entre les runs.
 var resonance_pool: int = 0
@@ -33,6 +41,21 @@ func get_player(player_id: int) -> PlayerState:
 	return null
 
 
+func get_monster(monster_id: int) -> MonsterState:
+	for m: MonsterState in monsters:
+		if m.monster_id == monster_id:
+			return m
+	return null
+
+
+func alive_monsters() -> Array[MonsterState]:
+	var out: Array[MonsterState] = []
+	for m: MonsterState in monsters:
+		if m.is_alive():
+			out.append(m)
+	return out
+
+
 func alive_players() -> Array[PlayerState]:
 	var out: Array[PlayerState] = []
 	for p: PlayerState in players:
@@ -44,6 +67,7 @@ func alive_players() -> Array[PlayerState]:
 ## Remet à zéro les compteurs à portée étage, pour tout le monde.
 func begin_floor() -> void:
 	team_locks_this_floor = 0
+	monsters.clear()
 	for p: PlayerState in players:
 		p.begin_floor()
 
@@ -52,7 +76,12 @@ func to_dict() -> Dictionary:
 	var player_dicts: Array = []
 	for p: PlayerState in players:
 		player_dicts.append(p.to_dict())
+	var monster_dicts: Array = []
+	for m: MonsterState in monsters:
+		monster_dicts.append(m.to_dict())
 	return {
+		"monsters": monster_dicts,
+		"next_monster_id": next_monster_id,
 		"run_seed": run_seed,
 		"floor_index": floor_index,
 		"players": player_dicts,
@@ -71,7 +100,11 @@ static func from_dict(d: Dictionary) -> RunState:
 	r.team_locks_this_floor = int(d.get("team_locks_this_floor", 0))
 	r.is_over = bool(d.get("is_over", false))
 	r.victory = bool(d.get("victory", false))
+	r.next_monster_id = int(d.get("next_monster_id", 1))
 	var player_dicts: Array = d.get("players", [])
 	for pd: Variant in player_dicts:
 		r.players.append(PlayerState.from_dict(pd as Dictionary))
+	var monster_dicts: Array = d.get("monsters", [])
+	for md: Variant in monster_dicts:
+		r.monsters.append(MonsterState.from_dict(md as Dictionary))
 	return r
