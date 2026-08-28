@@ -1,9 +1,11 @@
 name: CI
 
+# Sur toutes les branches, pas seulement main : un run coûte 18 secondes, et
+# découvrir une régression au moment de la Pull Request est déjà trop tard.
+# Les Pull Requests affichent le statut du commit poussé, donc pas besoin d'un
+# déclencheur `pull_request` séparé — il ne ferait que doubler les exécutions.
 on:
   push:
-    branches: [main]
-  pull_request:
 
 # Une seule exécution par branche : un nouveau push annule le run précédent
 # plutôt que de consommer des minutes pour un résultat déjà périmé.
