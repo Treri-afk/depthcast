@@ -32,7 +32,7 @@ Format : une décision, son contexte, ce qui a été écarté, et ses conséquen
 **Conséquences.**
 - Les clients envoient des **intentions**, jamais des résultats. Un client ne peut pas s'auto-attribuer de la Résonance ni un verrou.
 - La perte du host termine la session. La migration d'host est hors scope V1.
-- Le choix de la bibliothèque d'intégration Steamworks en C# (GodotSteam C# / Facepunch.Steamworks / Steamworks.NET) fait l'objet d'un spike dédié — **décision à documenter ici une fois tranchée**.
+- Le choix de l'intégration Steamworks fait l'objet d'un spike dédié — GodotSteam en module compilé ou en GDExtension. **Décision à documenter ici une fois tranchée.** Voir aussi [D8](#d8--développement-steam-sur-lapp-id-public-480-transport-interchangeable) pour la façon dont on développe sans payer et sans second compte.
 
 ---
 
@@ -117,6 +117,35 @@ Format : une décision, son contexte, ce qui a été écarté, et ses conséquen
 - Le build standard de Godot suffit. Rien à installer côté .NET.
 - Conventions de nommage : `snake_case` pour les variables et fonctions, `PascalCase` pour les classes. Les documents ont été mis à jour en conséquence (`player_id`, `cast()`, `players[0]`).
 - Le spike Steamworks change de périmètre : GodotSteam devient le candidat naturel, au lieu de comparer trois bibliothèques C#.
+
+---
+
+## D8 — Développement Steam sur l'App ID public 480, transport interchangeable
+**28 août 2026** · précise D2
+
+**Décision.** Le développement et les tests se font avec l'**App ID 480**
+(*Spacewar*), l'application publique de test fournie par Valve. La couche réseau
+est écrite derrière une interface de transport, avec **ENet en local** et
+**Steam Networking Sockets en production**.
+
+**Contexte.** Publier sur Steam demande les 100 $ de Steam Direct (récupérables
+au-delà de 1 000 $ de revenus). Rien n'oblige à les payer pour développer : l'App
+ID 480 donne accès aux lobbies, aux invitations et au P2P.
+
+**Le vrai problème, lui, n'est pas financier.** Steam refuse deux clients
+connectés au même compte sur une même machine. Un développeur seul ne peut donc
+pas tester une session à deux joueurs si la logique est soudée à Steam. Il
+faudrait un second compte et une seconde machine — à chaque test.
+
+**Conséquences.**
+- Toute la logique réseau se développe et se débogue en ENet, avec autant
+  d'instances locales que voulu, sans client Steam.
+- Steam devient une couche de transport branchée par-dessus, plus une dépendance
+  transverse. Formalisé en [R9](ARCHITECTURE.md#r9--le-transport-réseau-est-interchangeable).
+- Les 100 $ ne se paient qu'au moment de publier.
+- Limite connue de l'App ID 480 : il est partagé par tout le monde, donc la liste
+  des lobbies est polluée. On filtre par métadonnée de lobby propre au jeu.
+- Le client Steam doit tourner et être connecté pour tout test du transport Steam.
 
 ---
 

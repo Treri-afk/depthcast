@@ -133,6 +133,34 @@ Découle de [D2](DECISIONS.md#d2--topologie-réseau--p2p-host-autoritatif-via-st
 
 ---
 
+## R9 — Le transport réseau est interchangeable
+
+**Pourquoi.** Steam interdit deux clients connectés au même compte sur une même
+machine. Un développeur seul ne peut donc pas tester une session à deux si la
+logique réseau est soudée à Steam — et le projet est mené par une personne.
+
+C'est une contrainte de production, pas une préférence d'architecture : la tâche
+« Outillage de test multi local » exige explicitement de pouvoir tester sans
+seconde machine. Sans cette règle, elle est infaisable.
+
+**Opérationnel.**
+- La logique réseau parle à une interface de transport, jamais directement à
+  l'API Steam.
+- Deux implémentations : **ENet** (natif Godot, plusieurs instances sur
+  `127.0.0.1`, utilisé en développement et en CI) et **Steam Networking Sockets**
+  (utilisé en production).
+- Le choix du transport est une configuration de lancement, pas une branche de
+  code disséminée dans les systèmes.
+- Aucun appel à l'API Steam en dehors de la couche de transport et du lobby.
+
+**Test.** Puis-je lancer quatre instances locales et jouer une run complète, sans
+client Steam démarré ? Si non, le couplage est déjà installé.
+
+**Coût.** Quasi nul s'il est prévu dès le départ, très élevé s'il est découvert
+au moment d'implémenter le netcode.
+
+---
+
 ## Pièges spécifiques à ce projet
 
 **L'état `???` est à portée étage.** Un effet reste masqué tant qu'il n'a pas été lancé sur l'étage **en cours**. Il se réinitialise à chaque changement d'étage — y compris pour un slot verrouillé, qui redevient `???` tant qu'il n'est pas relancé. Ce n'est ni un flag de run, ni un flag de profil. En co-op, chaque joueur a son propre état de découverte.

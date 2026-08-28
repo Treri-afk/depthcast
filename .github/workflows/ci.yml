@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Une seule exécution par branche : un nouveau push annule le run précédent
+# plutôt que de consommer des minutes pour un résultat déjà périmé.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.6.3"
+
+jobs:
+  verifications:
+    name: Vérifications d'architecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+        with:
+          # Volontairement SANS LFS : ce job ne teste que de la logique, il n'a
+          # aucun besoin des modèles ni des textures. Le plan gratuit ne donne
+          # qu'1 Go de bande passante LFS par mois — la dépenser à chaque push
+          # l'épuiserait en quelques jours une fois la production d'assets
+          # démarrée. Un futur job d'export, lui, devra la passer à true.
+          lfs: false
+
+      - name: Restaurer Godot depuis le cache
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux
+
+      - name: Télécharger Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ~/godot
+          NAME="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${NAME}.zip"
+          curl -fsSL -o /tmp/godot.zip "$URL"
+          unzip -q /tmp/godot.zip -d /tmp/godot-extract
+          mv "/tmp/godot-extract/${NAME}" ~/godot/godot
+          chmod +x ~/godot/godot
+
+      - name: Version
+        run: ~/godot/godot --headless --version
+
+      # Construit le cache des classes globales (class_name). Sans cette passe,
+      # les scripts ne se parsent pas : SpellSlot, EffectIntent et les autres
+      # ne sont pas encore connus du moteur.
+      - name: Importer le projet
+        run: ~/godot/godot --headless --path . --editor --quit
+
+      # scenes/main.tscn exécute les tests d'ARCHITECTURE.md et sort en code 1
+      # si l'un d'eux échoue. C'est ce code de sortie qui fait échouer le job.
+      - name: Lancer les vérifications
+        run: ~/godot/godot --headless --path . --quit-after 3
