@@ -41,6 +41,8 @@ GitHub Desktop et Fork proposent ces actions dans leur interface — pas besoin 
 
 **Règle simple :** tout ce qui n'est pas du texte se verrouille avant modification.
 
+Les binaires sont marqués `lockable` dans `.gitattributes` : ils arrivent en **lecture seule** dans ta copie de travail. Si ton logiciel refuse d'enregistrer par-dessus, ce n'est pas un bug — c'est le rappel qu'il faut poser un verrou d'abord.
+
 ---
 
 ## Les scènes Godot : une scène, un propriétaire à la fois
@@ -57,7 +59,9 @@ Les `.tscn` et `.tres` sont du texte, donc versionnés en clair et diffables. **
 
 ### Branches
 
-Trunk-based avec branches courtes. `main` est protégée, pas de push direct.
+Trunk-based avec branches courtes. **Pas de push direct sur `main`** — on passe par une branche et une Pull Request.
+
+⚠️ C'est une **discipline d'équipe, pas une contrainte technique** : la protection de branche sur dépôt privé demande GitHub Pro. Rien ne t'empêchera mécaniquement de pousser sur `main`. Voir [D6](docs/DECISIONS.md#d6--hébergement-du-dépôt--github-privé).
 
 ```bash
 git switch -c feat/effect-resolver
