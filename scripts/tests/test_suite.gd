@@ -7,6 +7,9 @@ extends RefCounted
 ## une règle enfreinte devient un test rouge, pas une découverte en jeu.
 
 var echecs: int = 0
+## Nombre de vérifications réellement exécutées. Le lanceur s'en sert pour
+## détecter une suite interrompue en cours de route.
+var executees: int = 0
 
 
 func nom() -> String:
@@ -18,6 +21,7 @@ func execute() -> void:
 
 
 func verifie(libelle: String, condition: bool, detail: String = "") -> void:
+	executees += 1
 	if condition:
 		print("  ✓ %s" % libelle)
 	else:

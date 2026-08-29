@@ -36,46 +36,32 @@ func _check_ombre_commune() -> void:
 		ombres[0] != p.mur.darkened(0.5))
 
 
-## Règle 4 : le trait existe là où il sert, et pas ailleurs.
+## Règle 4 : le trait est tracé une fois, en espace écran.
+##
+## Plus aucune coque sur les objets : sur des boîtes, chaque face se dilatait
+## selon sa propre normale et le contour se déchirait aux arêtes. La hiérarchie
+## du regard passe désormais par le contraste de matière.
 func _check_traits() -> void:
 	var p: Palette = Content.palette
-	# Tout est cerné, mais la hiérarchie du trait doit tenir : c'est elle qui
-	# hiérarchise le regard. Un mur aussi dessiné qu'un monstre noierait le
-	# monstre dans le décor.
-	var epaisseurs: Dictionary = {}
+
+	for role: int in [MaterialLibrary.Role.DECOR, MaterialLibrary.Role.OBJET,
+			MaterialLibrary.Role.INTERACTIF, MaterialLibrary.Role.CREATURE]:
+		verifie("aucune coque de contour sur les matériaux (rôle %d)" % role,
+			MaterialLibrary.aplat(p.mur, role).next_pass == null)
+
+	# Ce qui compte se détache par un albédo plus clair, sans ligne en plus.
+	var clartes: Array[float] = []
 	for role: int in [MaterialLibrary.Role.DECOR, MaterialLibrary.Role.OBJET,
 			MaterialLibrary.Role.INTERACTIF, MaterialLibrary.Role.CREATURE]:
 		var mat := MaterialLibrary.aplat(p.mur, role)
-		var trace := (mat.next_pass as ShaderMaterial).next_pass as ShaderMaterial
-		epaisseurs[role] = float(trace.get_shader_parameter("epaisseur"))
+		clartes.append((mat.get_shader_parameter("albedo") as Color).v)
 
-	verifie("tout est cerné, décor compris", epaisseurs.size() == 4)
-	verifie("un objet est plus dessiné qu'un mur",
-		epaisseurs[MaterialLibrary.Role.OBJET] > epaisseurs[MaterialLibrary.Role.DECOR])
-	verifie("un interactif est plus dessiné qu'un objet",
-		epaisseurs[MaterialLibrary.Role.INTERACTIF] > epaisseurs[MaterialLibrary.Role.OBJET])
-	verifie("une créature est la plus dessinée de toutes",
-		epaisseurs[MaterialLibrary.Role.CREATURE] > epaisseurs[MaterialLibrary.Role.INTERACTIF])
-
-	var bestiole := MaterialLibrary.aplat(p.creature_commune,
-		MaterialLibrary.Role.CREATURE)
-	var clair := bestiole.next_pass as ShaderMaterial
-	verifie("une créature porte un liseré clair", clair != null)
-	if clair == null:
-		return
-	var encre := clair.next_pass as ShaderMaterial
-	verifie("puis un trait d'encre par-dessus", encre != null)
-	if encre == null:
-		return
-
-	verifie("l'encre est plus épaisse que le liseré, sinon elle le masquerait",
-		float(encre.get_shader_parameter("epaisseur"))
-			> float(clair.get_shader_parameter("epaisseur")))
-	verifie("le liseré prend la couleur claire de la palette",
-		clair.get_shader_parameter("couleur") == p.lisere_blanc)
-	verifie("l'encre prend celle de la palette",
-		encre.get_shader_parameter("couleur") == p.encre)
-
+	var croissant: bool = true
+	for i: int in clartes.size() - 1:
+		if clartes[i + 1] <= clartes[i]:
+			croissant = false
+	verifie("décor, objet, interactif, créature : contraste croissant",
+		croissant, str(clartes))
 
 
 ## Règle 5 : la palette est fermée et le décor reste sourd.
@@ -109,6 +95,12 @@ func _check_trame() -> void:
 	var p: Palette = Content.palette
 	verifie("la trame reste fine — au-delà de 4, la vue subjective devient illisible",
 		p.pixel_taille <= 4.0, "%.1f" % p.pixel_taille)
+	verifie("le contour est tracé", p.contour_epaisseur > 0.0)
+	verifie("son seuil laisse passer les vraies ruptures sans souligner le bruit",
+		p.contour_seuil > 0.02 and p.contour_seuil < 0.3,
+		"%.3f" % p.contour_seuil)
+	verifie("le filtre de couleur est un mode connu",
+		p.filtre >= 0 and p.filtre <= 4, "mode %d" % p.filtre)
 
 	var post := PostProcess.cree(p)
 	verifie("la trame est dessinée avant le HUD", post.layer < 0,

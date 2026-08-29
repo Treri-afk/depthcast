@@ -13,17 +13,17 @@ const LIGNE_CLAIRE := preload("res://shaders/ligne_claire.gdshader")
 const CONTOUR := preload("res://shaders/contour.gdshader")
 const DISSOLUTION := preload("res://shaders/dissolution.gdshader")
 
-## Le rôle décide de l'épaisseur du trait. Tout est cerné — le décor aussi —
-## mais pas au même poids : la hiérarchie du trait est ce qui hiérarchise le
-## regard. Une créature doit rester plus dessinée qu'un mur, sinon un couloir
-## meublé devient un enchevêtrement de lignes de même valeur.
+## Le rôle ne pilote plus le trait — celui-ci est tracé en espace écran par le
+## post-traitement, d'un seul poids et sans déchirure. Il reste utile pour
+## nuancer la matière : une créature est légèrement plus contrastée qu'un mur,
+## ce qui la fait ressortir sans ajouter de ligne.
 enum Role { DECOR, OBJET, CREATURE, INTERACTIF }
 
-const _TRAIT: Dictionary = {
-	Role.DECOR:      {"encre": 0.030, "lisere": 0.010},
-	Role.OBJET:      {"encre": 0.042, "lisere": 0.017},
-	Role.CREATURE:   {"encre": 0.070, "lisere": 0.030},
-	Role.INTERACTIF: {"encre": 0.055, "lisere": 0.024},
+const _CONTRASTE: Dictionary = {
+	Role.DECOR:      0.00,
+	Role.OBJET:      0.04,
+	Role.INTERACTIF: 0.08,
+	Role.CREATURE:   0.12,
 }
 
 
@@ -35,17 +35,10 @@ static func palette() -> Palette:
 static func aplat(couleur: Color, role: Role = Role.DECOR) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = LIGNE_CLAIRE
-	_applique_regles(mat, couleur)
-
-	# « trait » est un mot réservé de GDScript : on nomme la variable autrement.
-	var reglage: Dictionary = _TRAIT[role]
-	var encre: float = float(reglage["encre"])
-	if encre > 0.0:
-		# Ordre : liseré clair d'abord, encre par-dessus. La coque d'encre est
-		# la plus épaisse, donc elle encadre la claire.
-		var clair := coque(float(reglage["lisere"]), palette().lisere_blanc)
-		clair.next_pass = coque(encre, palette().encre)
-		mat.next_pass = clair
+	# Un rien plus lumineux pour ce qui compte : la hiérarchie passe par le
+	# contraste plutôt que par l'épaisseur d'un trait.
+	var gain: float = float(_CONTRASTE[role])
+	_applique_regles(mat, couleur.lightened(gain))
 	return mat
 
 

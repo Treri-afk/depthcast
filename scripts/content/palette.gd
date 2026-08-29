@@ -22,12 +22,25 @@ extends Resource
 ## deux objets voisins deviennent indiscernables dans le noir d'un donjon.
 @export_range(0.0, 0.5, 0.01) var melange_ombre: float = 0.18
 
-@export_group("Trame pixel")
-## Côté d'un bloc en pixels d'écran. 2 est perceptible, 4 est un parti pris.
+@export_group("Post-traitement")
+## Côté d'un bloc en pixels d'écran. 2 accroche discrètement, 4 est un parti pris.
 @export_range(1.0, 8.0, 0.5) var pixel_taille: float = 2.0
-## Quantification des couleurs. 0 la désactive ; elle prolonge la règle des
-## deux valeurs en réduisant encore le nombre de niveaux.
-@export_range(0, 64, 1) var pixel_niveaux_couleur: int = 0
+## Épaisseur du contour, en blocs de trame. Le trait suit donc la grille.
+@export_range(0.0, 6.0, 0.25) var contour_epaisseur: float = 2.0
+## Écart de luminance à partir duquel on trace. Bas = trait partout, y compris
+## dans le bruit ; haut = seules les vraies ruptures sont soulignées.
+@export_range(0.01, 0.6, 0.005) var contour_seuil: float = 0.085
+
+@export_group("Filtre de couleur")
+## Aucun, Négatif, Monochrome, Duotone, Teinté. Un seul réglage pour changer
+## complètement l'ambiance sans toucher à une seule couleur du jeu.
+@export_enum("Aucun", "Négatif", "Monochrome", "Duotone", "Teinté")
+var filtre: int = 0
+## Couleur des hautes lumières en duotone, ou teinte multipliée en mode Teinté.
+@export var filtre_teinte: Color = Color(0.45, 0.62, 1.0)
+## Couleur des ombres en duotone.
+@export var filtre_ombre: Color = Color(0.06, 0.05, 0.12)
+@export_range(0.0, 1.0, 0.05) var filtre_force: float = 1.0
 
 @export_group("Décor")
 @export var fond: Color = Color(0.11, 0.11, 0.17)

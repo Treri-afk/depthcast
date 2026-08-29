@@ -1,6 +1,6 @@
 class_name PostProcess
 extends CanvasLayer
-## Le passage plein écran de la trame pixel.
+## Le passage plein écran : trame pixel, contour et filtre de couleur.
 ##
 ## Posé sur un calque NÉGATIF : il est donc dessiné avant le HUD, qui reste net.
 ## Pixelliser du texte le rendrait illisible sans rien apporter au style.
@@ -18,7 +18,13 @@ static func cree(palette: Palette) -> PostProcess:
 	var mat := ShaderMaterial.new()
 	mat.shader = PIXEL
 	mat.set_shader_parameter("taille_bloc", palette.pixel_taille)
-	mat.set_shader_parameter("niveaux_couleur", palette.pixel_niveaux_couleur)
+	mat.set_shader_parameter("contour_couleur", palette.encre)
+	mat.set_shader_parameter("contour_epaisseur", palette.contour_epaisseur)
+	mat.set_shader_parameter("contour_seuil", palette.contour_seuil)
+	mat.set_shader_parameter("filtre", palette.filtre)
+	mat.set_shader_parameter("filtre_teinte", palette.filtre_teinte)
+	mat.set_shader_parameter("filtre_ombre", palette.filtre_ombre)
+	mat.set_shader_parameter("filtre_force", palette.filtre_force)
 
 	var voile := ColorRect.new()
 	voile.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
