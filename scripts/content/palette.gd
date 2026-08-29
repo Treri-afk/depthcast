@@ -33,7 +33,6 @@ extends Resource
 ## Rupture de profondeur qui déclenche un trait. C'est ce qui souligne les
 ## arêtes de géométrie, invisibles à la luminance quand deux surfaces voisines
 ## sont éclairées pareil.
-@export_range(0.0005, 0.05, 0.0005) var contour_seuil_profondeur: float = 0.006
 
 ## Bruit fixe posé sur l'image. Il ne bouge jamais : un grain animé fait du
 ## bruit vidéo, un grain fixe fait du papier.
@@ -67,12 +66,16 @@ var filtre: int = 0
 @export_range(0.0, 1.0, 0.05) var filtre_force: float = 1.0
 
 @export_group("Décor")
+## Les valeurs sont volontairement ÉCARTÉES les unes des autres. Le contour se
+## détecte sur la luminance : deux surfaces adjacentes de valeur voisine ne
+## produisent aucun trait, et leur jonction disparaît. L'écart de valeur n'est
+## donc pas un choix esthétique ici, c'est ce qui rend la géométrie lisible.
 @export var fond: Color = Color(0.11, 0.11, 0.17)
-@export var sol: Color = Color(0.62, 0.61, 0.66)
-@export var sol_couloir: Color = Color(0.52, 0.51, 0.57)
-@export var mur: Color = Color(0.40, 0.40, 0.47)
-@export var mur_couloir: Color = Color(0.34, 0.34, 0.41)
-@export var pilier: Color = Color(0.46, 0.45, 0.52)
+@export var sol: Color = Color(0.66, 0.65, 0.71)
+@export var sol_couloir: Color = Color(0.56, 0.55, 0.62)
+@export var mur: Color = Color(0.34, 0.34, 0.42)
+@export var mur_couloir: Color = Color(0.27, 0.27, 0.34)
+@export var pilier: Color = Color(0.48, 0.47, 0.55)
 @export var estrade: Color = Color(0.56, 0.55, 0.61)
 @export var rampe: Color = Color(0.50, 0.49, 0.56)
 

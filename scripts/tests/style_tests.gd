@@ -100,6 +100,15 @@ func _check_trame() -> void:
 	verifie("son seuil laisse passer les vraies ruptures sans souligner le bruit",
 		p.contour_seuil > 0.02 and p.contour_seuil < 0.3,
 		"%.3f" % p.contour_seuil)
+
+	# Le contour ne voit que la luminance : si deux surfaces adjacentes ont la
+	# même valeur, leur jonction n'existe pas à l'écran. L'écart de valeur est
+	# donc une contrainte technique, pas un goût.
+	verifie("le sol et les murs ont des valeurs franchement distinctes",
+		absf(p.sol.v - p.mur.v) > 0.2, "écart %.2f" % absf(p.sol.v - p.mur.v))
+	verifie("idem dans les couloirs",
+		absf(p.sol_couloir.v - p.mur_couloir.v) > 0.2,
+		"écart %.2f" % absf(p.sol_couloir.v - p.mur_couloir.v))
 	verifie("le filtre de couleur est un mode connu",
 		p.filtre >= 0 and p.filtre <= 4, "mode %d" % p.filtre)
 

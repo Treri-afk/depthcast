@@ -10,6 +10,22 @@ render_mode unshaded, cull_disabled, depth_draw_never, depth_test_disabled, fog_
 
 // Post-traitement de la ligne claire : trame pixel, contour, filtre de couleur.
 //
+// ── DEUX APPROCHES ÉCARTÉES, ET POURQUOI ────────────────────────────────
+//
+// La PROFONDEUR a été essayée pour souligner les arêtes géométriques. Même
+// comparée à la moyenne des voisins opposés — ce qui annule la pente et ne
+// laisse en principe que les cassures — elle produisait de grands escaliers sur
+// les sols. La précision du tampon ne suffit pas sur une grande surface vue en
+// rasant : la quantification devient plus grande que la cassure qu'on cherche.
+//
+// Les NORMALES ont été essayées ensuite pour distinguer courbure et arête. Le
+// tampon revient quantifié lui aussi, et le comparer pixel à pixel amplifiait
+// cette quantification au lieu de mesurer une orientation.
+//
+// Reste la luminance seule. Elle ne voit pas une jonction entre deux surfaces
+// éclairées à l'identique — c'est sa limite, et on la compense en écartant les
+// valeurs de la palette plutôt qu'en ajoutant un tampon de plus.
+//
 // ── POURQUOI LE CONTOUR EST ICI ET PLUS SUR LES OBJETS ───────────────────
 // La coque inversée dilate chaque face selon sa propre normale. Sur des
 // boîtes — dont les arêtes sont dures — les faces voisines se séparent et le
@@ -23,7 +39,6 @@ render_mode unshaded, cull_disabled, depth_draw_never, depth_test_disabled, fog_
 // contours de formes ET sur la limite lumière/ombre.
 
 uniform sampler2D ecran : hint_screen_texture, filter_nearest, repeat_disable;
-uniform sampler2D profondeur : hint_depth_texture, filter_nearest, repeat_disable;
 
 group_uniforms Trame;
 // Côté d'un bloc en pixels d'écran. 2 accroche discrètement, 4 est un parti pris.
@@ -36,10 +51,6 @@ uniform float contour_epaisseur : hint_range(0.0, 6.0) = 2.0;
 // Écart de luminance à partir duquel on trace. Bas = trait partout, y compris
 // dans le bruit ; haut = seules les vraies ruptures sont soulignées.
 uniform float contour_seuil : hint_range(0.01, 0.6) = 0.085;
-// Rupture de profondeur RELATIVE à partir de laquelle on trace. La profondeur
-// brute n'est pas linéaire : comparer un écart absolu tracerait tout au premier
-// plan et rien au fond. Un rapport reste juste à toute distance.
-uniform float contour_seuil_profondeur : hint_range(0.0005, 0.05) = 0.004;
 
 group_uniforms Grain;
 // GRAIN DE PAPIER.
@@ -78,36 +89,6 @@ float luminance(vec3 c) {
 // d'un demi-bloc et le contour se décale d'autant.
 vec2 accroche(vec2 uv, vec2 grille) {
 	return (floor(uv * grille) + 0.5) / grille;
-}
-
-
-// Arête géométrique : une VRAIE rupture, pas une surface vue en rasant.
-//
-// Chaque pixel est comparé à la MOYENNE de ses deux voisins opposés. Sur une
-// surface plane, même très inclinée, la profondeur varie linéairement et cette
-// moyenne retombe pile sur la valeur du centre : l'écart s'annule. Il ne
-// subsiste qu'à une vraie discontinuité.
-//
-// Une tentative de raffinement par les normales a été retirée : le tampon de
-// normales revient quantifié, et le comparer pixel à pixel produisait de larges
-// escaliers sur les grandes surfaces — bien pire que le défaut qu'il corrigeait.
-// Le seuil de profondeur, relevé, suffit à épargner les objets ronds.
-float rupture_profondeur(vec2 uv_centre, vec2 pas, vec2 grille) {
-	float d0 = texture(profondeur, uv_centre).r;
-	if (d0 <= 0.0) {
-		return 0.0;
-	}
-
-	float gauche = texture(profondeur, accroche(uv_centre - vec2(pas.x, 0.0), grille)).r;
-	float droite = texture(profondeur, accroche(uv_centre + vec2(pas.x, 0.0), grille)).r;
-	float haut = texture(profondeur, accroche(uv_centre - vec2(0.0, pas.y), grille)).r;
-	float bas = texture(profondeur, accroche(uv_centre + vec2(0.0, pas.y), grille)).r;
-
-	// Dérivée seconde : la pente s'annule, seule la cassure subsiste.
-	float ecart_x = abs((gauche + droite) * 0.5 - d0);
-	float ecart_y = abs((haut + bas) * 0.5 - d0);
-
-	return max(ecart_x, ecart_y) / max(d0, 0.00001);
 }
 
 
@@ -155,15 +136,7 @@ void fragment() {
 		float gy = (bg + 2.0 * b + bd) - (hg + 2.0 * h + hd);
 		float force = sqrt(gx * gx + gy * gy);
 
-		float trace_lumiere = smoothstep(contour_seuil, contour_seuil * 2.2, force);
-
-		float rupture = rupture_profondeur(uv, pas, grille);
-		float trace_forme = smoothstep(contour_seuil_profondeur,
-			contour_seuil_profondeur * 2.5, rupture);
-
-		// Le plus fort des deux : la luminance attrape la limite lumière/ombre
-		// et les changements de matière, la profondeur attrape la géométrie.
-		float trace = max(trace_lumiere, trace_forme);
+		float trace = smoothstep(contour_seuil, contour_seuil * 2.2, force);
 		couleur = mix(couleur, contour_couleur.rgb, trace * contour_couleur.a);
 	}
 
