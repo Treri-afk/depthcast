@@ -21,6 +21,12 @@ var aveugle: bool = false
 var stats: MonsterStats = null
 
 var _cerveau: MonsterBrain
+## L'attention aux menaces du décor. Séparée du cerveau : l'un décide comment
+## attaquer, l'autre quand arrêter.
+var _vigilance: ThreatSense
+## La bulle au-dessus de la tête. Créée quand il y a quelque chose à montrer,
+## libérée dès qu'il n'y a plus rien.
+var _emote: Emote = null
 var _impulsion: Vector3 = Vector3.ZERO
 var _facteur_vitesse: float = 1.0
 var _ralenti_restant: float = 0.0
@@ -51,6 +57,10 @@ func _ready() -> void:
 	_cerveau.veut_tirer.connect(_tire)
 	_cerveau.engage_l_attaque.connect(_signale_attaque)
 
+	_vigilance = ThreatSense.new(stats, Content.tuning.vigilance_duree_de_fuite)
+	_vigilance.remarque.connect(_sur_alerte)
+	EventBus.explosion_armed.connect(_sur_meche_allumee)
+
 
 ## Point d'extension : un boss redéfinit cette méthode pour installer le sien.
 func _cree_cerveau() -> MonsterBrain:
@@ -66,8 +76,16 @@ func _physics_process(delta: float) -> void:
 	_impulsion = _impulsion.move_toward(Vector3.ZERO, AMORTISSEMENT * delta)
 
 	var deplacement := Vector3.ZERO
-	if cible != null and not aveugle:
+	var fuite: Vector3 = _vigilance.avance(delta, global_position)
+	if fuite != Vector3.ZERO:
+		# Fuir REMPLACE la décision du cerveau. Sans ça, la créature s'écarterait
+		# du tonneau tout en continuant d'orbiter autour du joueur, et on ne
+		# lirait ni l'un ni l'autre.
+		deplacement = fuite * stats.vitesse * _facteur_vitesse \
+			* Content.tuning.vigilance_vitesse_de_fuite
+	elif cible != null and not aveugle:
 		deplacement = _cerveau.decide(delta, global_position, cible, _facteur_vitesse)
+	_maj_emote()
 
 	velocity.x = deplacement.x + _impulsion.x
 	velocity.z = deplacement.z + _impulsion.z
@@ -91,6 +109,39 @@ func _maj_vertical(delta: float) -> void:
 	var voulue: float = stats.hauteur_vol \
 		+ sin(float(Time.get_ticks_msec()) * 0.002 + float(monster_id)) * 0.35
 	velocity.y = (voulue - global_position.y) * 3.0
+
+
+# ── Vigilance ─────────────────────────────────────────────────────────────
+
+func _sur_meche_allumee(origine: Vector3, rayon: float, _delai: float) -> void:
+	_vigilance.signale(origine, rayon, global_position)
+
+
+## Le moment où la créature comprend. Le sursaut de l'émote et l'interruption de
+## l'assaut sont la même chose vue de deux endroits : elle lâche ce qu'elle
+## faisait.
+func _sur_alerte() -> void:
+	if _emote != null:
+		_emote.eclate()
+	if _cerveau != null:
+		_cerveau.interrompt_l_assaut()
+
+
+func _maj_emote() -> void:
+	if not _vigilance.attentif():
+		if _emote != null:
+			_emote.efface()
+			_emote = null
+		return
+
+	if _emote == null:
+		var parent: Node = get_parent()
+		if parent == null:
+			return
+		_emote = Emote.cree(Emote.Genre.SURPRISE, self,
+			Vector3(0, stats.taille.y * 0.5 + 0.7, 0))
+		parent.add_child(_emote)
+	_emote.remplissage = _vigilance.progression()
 
 
 ## Un monstre qui traverse une caisse sans la bouger casse l'illusion.
@@ -214,6 +265,9 @@ func _teinte_shader(couleur: Color, force: float) -> void:
 ## ni bouger, ni bloquer, ni être ciblé.
 func meurt_en_se_dissolvant() -> void:
 	set_physics_process(false)
+	if _emote != null:
+		_emote.efface()
+		_emote = null
 	for enfant: Node in get_children():
 		if enfant is CollisionShape3D:
 			(enfant as CollisionShape3D).disabled = true

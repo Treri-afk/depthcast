@@ -100,6 +100,12 @@ var filtre: int = 0
 @export var chapeau_marchand: Color = Color(0.42, 0.33, 0.62)
 @export var portail: Color = Color(0.45, 0.72, 1.0)
 
+@export_group("Émotes")
+## Le signe de surprise au-dessus d'une créature qui vient de comprendre.
+## Volontairement hors de toute autre gamme du jeu : une émote doit se lire
+## avant d'être regardée.
+@export var emote_surprise: Color = Color(0.98, 0.83, 0.25)
+
 @export_group("Créatures")
 @export var creature_commune: Color = Color(0.84, 0.36, 0.40)
 @export var creature_lourde: Color = Color(0.66, 0.25, 0.24)

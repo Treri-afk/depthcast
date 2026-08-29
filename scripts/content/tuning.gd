@@ -70,10 +70,12 @@ extends Resource
 ## la chaîne se propage jusqu'à environ cinq mètres — assez pour qu'une rangée
 ## parte, trop peu pour qu'une salle entière saute d'un seul tir.
 @export var tonneau_degats_decor: int = 80
-## Longueur de la mèche. Courte mais JAMAIS nulle : sans elle une rangée part en
-## une seule frame et on ne voit qu'un flash. Avec elle la chaîne se lit, et on
-## a le temps de courir.
-@export_range(0.05, 2.0, 0.05) var tonneau_meche: float = 0.4
+## Longueur de la mèche. Elle doit dépasser le temps de réaction des créatures
+## (MonsterStats.temps_de_reaction), sinon le tonneau saute avant que personne
+## ait eu le temps de le remarquer et toute la vigilance ne sert à rien.
+## Jamais nulle non plus : sans mèche une rangée part en une frame et on ne voit
+## qu'un flash.
+@export_range(0.05, 3.0, 0.05) var tonneau_meche: float = 0.9
 
 ## La braise laissée au sol après l'explosion. Ce n'est pas une décoration :
 ## elle brûle, comme un sol ardent, et elle ne demande pas qui a allumé le feu.
@@ -83,6 +85,15 @@ extends Resource
 @export_range(0.0, 15.0, 0.5) var tonneau_braise_duree: float = 4.0
 @export_range(0.1, 3.0, 0.1) var tonneau_braise_intervalle: float = 0.6
 @export var tonneau_braise_degats: int = 5
+
+@export_group("Vigilance")
+## Combien de temps une créature s'écarte, une fois qu'elle a compris. Assez
+## pour la voir détaler, trop peu pour qu'elle sorte du rayon — fuir doit
+## améliorer ses chances, pas la sauver.
+@export_range(0.1, 6.0, 0.1) var vigilance_duree_de_fuite: float = 1.4
+## Vitesse de fuite, en multiple de la vitesse normale. La panique va plus vite
+## que la marche.
+@export_range(0.5, 3.0, 0.05) var vigilance_vitesse_de_fuite: float = 1.25
 
 @export_group("Souffle et projection")
 ## Part de la puissance d'un souffle qui s'applique au joueur. À zéro, les

@@ -48,6 +48,10 @@ signal player_slammed(player_id: int, vitesse: float)
 # ── Décor ─────────────────────────────────────────────────────────────────
 ## Une explosion vient de partir — un tonneau aujourd'hui, un piège demain. Le
 ## son écoute ; rien d'autre n'a besoin de savoir d'où elle venait.
+## Une mèche vient de s'allumer. Les créatures écoutent et décident si ça les
+## regarde. On annonce une POSITION et pas un objet : le bus reste sérialisable,
+## donc franchissable par le réseau le jour venu (R8).
+signal explosion_armed(origine: Vector3, rayon: float, delai: float)
 signal explosion_triggered(origine: Vector3, puissance: float)
 
 # ── Monstres ──────────────────────────────────────────────────────────────

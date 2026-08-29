@@ -15,6 +15,7 @@ func execute() -> void:
 	_check_souffle()
 	_check_mobilier()
 	_check_tonneaux()
+	_check_vigilance()
 	_check_postes()
 	_check_reglages()
 
@@ -102,13 +103,76 @@ func _check_tonneaux() -> void:
 	verifie("et elle reste courte", t.tonneau_meche <= 1.0)
 	verifie("le rayon dépasse largement la taille du tonneau", t.tonneau_rayon > 2.0)
 
+	# Le câblage Tuning → tonneau. C'est ce qui casse en silence le jour où l'on
+	# règle une valeur dans l'inspecteur sans qu'elle arrive jusqu'au baril.
 	var explosif := baril as ExplosiveProp
-	explosif.amorce()
-	explosif.amorce()
-	verifie("amorcer deux fois n'allume qu'une mèche", true)
+	verifie("son rayon vient du Tuning", is_equal_approx(explosif.rayon, t.tonneau_rayon))
+	verifie("sa puissance aussi",
+		is_equal_approx(explosif.puissance, t.tonneau_puissance))
+	verifie("ses dégâts aussi", explosif.degats == t.tonneau_degats)
+	verifie("sa mèche aussi", is_equal_approx(explosif.meche, t.tonneau_meche))
 
 	baril.free()
 	ordinaire.free()
+
+
+func _check_vigilance() -> void:
+	print("Vigilance — remarquer une mèche et s'en écarter")
+
+	var t: Tuning = Content.tuning
+	var rodeur: MonsterStats = Content.monstre(&"rodeur")
+	var brute: MonsterStats = Content.monstre(&"brute")
+
+	# LA condition qui rend toute la mécanique possible. Si la mèche est plus
+	# courte que le temps de réaction, le tonneau saute avant que personne ait
+	# eu le temps de le remarquer, et la vigilance ne sert strictement à rien.
+	verifie("la mèche dure plus longtemps que le temps de réaction",
+		t.tonneau_meche > rodeur.temps_de_reaction,
+		"%.2f s contre %.2f s" % [t.tonneau_meche, rodeur.temps_de_reaction])
+
+	# Fuir doit améliorer ses chances, pas la sauver : sinon les tonneaux ne
+	# tuent plus rien et deviennent décoratifs.
+	var course: float = rodeur.vitesse * t.vigilance_vitesse_de_fuite \
+		* (t.tonneau_meche - rodeur.temps_de_reaction)
+	verifie("mais pas assez pour sortir du rayon", course < t.tonneau_rayon,
+		"%.1f m parcourus pour un rayon de %.1f" % [course, t.tonneau_rayon])
+
+	var peureux := ThreatSense.new(rodeur, t.vigilance_duree_de_fuite)
+	var pos := Vector3(2, 0, 0)
+	peureux.signale(Vector3.ZERO, 6.0, pos)
+	verifie("un rôdeur remarque une mèche proche",
+		peureux.etat == ThreatSense.Etat.REMARQUE)
+
+	var brave := ThreatSense.new(brute, t.vigilance_duree_de_fuite)
+	brave.signale(Vector3.ZERO, 6.0, pos)
+	verifie("une brute ne recule devant rien", brave.etat == ThreatSense.Etat.CALME)
+
+	var sourd := ThreatSense.new(rodeur, t.vigilance_duree_de_fuite)
+	sourd.signale(Vector3.ZERO, 6.0, Vector3(30, 0, 0))
+	verifie("une mèche hors de portée ne regarde personne",
+		sourd.etat == ThreatSense.Etat.CALME)
+
+	var compris: Array[bool] = [false]
+	peureux.remarque.connect(func() -> void: compris[0] = true)
+
+	# À mi-parcours : l'attention est visible, mais rien n'a encore bougé. C'est
+	# précisément la fenêtre laissée au joueur.
+	peureux.avance(rodeur.temps_de_reaction * 0.5, pos)
+	verifie("l'attention se voit avant d'être pleine",
+		peureux.progression() > 0.2 and peureux.progression() < 0.9,
+		"%.2f" % peureux.progression())
+	verifie("et la créature n'a pas encore réagi",
+		not compris[0] and peureux.etat == ThreatSense.Etat.REMARQUE)
+
+	peureux.avance(rodeur.temps_de_reaction, pos)
+	verifie("elle finit par comprendre", compris[0])
+	var direction: Vector3 = peureux.avance(0.05, pos)
+	verifie("puis s'écarte de la menace, pas d'autre chose",
+		direction.is_equal_approx(Vector3.RIGHT), str(direction))
+
+	peureux.avance(t.vigilance_duree_de_fuite + 0.1, pos)
+	verifie("et se calme une fois le danger passé",
+		peureux.etat == ThreatSense.Etat.CALME)
 
 
 func _check_postes() -> void:

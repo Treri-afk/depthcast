@@ -44,6 +44,9 @@ func amorce() -> void:
 	if _meche_restante >= 0.0:
 		return
 	_meche_restante = meche
+	# Annoncé au monde : les créatures qui craignent les explosions ont
+	# maintenant le temps de la mèche pour s'en écarter.
+	EventBus.explosion_armed.emit(global_position, rayon, meche)
 	# Une lampe qui monte : la mèche s'entend mal dans un donjon, elle doit se
 	# voir. C'est aussi ce qui éclaire la zone d'où il faut sortir.
 	_lampe = OmniLight3D.new()

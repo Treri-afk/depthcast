@@ -29,6 +29,17 @@ extends Resource
 @export var duree_assaut: float = 0.45
 @export var duree_repli: float = 0.7
 
+@export_group("Vigilance")
+## La créature remarque une mèche allumée et s'en écarte.
+##
+## Désactivable par espèce, et c'est le sujet : une brute qui ne recule devant
+## rien se caractérise mieux par ce qu'elle IGNORE que par ses points de vie.
+@export var peur_des_explosions: bool = true
+## Temps qu'il lui faut pour comprendre. Ce délai n'est pas une concession au
+## joueur, c'est ce qui rend la réaction lisible — et ce qui distingue une bête
+## qui sursaute d'une machine qui sait.
+@export_range(0.05, 3.0, 0.05) var temps_de_reaction: float = 0.35
+
 @export_group("Vol")
 @export var vole: bool = false
 @export var hauteur_vol: float = 3.4

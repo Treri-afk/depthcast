@@ -20,3 +20,4 @@ distance_garde = 8.0
 delai_assaut = 2.2
 duree_assaut = 0.55
 duree_repli = 0.5
+peur_des_explosions = false
