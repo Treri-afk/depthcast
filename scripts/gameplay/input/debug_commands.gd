@@ -6,10 +6,14 @@ extends RefCounted
 ## Ils existent pour une raison précise — tester la boucle complète, notamment
 ## l'achat d'écoles au hub, sans devoir nettoyer chaque étage à la main.
 
-const SAUTER_ETAGE := KEY_F9
-const DONNER_RESONANCE := KEY_F10
-const DONNER_ECLATS := KEY_F11
-const TUER_LE_JOUEUR := KEY_F12
+# Des lettres et non des touches de fonction : sur macOS, F1 à F12 sont
+# captées par le système (Mission Control, luminosité) avant d'atteindre le jeu.
+# Ces quatre-là ne servent à rien d'autre et sont loin des touches de
+# déplacement, donc pas d'appui accidentel en plein combat.
+const SAUTER_ETAGE := KEY_P
+const DONNER_RESONANCE := KEY_O
+const DONNER_ECLATS := KEY_I
+const TUER_LE_JOUEUR := KEY_M
 
 const RESONANCE_DONNEE: int = 150
 const ECLATS_DONNES: int = 300
@@ -50,5 +54,5 @@ func traite(touche: InputEventKey) -> bool:
 func aide() -> String:
 	if not actif():
 		return ""
-	return ("[color=#7fd0ff]F9 sauter l'étage · F10 +Résonance · "
-		+ "F11 +Éclats · F12 mourir[/color]")
+	return ("[color=#7fd0ff][b]Debug[/b]  P sauter l'étage · O +Résonance\n"
+		+ "I +Éclats · M mourir[/color]")
