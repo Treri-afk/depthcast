@@ -64,6 +64,24 @@ static func sort_intents(a: EffectIntent, b: EffectIntent) -> bool:
 	return false
 
 
+## Reconstruit une intention reçue du réseau. Le pendant exact de `to_dict()` :
+## si l'un des deux oublie un champ, l'effet arrive amputé chez le host et
+## personne ne comprend pourquoi le sort fait moins mal en ligne.
+static func from_dict(d: Dictionary) -> EffectIntent:
+	var i := EffectIntent.new()
+	i.source_player_id = int(d.get("source_player_id", 0))
+	i.source_slot = int(d.get("source_slot", -1))
+	i.kind = int(d.get("kind", 0)) as Kind
+	i.effect_id = StringName(d.get("effect_id", ""))
+	i.amount = float(d.get("amount", 0.0))
+	i.target_ids = PackedInt64Array(d.get("target_ids", []))
+	i.target_monsters = PackedInt64Array(d.get("target_monsters", []))
+	var o: Array = d.get("origine", [0.0, 0.0, 0.0])
+	i.origine = Vector3(o[0], o[1], o[2])
+	i.payload = d.get("payload", {})
+	return i
+
+
 func to_dict() -> Dictionary:
 	return {
 		"source_player_id": source_player_id,

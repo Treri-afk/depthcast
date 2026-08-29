@@ -120,6 +120,14 @@ func _physics_process(delta: float) -> void:
 		deplacement = _cerveau.decide(delta, global_position, cible, _facteur_vitesse)
 	_maj_emote()
 
+	# Chez un client, le corps vient du réseau et personne ne simule ici. Deux
+	# machines qui feraient tourner chacune leur intelligence divergeraient en
+	# quelques secondes, et les joueurs tireraient sur des créatures qui ne sont
+	# pas là. Tout ce qui précède reste calculé : ce n'est que de la
+	# présentation, et elle doit vivre chez chacun.
+	if Net.en_ligne() and not Net.est_host():
+		return
+
 	velocity.x = deplacement.x + _impulsion.x
 	velocity.z = deplacement.z + _impulsion.z
 	_maj_vertical(delta)

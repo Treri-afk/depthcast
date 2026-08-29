@@ -408,6 +408,62 @@ Un test le garde.
 
 ---
 
+## D16 — Trois catégories, et une seule est répliquée
+*Décidé le 29 août 2026*
+
+Non, tout ne se réplique pas. Tout répliquer coûterait cher et donnerait un
+résultat **pire**. Trois catégories, et la frontière est nette.
+
+**AUTORITATIF.** L'état de jeu : points de vie, Résonance, monstres, sorts
+découverts, mobilier. Le host décide, les clients obéissent. La règle est
+simple — *tout ce sur quoi un joueur prend une décision doit être identique
+chez tout le monde*, sinon deux personnes jouent deux parties différentes en
+croyant jouer la même.
+
+**PRÉDIT.** Son propre corps. On bouge immédiatement chez soi et on annonce sa
+position. Attendre l'aller-retour du host rendrait le jeu injouable.
+
+**JAMAIS RÉPLIQUÉ.** Le ressenti : secousse de caméra, arrêt sur image, chiffres
+de dégâts, émotes, culbutes, sons. Chaque machine les joue pour elle. Les faire
+voyager coûterait de la bande passante pour un résultat pire — un arrêt sur
+image qui arrive avec quarante millisecondes de retard n'est plus un impact,
+c'est un hoquet.
+
+### L'état entier, pas des deltas
+
+`GameState` se sérialise déjà en entier (R1) — c'était l'une des raisons
+d'écrire cette règle. Le host diffuse la photo complète dix fois par seconde :
+quelques kilo-octets pour une poignée de monstres, et la convergence est
+garantie sans protocole à déboguer. Un jeu de deltas se paie en divergences
+silencieuses qu'on découvre trois semaines plus tard. Le jour où ce sera trop
+gros, ce sera mesurable et ciblé — pas avant.
+
+### Les évènements sont ré-émis sur le bus local
+
+Le host relaie `monster_damaged`, `monster_died` et `player_damaged` ; le client
+les ré-émet **à l'identique** sur son propre EventBus. Tout ce qui écoutait déjà
+— le son, les chiffres, l'arrêt sur image, la dissolution — fonctionne alors
+sans qu'une seule ligne d'interface sache qu'il y a un réseau.
+
+C'est le bénéfice direct de R5. Le bus n'avait pas été conçu pour le réseau, et
+il s'y branche sans être touché.
+
+### Les clients ne font pas tourner de cerveau
+
+Un monstre n'est simulé que chez le host. Ce n'est pas une optimisation : deux
+machines qui simulent chacune leur intelligence divergent en quelques secondes,
+et les joueurs se mettent à tirer sur des créatures qui ne sont pas là.
+
+Un client ne modifie jamais l'état : il soumet une intention, le host arbitre,
+le résultat revient. Appliquer aussi en local donnerait deux vérités, et la
+photo du host écraserait la sienne un dixième de seconde plus tard — ce qui se
+voit à l'écran comme des dégâts qui « reviennent ».
+
+**Mesuré** : dix monstres, positions et points de vie identiques des deux côtés,
+sans une erreur.
+
+---
+
 ## Q1 — Le multiplicateur cumulatif de verrous : par joueur ou par équipe ?
 *Ouverte depuis le 27 août 2026 — conséquence directe de D3*
 

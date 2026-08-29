@@ -22,6 +22,14 @@ var _sequence: int = 0
 
 ## Soumet une intention. Ne modifie RIEN — elle attend la résolution du tick.
 func submit(intent: EffectIntent) -> void:
+	# R8 : seul le host résout. Un client décrit ce qu'il voudrait faire et
+	# l'envoie ; le résultat lui revient par la réplication. Appliquer aussi en
+	# local donnerait deux vérités, et la photo du host écraserait la sienne un
+	# dixième de seconde plus tard — ce qui se voit comme des dégâts qui
+	# « reviennent ».
+	if Net.en_ligne() and not Net.est_host():
+		Repl.soumets(intent)
+		return
 	intent.tick = _tick
 	intent.sequence = _sequence
 	_sequence += 1

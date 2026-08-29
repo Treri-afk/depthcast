@@ -84,6 +84,10 @@ func fait_apparaitre(stats: MonsterStats, pos: Vector3, cibles: Array,
 	var avatar: MonsterAvatar = BossAvatar.new() if stats is BossStats \
 		else MonsterAvatar.new()
 	avatar.monster_id = id
+	# Nommé d'après son identifiant, et pas laissé au hasard de Godot : un appel
+	# distant voyage par CHEMIN de nœud. Deux machines qui nommeraient leurs
+	# monstres différemment ne se parleraient tout simplement pas.
+	avatar.name = "Monstre%d" % id
 	# La liste, pas une cible : le monstre choisit lui-même le joueur vivant le
 	# plus proche, et rechoisit au fil du combat.
 	avatar.cibles.assign(cibles)
@@ -108,6 +112,7 @@ func fait_apparaitre(stats: MonsterStats, pos: Vector3, cibles: Array,
 	var hauteur: float = stats.hauteur_vol if stats.vole else stats.taille.y * 0.5 + 0.2
 	avatar.position = Vector3(pos.x, hauteur, pos.z)
 	avatar.veut_tirer.connect(_relaie_le_tir)
+	avatar.add_child(MonsterSync.cree(avatar))
 	_parent.add_child(avatar)
 	avatars[id] = avatar
 	return avatar

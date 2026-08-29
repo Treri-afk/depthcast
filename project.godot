@@ -25,6 +25,7 @@ RngService="*res://scripts/core/rng_service.gd"
 GameState="*res://scripts/core/game_state.gd"
 EffectResolver="*res://scripts/core/effect_resolver.gd"
 Net="*res://scripts/net/net_session.gd"
+Repl="*res://scripts/net/net_replication.gd"
 
 [display]
 
