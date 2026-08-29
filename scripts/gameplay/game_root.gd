@@ -29,6 +29,7 @@ var _debug := DebugCommands.new()
 func _ready() -> void:
 	InputActions.declare()
 	WorldLighting.installe(self)
+	add_child(PostProcess.cree(Content.palette))
 	_construit_les_conteneurs()
 	_construit_le_joueur()
 	_construit_le_hud()
@@ -99,6 +100,8 @@ func _construit_le_joueur() -> void:
 
 func _construit_le_hud() -> void:
 	var couche := CanvasLayer.new()
+	# Calque 0 : au-dessus de la trame pixel, qui vit en -1. Le texte reste net.
+	couche.layer = 0
 	add_child(couche)
 	_hud = GameHud.new()
 	_hud.joueur = _joueur

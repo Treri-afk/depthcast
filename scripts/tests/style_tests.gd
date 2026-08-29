@@ -15,6 +15,7 @@ func execute() -> void:
 	_check_ombre_commune()
 	_check_traits()
 	_check_palette()
+	_check_trame()
 
 
 ## Règle 2 : l'ombre est la même pour toute surface, jamais un albédo assombri.
@@ -38,9 +39,23 @@ func _check_ombre_commune() -> void:
 ## Règle 4 : le trait existe là où il sert, et pas ailleurs.
 func _check_traits() -> void:
 	var p: Palette = Content.palette
-	var decor := MaterialLibrary.aplat(p.mur, MaterialLibrary.Role.DECOR)
-	verifie("le décor n'est pas cerné — cent blocs soulignés font une bouillie",
-		decor.next_pass == null)
+	# Tout est cerné, mais la hiérarchie du trait doit tenir : c'est elle qui
+	# hiérarchise le regard. Un mur aussi dessiné qu'un monstre noierait le
+	# monstre dans le décor.
+	var epaisseurs: Dictionary = {}
+	for role: int in [MaterialLibrary.Role.DECOR, MaterialLibrary.Role.OBJET,
+			MaterialLibrary.Role.INTERACTIF, MaterialLibrary.Role.CREATURE]:
+		var mat := MaterialLibrary.aplat(p.mur, role)
+		var trace := (mat.next_pass as ShaderMaterial).next_pass as ShaderMaterial
+		epaisseurs[role] = float(trace.get_shader_parameter("epaisseur"))
+
+	verifie("tout est cerné, décor compris", epaisseurs.size() == 4)
+	verifie("un objet est plus dessiné qu'un mur",
+		epaisseurs[MaterialLibrary.Role.OBJET] > epaisseurs[MaterialLibrary.Role.DECOR])
+	verifie("un interactif est plus dessiné qu'un objet",
+		epaisseurs[MaterialLibrary.Role.INTERACTIF] > epaisseurs[MaterialLibrary.Role.OBJET])
+	verifie("une créature est la plus dessinée de toutes",
+		epaisseurs[MaterialLibrary.Role.CREATURE] > epaisseurs[MaterialLibrary.Role.INTERACTIF])
 
 	var bestiole := MaterialLibrary.aplat(p.creature_commune,
 		MaterialLibrary.Role.CREATURE)
@@ -61,11 +76,6 @@ func _check_traits() -> void:
 	verifie("l'encre prend celle de la palette",
 		encre.get_shader_parameter("couleur") == p.encre)
 
-	var objet := MaterialLibrary.aplat(p.caisse, MaterialLibrary.Role.OBJET)
-	var encre_objet := (objet.next_pass as ShaderMaterial).next_pass as ShaderMaterial
-	verifie("une créature est cernée plus fort qu'un objet",
-		float(encre.get_shader_parameter("epaisseur"))
-			> float(encre_objet.get_shader_parameter("epaisseur")))
 
 
 ## Règle 5 : la palette est fermée et le décor reste sourd.
@@ -92,3 +102,18 @@ func _check_palette() -> void:
 				ecarts_faibles.append("%s/%s" % [Content.ecoles[i].nom, Content.ecoles[j].nom])
 	verifie("deux écoles ne partagent pas la même teinte",
 		ecarts_faibles.is_empty(), str(ecarts_faibles))
+
+
+## La trame pixel doit rester fine, et surtout ne jamais recouvrir le HUD.
+func _check_trame() -> void:
+	var p: Palette = Content.palette
+	verifie("la trame reste fine — au-delà de 4, la vue subjective devient illisible",
+		p.pixel_taille <= 4.0, "%.1f" % p.pixel_taille)
+
+	var post := PostProcess.cree(p)
+	verifie("la trame est dessinée avant le HUD", post.layer < 0,
+		"calque %d" % post.layer)
+	var voile := post.get_child(0) as ColorRect
+	verifie("elle couvre tout l'écran et ne capte pas la souris",
+		voile != null and voile.mouse_filter == Control.MOUSE_FILTER_IGNORE)
+	post.free()

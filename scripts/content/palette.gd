@@ -22,6 +22,13 @@ extends Resource
 ## deux objets voisins deviennent indiscernables dans le noir d'un donjon.
 @export_range(0.0, 0.5, 0.01) var melange_ombre: float = 0.18
 
+@export_group("Trame pixel")
+## Côté d'un bloc en pixels d'écran. 2 est perceptible, 4 est un parti pris.
+@export_range(1.0, 8.0, 0.5) var pixel_taille: float = 2.0
+## Quantification des couleurs. 0 la désactive ; elle prolonge la règle des
+## deux valeurs en réduisant encore le nombre de niveaux.
+@export_range(0, 64, 1) var pixel_niveaux_couleur: int = 0
+
 @export_group("Décor")
 @export var fond: Color = Color(0.11, 0.11, 0.17)
 @export var sol: Color = Color(0.62, 0.61, 0.66)

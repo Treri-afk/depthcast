@@ -13,15 +13,17 @@ const LIGNE_CLAIRE := preload("res://shaders/ligne_claire.gdshader")
 const CONTOUR := preload("res://shaders/contour.gdshader")
 const DISSOLUTION := preload("res://shaders/dissolution.gdshader")
 
-## Le rôle décide de l'épaisseur du trait. Un mur ne doit pas être cerné aussi
-## fort qu'une créature : dans un couloir, cent blocs soulignés font une bouillie.
+## Le rôle décide de l'épaisseur du trait. Tout est cerné — le décor aussi —
+## mais pas au même poids : la hiérarchie du trait est ce qui hiérarchise le
+## regard. Une créature doit rester plus dessinée qu'un mur, sinon un couloir
+## meublé devient un enchevêtrement de lignes de même valeur.
 enum Role { DECOR, OBJET, CREATURE, INTERACTIF }
 
 const _TRAIT: Dictionary = {
-	Role.DECOR:      {"encre": 0.0,   "lisere": 0.0},
-	Role.OBJET:      {"encre": 0.016, "lisere": 0.007},
-	Role.CREATURE:   {"encre": 0.030, "lisere": 0.014},
-	Role.INTERACTIF: {"encre": 0.024, "lisere": 0.011},
+	Role.DECOR:      {"encre": 0.030, "lisere": 0.010},
+	Role.OBJET:      {"encre": 0.042, "lisere": 0.017},
+	Role.CREATURE:   {"encre": 0.070, "lisere": 0.030},
+	Role.INTERACTIF: {"encre": 0.055, "lisere": 0.024},
 }
 
 
