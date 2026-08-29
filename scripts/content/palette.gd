@@ -21,6 +21,12 @@ extends Resource
 ## Part d'albédo laissée passer dans l'ombre. À zéro la règle est pure, mais
 ## deux objets voisins deviennent indiscernables dans le noir d'un donjon.
 @export_range(0.0, 0.5, 0.01) var melange_ombre: float = 0.34
+## Part maximale de la teinte éclairée que l'ombre peut atteindre. La règle de
+## l'ombre absolue suppose des surfaces plus claires qu'elle ; sur un décor
+## sombre elle produirait une ombre plus CLAIRE que la lumière, et tout le
+## décor s'aplatirait sur une seule valeur. Ce plafond garantit qu'une ombre
+## assombrit toujours.
+@export_range(0.2, 1.0, 0.01) var plafond_ombre: float = 0.82
 
 @export_group("Post-traitement")
 ## Côté d'un bloc en pixels d'écran. 2 accroche discrètement, 4 est un parti pris.

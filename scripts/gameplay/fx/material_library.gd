@@ -82,6 +82,7 @@ static func _applique_regles(mat: ShaderMaterial, couleur: Color) -> void:
 	mat.set_shader_parameter("albedo", couleur)
 	mat.set_shader_parameter("couleur_ombre", p.ombre)
 	mat.set_shader_parameter("melange_ombre", p.melange_ombre)
+	mat.set_shader_parameter("plafond_ombre", p.plafond_ombre)
 	mat.set_shader_parameter("seuil", 0.32)
 	mat.set_shader_parameter("nettete", 0.02)
 	mat.set_shader_parameter("brume_couleur", p.brume_couleur)

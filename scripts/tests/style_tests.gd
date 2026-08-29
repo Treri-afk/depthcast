@@ -36,6 +36,31 @@ func _check_ombre_commune() -> void:
 	verifie("l'ombre n'est pas l'albédo assombri",
 		ombres[0] != p.mur.darkened(0.5))
 
+	# Et une ombre assombrit — toujours. La règle de l'ombre absolue suppose
+	# des surfaces plus claires qu'elle ; appliquée telle quelle à un décor
+	# sombre, elle rendait l'ombre plus CLAIRE que la face éclairée et tout le
+	# décor s'écrasait sur une seule valeur violette. Le plafond corrige ça,
+	# et c'est ce test qui interdit de le retirer.
+	for teinte: Color in [p.mur_couloir, p.mur, p.pilier, p.sol, p.lisere_blanc]:
+		var ombre: Color = _ombre_de(teinte)
+		verifie("l'ombre de %s reste plus sombre qu'elle" % teinte.to_html(false),
+			ombre.v < teinte.v, "ombre %s" % ombre.to_html(false))
+
+
+## Transcription fidèle de `ombre_de()` du shader ligne_claire. Les deux
+## formulations doivent rester alignées : ce qui est vérifié ici est ce qui est
+## dessiné là-bas.
+func _ombre_de(teinte: Color) -> Color:
+	var p: Palette = Content.palette
+	var out := Color.BLACK
+	for i: int in 3:
+		var c: float = p.ombre[i]
+		var t: float = teinte[i]
+		var absolue: float = lerpf(c, c * t * 2.0, p.melange_ombre)
+		var relative: float = t * c * 2.0 * p.plafond_ombre
+		out[i] = minf(absolue, relative)
+	return out
+
 
 ## Règle 4 : le trait est tracé une fois, en espace écran.
 ##

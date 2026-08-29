@@ -26,6 +26,19 @@ render_mode unshaded, cull_disabled, depth_draw_never, depth_test_disabled, fog_
 // éclairées à l'identique — c'est sa limite, et on la compense en écartant les
 // valeurs de la palette plutôt qu'en ajoutant un tampon de plus.
 //
+// ── POURQUOI UN SOBEL NU NE SUFFIT PAS ───────────────────────────────────
+//
+// Un gradient est une dérivée PREMIÈRE : il ne distingue pas une cassure d'une
+// pente. Tant que l'image n'était faite que d'aplats, la seule chose qui avait
+// une pente était un bord, et la confusion ne se voyait pas. Dès qu'un dégradé
+// apparaît — la pénombre d'une ombre portée, le fondu d'une lampe — le Sobel
+// s'allume sur TOUTE sa largeur et pose une large bavure sombre au lieu d'un
+// trait. C'étaient les traînées au pied des caisses et sur les sols.
+//
+// D'où la mesure à deux rayons. Doubler le rayon double la mesure sur une
+// pente, et la laisse inchangée sur une cassure. Le rapport des deux dit donc
+// laquelle des deux on regarde, indépendamment du contraste local.
+//
 // ── POURQUOI LE CONTOUR EST ICI ET PLUS SUR LES OBJETS ───────────────────
 // La coque inversée dilate chaque face selon sa propre normale. Sur des
 // boîtes — dont les arêtes sont dures — les faces voisines se séparent et le
@@ -85,6 +98,29 @@ float luminance(vec3 c) {
 }
 
 
+// Gradient de Sobel de la luminance, mesuré à un rayon donné. Huit voisins :
+// un contour continu même sur les diagonales, là où quatre laissent des
+// escaliers.
+//
+// Échantillonné en PIXELS RÉELS, sans passer par la grille : mesuré sur les
+// blocs, un contour oblique devient un escalier et on détecterait la trame
+// plutôt que la forme.
+float sobel(vec2 uv, vec2 pas) {
+	float hg = luminance(texture(ecran, uv + vec2(-pas.x, -pas.y)).rgb);
+	float h  = luminance(texture(ecran, uv + vec2( 0.0,   -pas.y)).rgb);
+	float hd = luminance(texture(ecran, uv + vec2( pas.x, -pas.y)).rgb);
+	float g  = luminance(texture(ecran, uv + vec2(-pas.x,  0.0)).rgb);
+	float d  = luminance(texture(ecran, uv + vec2( pas.x,  0.0)).rgb);
+	float bg = luminance(texture(ecran, uv + vec2(-pas.x,  pas.y)).rgb);
+	float b  = luminance(texture(ecran, uv + vec2( 0.0,    pas.y)).rgb);
+	float bd = luminance(texture(ecran, uv + vec2( pas.x,  pas.y)).rgb);
+
+	float gx = (hd + 2.0 * d + bd) - (hg + 2.0 * g + bg);
+	float gy = (bg + 2.0 * b + bd) - (hg + 2.0 * h + hd);
+	return sqrt(gx * gx + gy * gy);
+}
+
+
 // Échantillonne au CENTRE du bloc, jamais à son coin : sinon l'image glisse
 // d'un demi-bloc et le contour se décale d'autant.
 vec2 accroche(vec2 uv, vec2 grille) {
@@ -119,26 +155,21 @@ void fragment() {
 	vec3 couleur = texture(ecran, uv).rgb;
 
 	if (contour_epaisseur > 0.0) {
-		float maxf_contour = max(contour_epaisseur, 0.5);
-		// Le Sobel s'échantillonne en PIXELS RÉELS, sans passer par la grille.
-		// Mesuré sur les blocs, un contour oblique devient un escalier : on
-		// détecterait la trame plutôt que la forme.
-		vec2 pas = (1.0 / taille_ecran) * maxf_contour;
+		vec2 pas = (1.0 / taille_ecran) * max(contour_epaisseur, 0.5);
 
-		// Sobel sur la luminance. Huit voisins : un contour continu même sur
-		// des diagonales, là où quatre voisins laissent des escaliers.
-		float hg = luminance(texture(ecran, SCREEN_UV + vec2(-pas.x, -pas.y)).rgb);
-		float h  = luminance(texture(ecran, SCREEN_UV + vec2( 0.0,   -pas.y)).rgb);
-		float hd = luminance(texture(ecran, SCREEN_UV + vec2( pas.x, -pas.y)).rgb);
-		float g  = luminance(texture(ecran, SCREEN_UV + vec2(-pas.x,  0.0)).rgb);
-		float d  = luminance(texture(ecran, SCREEN_UV + vec2( pas.x,  0.0)).rgb);
-		float bg = luminance(texture(ecran, SCREEN_UV + vec2(-pas.x,  pas.y)).rgb);
-		float b  = luminance(texture(ecran, SCREEN_UV + vec2( 0.0,    pas.y)).rgb);
-		float bd = luminance(texture(ecran, SCREEN_UV + vec2( pas.x,  pas.y)).rgb);
+		float proche = sobel(SCREEN_UV, pas);
+		float large = sobel(SCREEN_UV, pas * 2.0);
 
-		float gx = (hd + 2.0 * d + bd) - (hg + 2.0 * g + bg);
-		float gy = (bg + 2.0 * b + bd) - (hg + 2.0 * h + hd);
-		float force = sqrt(gx * gx + gy * gy);
+		// Rapport des deux mesures : 1 sur une cassure, 2 sur une pente
+		// régulière. On ne garde donc que ce qui est une vraie rupture, et
+		// pénombres, fondus de lampes et dégradés ne tracent plus rien.
+		//
+		// Le rapport est sans dimension : le test vaut aussi bien sur un
+		// contraste franc que sur une nuance ténue, ce qu'un seuil absolu sur
+		// l'écart de luminance ne sait pas faire.
+		float pente = large / max(proche, 0.0001);
+		float cassure = clamp(2.0 - pente, 0.0, 1.0);
+		float force = proche * cassure;
 
 		float trace = smoothstep(contour_seuil, contour_seuil * 2.2, force);
 		couleur = mix(couleur, contour_couleur.rgb, trace * contour_couleur.a);
