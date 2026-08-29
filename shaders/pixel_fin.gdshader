@@ -88,8 +88,22 @@ void vertex() {
 }
 
 
+// Hachage ENTIER, pas de trigonométrie.
+//
+// Le `fract(sin(dot(p, ...)) * 43758.5453)` habituel se nourrit ici de
+// coordonnées en pixels : jusqu'à 2000, donc un argument de sinus qui monte à
+// 10^5. En simple précision, le sinus n'a plus assez de mantisse à cette
+// échelle et ses valeurs se corrèlent d'un pixel au suivant — le « bruit »
+// dégénère en rayures verticales régulières sur toute l'image. C'étaient les
+// traits qu'on voyait partout, et ils ne venaient pas du contour.
+//
+// Un hachage sur entiers n'a pas d'échelle : il est aussi bon au pixel 2000
+// qu'au pixel 3.
 float bruit_fixe(vec2 p) {
-	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+	uvec2 q = uvec2(ivec2(p));
+	uint n = q.x * 1597334673u ^ q.y * 3812015801u;
+	n = n * (n * n * 15731u + 789221u) + 1376312589u;
+	return float(n & 2147483647u) / float(2147483647u);
 }
 
 
@@ -178,7 +192,11 @@ void fragment() {
 	if (grain_force > 0.0) {
 		// Ancré sur les pixels d'écran, donc immobile quand la caméra bouge.
 		float g = bruit_fixe(floor(SCREEN_UV * taille_ecran)) - 0.5;
-		couleur += vec3(g * grain_force);
+		// MULTIPLICATIF, et non additif. Un écart absolu de 0.02 ne se voit pas
+		// sur un sol clair mais double la valeur d'un plafond presque noir : le
+		// grain ne salissait que les zones sombres, là précisément où il doit
+		// se faire oublier. Proportionnel, il garde le même poids partout.
+		couleur *= 1.0 + g * grain_force * 2.0;
 	}
 
 	ALBEDO = applique_filtre(couleur);
