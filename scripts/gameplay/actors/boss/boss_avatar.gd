@@ -32,7 +32,7 @@ func _cree_cerveau() -> MonsterBrain:
 	return BossBrain.new(stats as BossStats, 1.0)
 
 
-func _sur_degat(id: int, pv_restants: int) -> void:
+func _sur_degat(id: int, pv_restants: int, _degats: int) -> void:
 	if id != monster_id or boss_stats == null:
 		return
 	var etat: MonsterState = GameState.run.get_monster(monster_id)

@@ -56,6 +56,11 @@ func lance(slot_index: int, direction: Vector3) -> bool:
 	var couleur: Color = ecole.couleur if ecole != null else Color.WHITE
 
 	joueur.demarre_cooldown(slot_index, effet.cooldown)
-	Audio.joue(&"sort")
+	# Annoncé plutôt qu'appelé : le son écoute le jeu, le jeu ne pilote pas le
+	# son. Ça vaut aussi pour le lancer, qui appelait Audio en direct.
+	EventBus.sound_emitted.emit(&"sort", joueur.position_yeux())
+	# Le recul vient de la donnée du sort : une boule de feu et un soin ne se
+	# lancent pas pareil, et ça se règle dans l'inspecteur.
+	joueur.recul(effet.recul)
 	comportement.lance(_contexte, slot_index, effet, couleur, direction)
 	return true

@@ -13,3 +13,4 @@ attaque = 0.0
 volume = 0.7
 variation_hauteur = 0.1
 gain_db = -5.0
+spatialise = false

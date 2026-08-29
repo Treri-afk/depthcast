@@ -183,10 +183,12 @@ func _sur_tir_monstre(depuis: Vector3, direction: Vector3, degats: int) -> void:
 	add_child(EnemyProjectile.cree(_fx, depuis, direction, degats))
 
 
-func _sur_degat_monstre(monster_id: int, _pv: int) -> void:
+func _sur_degat_monstre(monster_id: int, pv_restant: int, degats: int) -> void:
 	var avatar: MonsterAvatar = _spawner.avatars.get(monster_id)
 	if is_instance_valid(avatar):
-		avatar.encaisse_visuellement()
+		# Le coup fatal se lit dans les points de vie restants : rien de plus à
+		# faire passer, et le chiffre qui tue s'affiche différemment.
+		avatar.encaisse_visuellement(degats, pv_restant <= 0)
 
 
 func _sur_mort_monstre(monster_id: int, _tueur: int, recompense: int) -> void:

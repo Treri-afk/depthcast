@@ -4,14 +4,14 @@
 
 [resource]
 script = ExtResource("1_755hx")
-id = &"souffle"
-forme = 3
-frequence_debut = 260.0
-frequence_fin = 60.0
-duree = 0.55
-attaque = 0.01
-volume = 0.75
-variation_hauteur = 0.12
-gain_db = -3.0
-portee = 70.0
-unite = 10.0
+id = &"balise"
+forme = 0
+frequence_debut = 700.0
+frequence_fin = 1150.0
+duree = 0.45
+attaque = 0.05
+volume = 0.55
+variation_hauteur = 0.03
+gain_db = -4.0
+portee = 60.0
+unite = 8.0

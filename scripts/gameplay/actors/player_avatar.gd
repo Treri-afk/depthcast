@@ -81,6 +81,10 @@ var _vitesse_avant_choc: float = 0.0
 var _culbute: Vector2 = Vector2.ZERO
 var _culbute_vitesse: Vector2 = Vector2.ZERO
 var _etait_au_sol: bool = true
+## Aide au saut. `_coyote` pardonne le retard — on vient de quitter le sol —
+## et `_tampon` pardonne l'avance : un saut demandé juste avant de toucher.
+var _coyote: float = 0.0
+var _tampon_de_saut: float = 0.0
 
 
 func _ready() -> void:
@@ -208,24 +212,47 @@ func _deplace(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, voulu.x, taux * delta)
 		velocity.z = move_toward(velocity.z, voulu.z, taux * delta)
 
+	_maj_les_fenetres_de_saut(delta, au_sol)
+
 	if _projete:
 		# Le sol ne reprend pas la main tant qu'on est projeté : sinon
 		# l'impulsion verticale serait annulée dès la première frame, alors
 		# qu'on touche encore le sol d'où l'on décolle.
 		vitesse_verticale -= _tuning.gravite * delta
-	elif au_sol:
-		vitesse_verticale = 0.0
-		if _releve_restant <= 0.0 \
-				and Input.is_action_just_pressed(InputActions.SAUTER) \
-				and MouseLook.est_capture():
-			vitesse_verticale = _tuning.impulsion_saut
 	else:
-		vitesse_verticale -= _tuning.gravite * delta
+		vitesse_verticale = 0.0 if au_sol else vitesse_verticale - _tuning.gravite * delta
+		if _peut_sauter(au_sol) and _tampon_de_saut > 0.0:
+			vitesse_verticale = _tuning.impulsion_saut
+			# Les deux fenêtres se referment ensemble : sans ça, un tampon
+			# encore chaud relancerait un saut à la frame suivante.
+			_tampon_de_saut = 0.0
+			_coyote = 0.0
 
 	velocity.y = vitesse_verticale
 	_vitesse_avant_choc = vitesse_verticale
 	move_and_slide()
 	_bouscule_les_objets()
+
+
+## Les deux pardons du saut.
+##
+## Le coyote laisse sauter un instant APRÈS avoir quitté le sol : sans lui,
+## sauter en franchissant le bord d'une estrade échoue une fois sur trois, et le
+## joueur croit que la commande a été perdue.
+##
+## Le tampon retient un saut demandé un instant AVANT de toucher : sans lui, on
+## atterrit et il ne se passe rien, parce qu'on avait appuyé deux frames trop
+## tôt. Personne ne sait nommer ces deux défauts ; tout le monde les sent.
+func _maj_les_fenetres_de_saut(delta: float, au_sol: bool) -> void:
+	_coyote = _tuning.saut_coyote if au_sol else maxf(0.0, _coyote - delta)
+	if Input.is_action_just_pressed(InputActions.SAUTER) and MouseLook.est_capture():
+		_tampon_de_saut = _tuning.saut_tampon
+	else:
+		_tampon_de_saut = maxf(0.0, _tampon_de_saut - delta)
+
+
+func _peut_sauter(au_sol: bool) -> bool:
+	return (au_sol or _coyote > 0.0) and _releve_restant <= 0.0
 
 
 ## Un CharacterBody3D ne pousse pas les corps rigides tout seul : il faut lui
@@ -415,6 +442,17 @@ func secoue(force: float) -> void:
 		return
 	var ampleur: float = minf(force, 14.0) * 0.05 * _tuning.projection_culbute
 	_culbute_vitesse += Vector2(randf_range(-1.0, 1.0), randf_range(-0.6, 1.0)) * ampleur
+	_culbute_vitesse = _culbute_vitesse.limit_length(9.0)
+
+
+## Recul de la vue au lancer d'un sort.
+##
+## Vers le HAUT, et pas au hasard : c'est ce qui distingue un recul d'une
+## secousse. L'un a une direction et se compense, l'autre subit.
+func recul(force: float) -> void:
+	if _tuning == null or force <= 0.0:
+		return
+	_culbute_vitesse.y += force
 	_culbute_vitesse = _culbute_vitesse.limit_length(9.0)
 
 

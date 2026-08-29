@@ -57,9 +57,22 @@ signal explosion_triggered(origine: Vector3, puissance: float)
 ## s'en servir plus tard pour indiquer où l'attention est partie.
 signal lure_activated(origine: Vector3, rayon: float, duree: float)
 
+# ── Son ───────────────────────────────────────────────────────────────────
+## Un bruit du monde, à un endroit précis.
+##
+## Les signaux ci-dessus disent CE QUI s'est passé ; celui-ci ajoute le OÙ, pour
+## ce que l'oreille doit pouvoir situer. Deux signaux plutôt qu'un Vector3
+## ajouté à la moitié du catalogue d'évènements.
+##
+## Le jeu annonce, il n'appelle toujours pas le son : couper l'audio ne demande
+## de toucher aucun système, et rien ne casse si personne n'écoute.
+signal sound_emitted(id: StringName, origine: Vector3)
+
 # ── Monstres ──────────────────────────────────────────────────────────────
 signal monster_spawned(monster_id: int)
-signal monster_damaged(monster_id: int, hp_restant: int)
+## `degats` est le montant du coup, pas les points de vie restants : c'est lui
+## qu'on affiche au-dessus de la créature.
+signal monster_damaged(monster_id: int, hp_restant: int, degats: int)
 ## Le feedback de mort et le drop de Résonance écoutent ça.
 signal monster_died(monster_id: int, killer_player_id: int, recompense: int)
 

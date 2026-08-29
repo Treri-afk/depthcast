@@ -9,3 +9,4 @@ frequence_debut = 330.0
 frequence_fin = 990.0
 duree = 0.8
 attaque = 0.06
+spatialise = false

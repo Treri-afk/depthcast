@@ -9,3 +9,4 @@ frequence_fin = 660.0
 duree = 0.16
 volume = 0.5
 gain_db = -4.0
+spatialise = false

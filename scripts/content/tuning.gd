@@ -132,6 +132,26 @@ extends Resource
 @export_range(0.0, 1.0, 0.05) var portage_arc: float = 0.25
 @export var portage_bloque_les_sorts: bool = true
 
+@export_group("Ressenti")
+## Durée de l'arrêt sur image quand une créature meurt, en secondes réelles.
+## Court : au-delà, ça cesse d'être une frappe et ça devient une saccade.
+@export_range(0.0, 0.3, 0.005) var hitstop_mort: float = 0.06
+## Arrêt plus bref quand c'est le joueur qui encaisse un gros coup.
+@export_range(0.0, 0.3, 0.005) var hitstop_blessure: float = 0.035
+## En dessous de ce montant, encaisser ne fige rien : sinon le jeu hoquette à
+## chaque égratignure.
+@export var hitstop_seuil_degats: int = 14
+## Échelle du temps pendant l'arrêt. Zéro figerait aussi les tweens de retour.
+@export_range(0.01, 1.0, 0.01) var hitstop_echelle: float = 0.05
+
+## Fenêtre pendant laquelle on peut encore sauter après avoir quitté le sol.
+## Personne ne sait la nommer, tout le monde la sent : sans elle, sauter en
+## quittant une estrade échoue sans qu'on comprenne pourquoi.
+@export_range(0.0, 0.4, 0.01) var saut_coyote: float = 0.12
+## Fenêtre pendant laquelle un saut demandé trop tôt est retenu au lieu d'être
+## perdu. Le symétrique du coyote : l'un pardonne le retard, l'autre l'avance.
+@export_range(0.0, 0.4, 0.01) var saut_tampon: float = 0.14
+
 @export_group("Souffle et projection")
 ## Part de la puissance d'un souffle qui s'applique au joueur. À zéro, les
 ## explosions ne bousculent que le décor et les monstres.

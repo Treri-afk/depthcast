@@ -46,10 +46,10 @@ func _ready() -> void:
 	_terrain.hud.journalise(
 		"Terrain d'essai. Fais le tour des postes — ici, rien ne compte.")
 
-	EventBus.monster_damaged.connect(func(id: int, _pv: int) -> void:
+	EventBus.monster_damaged.connect(func(id: int, pv: int, degats: int) -> void:
 		var avatar: MonsterAvatar = _spawner.avatars.get(id)
 		if is_instance_valid(avatar):
-			avatar.encaisse_visuellement())
+			avatar.encaisse_visuellement(degats, pv <= 0))
 
 
 func _physics_process(delta: float) -> void:

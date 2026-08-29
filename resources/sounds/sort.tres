@@ -11,3 +11,5 @@ duree = 0.11
 attaque = 0.01
 volume = 0.35
 gain_db = -9.0
+portee = 40.0
+unite = 6.0

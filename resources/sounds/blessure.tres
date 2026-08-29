@@ -11,3 +11,4 @@ frequence_fin = 70.0
 duree = 0.26
 attaque = 0.01
 volume = 0.7
+spatialise = false

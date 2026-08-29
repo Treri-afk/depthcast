@@ -13,3 +13,5 @@ attaque = 0.0
 volume = 0.85
 variation_hauteur = 0.15
 gain_db = -1.0
+portee = 90.0
+unite = 12.0

@@ -308,10 +308,24 @@ func ralentis(facteur: float, duree: float) -> void:
 	_teinte_shader(Color(0.35, 0.7, 1.0), 0.9)
 
 
-func encaisse_visuellement() -> void:
+func encaisse_visuellement(degats: int = 0, fatal: bool = false) -> void:
 	_teinte_restante = 1.0
 	scale = Vector3(1.2, 0.85, 1.2)
 	create_tween().tween_property(self, "scale", Vector3.ONE, 0.18)
+
+	# Le bruit et le chiffre partent d'ICI, parce que c'est ici qu'on connaît
+	# la position. Le resolver, lui, ne sait pas où se tiennent les corps.
+	EventBus.sound_emitted.emit(&"impact", global_position)
+	if degats > 0:
+		_montre_les_degats(degats, fatal)
+
+
+func _montre_les_degats(degats: int, fatal: bool) -> void:
+	var parent: Node = get_parent()
+	if parent == null:
+		return
+	parent.add_child(DamageNumber.cree(degats,
+		global_position + Vector3(0, stats.taille.y * 0.55, 0), fatal))
 
 
 func _maj_ralentissement(delta: float) -> void:
@@ -347,6 +361,7 @@ func _teinte_shader(couleur: Color, force: float) -> void:
 ## L'avatar se détache de la scène de jeu le temps de l'effet : il ne doit plus
 ## ni bouger, ni bloquer, ni être ciblé.
 func meurt_en_se_dissolvant() -> void:
+	EventBus.sound_emitted.emit(&"mort", global_position)
 	set_physics_process(false)
 	if _emote != null:
 		_emote.efface()

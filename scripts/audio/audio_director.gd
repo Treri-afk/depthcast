@@ -9,16 +9,23 @@ extends Node
 ## à savoir du son, et couper l'audio ne demande de toucher aucun système.
 
 const DOSSIER := "res://resources/sounds"
-## Nombre de lectures simultanées. Au-delà, la plus ancienne est réutilisée :
-## dix impacts en même temps doivent saturer, pas empiler cinquante voix.
-const VOIX: int = 12
+## Nombre de lectures simultanées, par famille. Au-delà, la plus ancienne est
+## réutilisée : dix impacts en même temps doivent saturer, pas empiler
+## cinquante voix.
+const VOIX: int = 10
+## Voix POSITIONNÉES, pour tout ce qui appartient au monde. Elles vivent sous
+## cet autoload et non dans la scène : le directeur survit aux changements de
+## scène, et un son en cours ne se coupe pas parce qu'on a changé d'étage.
+const VOIX_3D: int = 12
 
 var actif: bool = true
 
 var _definitions: Dictionary[StringName, SoundDef] = {}
 var _flux: Dictionary[StringName, AudioStream] = {}
 var _lecteurs: Array[AudioStreamPlayer] = []
+var _lecteurs_3d: Array[AudioStreamPlayer3D] = []
 var _prochain: int = 0
+var _prochain_3d: int = 0
 
 
 func _ready() -> void:
@@ -27,6 +34,10 @@ func _ready() -> void:
 		var lecteur := AudioStreamPlayer.new()
 		add_child(lecteur)
 		_lecteurs.append(lecteur)
+	for i: int in VOIX_3D:
+		var lecteur := AudioStreamPlayer3D.new()
+		add_child(lecteur)
+		_lecteurs_3d.append(lecteur)
 	_branche_les_evenements()
 	print("[Audio] %d son(s) synthétisé(s)." % _flux.size())
 
@@ -42,6 +53,34 @@ func joue(id: StringName, gain_supplementaire: float = 0.0) -> void:
 	lecteur.volume_db = def.gain_db + gain_supplementaire
 	# Une variation de hauteur à chaque lecture : sans elle, dix impacts
 	# d'affilée sonnent comme une machine à écrire.
+	lecteur.pitch_scale = 1.0 + randf_range(-def.variation_hauteur, def.variation_hauteur)
+	lecteur.play()
+
+
+## Joue un son À UN ENDROIT du monde.
+##
+## C'est la différence entre entendre une mèche et savoir qu'elle grésille
+## derrière soi. Dans un jeu en vue subjective où l'on encaisse hors champ,
+## c'est la moitié de l'information disponible.
+##
+## Un son déclaré non spatialisé retombe sur la lecture ordinaire : l'appelant
+## n'a pas à savoir de quel genre est le son qu'il annonce.
+func joue_a(id: StringName, origine: Vector3, gain_supplementaire: float = 0.0) -> void:
+	if not actif or not _flux.has(id):
+		return
+	var def: SoundDef = _definitions[id]
+	if not def.spatialise:
+		joue(id, gain_supplementaire)
+		return
+
+	var lecteur: AudioStreamPlayer3D = _lecteurs_3d[_prochain_3d]
+	_prochain_3d = (_prochain_3d + 1) % _lecteurs_3d.size()
+
+	lecteur.global_position = origine
+	lecteur.stream = _flux[id]
+	lecteur.volume_db = def.gain_db + gain_supplementaire
+	lecteur.max_distance = def.portee
+	lecteur.unit_size = def.unite
 	lecteur.pitch_scale = 1.0 + randf_range(-def.variation_hauteur, def.variation_hauteur)
 	lecteur.play()
 
@@ -72,24 +111,29 @@ func _charge() -> void:
 ## Le son écoute le jeu, le jeu n'appelle pas le son. Un système de gameplay
 ## qui déclencherait lui-même ses bruitages deviendrait impossible à couper.
 func _branche_les_evenements() -> void:
-	EventBus.monster_damaged.connect(func(_id: int, _pv: int) -> void: joue(&"impact"))
-	EventBus.monster_died.connect(func(_id: int, _t: int, _r: int) -> void: joue(&"mort"))
+	# Le bruit qu'une créature fait est annoncé par la créature, avec sa
+	# position : le resolver, lui, ne sait pas où se tiennent les corps.
+	EventBus.sound_emitted.connect(joue_a)
 	EventBus.slot_rerolled.connect(func(_j: int, _s: int, _e: int) -> void: joue(&"mutation"))
 	EventBus.slot_kept.connect(func(_j: int, _s: int) -> void: joue(&"sceau_tient"))
 	EventBus.slot_locked.connect(func(_j: int, _s: int, _c: int, _u: int) -> void:
 		joue(&"achat"))
 	EventBus.resonance_spend_rejected.connect(func(_j: int, _r: String) -> void:
 		joue(&"refus"))
+	# Sa propre douleur ne se situe pas dans l'espace : elle est déclarée non
+	# spatialisée, et la direction du coup est déjà dite par l'interface.
 	EventBus.player_damaged.connect(func(_j: int, _d: int, _o: Vector3) -> void:
 		joue(&"blessure"))
-	EventBus.player_blasted.connect(func(_j: int, _f: float, _o: Vector3) -> void:
-		joue(&"souffle"))
+	EventBus.player_blasted.connect(func(_j: int, _f: float, origine: Vector3) -> void:
+		joue_a(&"souffle", origine))
 	# Le volume de la réception suit la vitesse de chute : une chute de dix
 	# mètres ne doit pas sonner comme un pas manqué.
 	EventBus.player_slammed.connect(func(_j: int, vitesse: float) -> void:
 		joue(&"chute", clampf(vitesse - 12.0, -14.0, 4.0)))
-	EventBus.explosion_triggered.connect(func(_o: Vector3, _p: float) -> void:
-		joue(&"detonation"))
+	EventBus.explosion_triggered.connect(func(origine: Vector3, _p: float) -> void:
+		joue_a(&"detonation", origine))
+	EventBus.lure_activated.connect(func(origine: Vector3, _r: float, _d: float) -> void:
+		joue_a(&"balise", origine))
 	EventBus.floor_entered.connect(func(_i: int) -> void: joue(&"descente"))
 	EventBus.run_ended.connect(func(_e: int, victoire: bool) -> void:
 		joue(&"victoire" if victoire else &"defaite"))

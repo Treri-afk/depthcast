@@ -40,6 +40,20 @@ enum Forme {
 ## Décalage de volume en décibels, appliqué à la lecture.
 @export_range(-40.0, 12.0, 0.5) var gain_db: float = 0.0
 
+@export_group("Espace")
+## Le son appartient au monde et se joue à un endroit.
+##
+## Faux pour ce qui appartient à l'interface — un achat, un refus, une mutation
+## de sort. Ces sons-là n'ont pas de position : les spatialiser les ferait
+## varier selon l'orientation du joueur au moment où il clique, ce qui est
+## exactement le contraire de ce qu'on veut d'un retour d'interface.
+@export var spatialise: bool = true
+## Au-delà, on ne l'entend plus. Une détonation porte plus loin qu'un pas.
+@export_range(1.0, 300.0, 1.0) var portee: float = 45.0
+## Distance à laquelle le volume vaut celui d'origine. Petite = le son décroît
+## vite et localise bien ; grande = il remplit la salle.
+@export_range(0.5, 30.0, 0.5) var unite: float = 6.0
+
 @export_group("Remplacement")
 ## Si renseigné, ce flux est joué au lieu de la synthèse. Point d'entrée pour
 ## de vrais sons, sans toucher au code.

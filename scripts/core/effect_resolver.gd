@@ -106,7 +106,7 @@ func _apply_damage(intent: EffectIntent) -> void:
 		if monster == null:
 			continue
 		var tue: bool = monster.take_damage(int(intent.amount))
-		EventBus.monster_damaged.emit(monster_id, monster.hp)
+		EventBus.monster_damaged.emit(monster_id, monster.hp, int(intent.amount))
 		if tue:
 			GameState.add_resonance(monster.resonance_reward)
 			EventBus.monster_died.emit(

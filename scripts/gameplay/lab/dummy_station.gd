@@ -84,7 +84,7 @@ func _etiquette(avatar: MonsterAvatar, stats: MonsterStats) -> Label3D:
 	return label
 
 
-func _sur_degat(monster_id: int, pv_restant: int) -> void:
+func _sur_degat(monster_id: int, pv_restant: int, _degats: int) -> void:
 	var label: Label3D = _etiquettes.get(monster_id)
 	if is_instance_valid(label):
 		label.text = "%d" % pv_restant

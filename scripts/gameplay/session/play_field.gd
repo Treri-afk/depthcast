@@ -42,6 +42,7 @@ func monte() -> void:
 	_joueur()
 	_interface()
 	_services()
+	_branche_le_ressenti()
 
 
 func _conteneurs() -> void:
@@ -105,6 +106,20 @@ func _services() -> void:
 	apercu.joueur = joueur
 	apercu.caster = caster
 	racine.add_child(apercu)
+
+
+## L'arrêt sur image, branché ici et pas dans les racines : c'est du ressenti,
+## il vaut pour le donjon comme pour le terrain d'essai, et il ne doit exister
+## qu'en un seul exemplaire — deux abonnements figeraient le jeu deux fois.
+func _branche_le_ressenti() -> void:
+	var t: Tuning = Content.tuning
+	EventBus.monster_died.connect(func(_id: int, _tueur: int, _r: int) -> void:
+		HitStop.frappe(t.hitstop_mort, t.hitstop_echelle))
+	# Seulement les vrais coups : figer le jeu à chaque égratignure le ferait
+	# hoqueter en permanence, et l'effet perdrait tout son sens.
+	EventBus.player_damaged.connect(func(_j: int, degats: int, _o: Vector3) -> void:
+		if degats >= t.hitstop_seuil_degats:
+			HitStop.frappe(t.hitstop_blessure, t.hitstop_echelle))
 
 
 ## La traînée s'étale dans le temps : le joueur mémorise où semer, le terrain

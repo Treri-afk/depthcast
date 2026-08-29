@@ -302,6 +302,64 @@ Deux détails trouvés en mesurant plutôt qu'en calculant :
 
 ---
 
+## D13 — Le son du monde est situé ; celui qui parle de soi ne l'est pas
+*Décidé le 29 août 2026*
+
+Jusqu'ici tout passait par des `AudioStreamPlayer` 2D : une explosion à vingt
+mètres claquait aussi fort qu'à ses pieds, et une mèche allumée derrière soi
+était un bruit plutôt qu'une information. Dans un jeu en vue subjective où l'on
+encaisse hors champ, c'est la moitié de l'information disponible qui manquait.
+
+Chaque `SoundDef` déclare maintenant s'il appartient au monde, avec sa portée et
+sa distance de référence. Une détonation porte à quatre-vingt-dix mètres, un
+impact à trente-cinq : **la distance dit la gravité de ce qui se passe.**
+
+Ce qui parle de SOI reste non situé — un achat, un refus, une mutation, sa
+propre douleur. Les spatialiser les ferait varier selon l'orientation du joueur
+au moment où il clique, ce qui est exactement le contraire d'un retour
+d'interface. La direction d'un coup encaissé est déjà dite par l'interface.
+
+**Le `où` passe par un signal, pas par le catalogue.** `sound_emitted(id,
+origine)` ajoute la position sans obliger la moitié des évènements du bus à
+transporter un `Vector3` dont un seul écouteur a besoin. Le jeu annonce, il
+n'appelle toujours pas le son : couper l'audio ne demande de toucher aucun
+système. Au passage, `SpellCaster` appelait `Audio.joue()` en direct, ce qui
+contredisait cette règle depuis le début.
+
+---
+
+## D14 — Le ressenti est de la donnée, pas du code
+*Décidé le 29 août 2026*
+
+Quatre ajouts qui ne changent aucune règle et décident pourtant si le jeu est
+bon.
+
+**L'arrêt sur image.** Cinquante millisecondes de gel sur une mise à mort. Il
+passe par l'échelle de temps globale, donc il touche la physique : d'où deux
+garde-fous non négociables — très court, et jamais empilé. Deux morts
+simultanées ne doivent pas figer le jeu deux fois plus longtemps. Son minuteur
+ignore l'échelle de temps, sinon il serait ralenti par ce qu'il est censé
+interrompre et durerait vingt fois trop.
+
+**Les deux pardons du saut.** Le coyote laisse sauter un instant après avoir
+quitté le sol ; le tampon retient un saut demandé un instant avant de toucher.
+Personne ne sait nommer ces deux défauts, tout le monde les sent : sans eux,
+sauter du bord d'une estrade échoue une fois sur trois et le joueur croit que sa
+commande a été perdue.
+
+**Le recul au lancer.** Une valeur PAR SORT, dans la Resource (R6). Une boule de
+feu et un soin ne se lancent pas pareil, et ça se règle dans l'inspecteur sans
+écrire une ligne. Le recul va vers le haut et se compense — c'est ce qui le
+distingue d'une secousse, qui n'a pas de direction et se subit.
+
+**Les chiffres de dégâts.** La seule chose du jeu qui dise si l'on progresse.
+Sans eux, deux sorts dont l'un fait le double de dégâts de l'autre se
+ressemblent : la créature blanchit dans les deux cas. Ils durent moins d'une
+seconde — un chiffre qui traîne devient un tableau de bord, et on cesse de
+regarder le combat.
+
+---
+
 ## Q1 — Le multiplicateur cumulatif de verrous : par joueur ou par équipe ?
 *Ouverte depuis le 27 août 2026 — conséquence directe de D3*
 

@@ -112,6 +112,12 @@ var filtre: int = 0
 ## surprise est chaude : on lit l'état avant de lire le signe.
 @export var emote_interrogation: Color = Color(0.62, 0.82, 0.98)
 
+@export_group("Chiffres de dégâts")
+## Le chiffre ordinaire. Clair et neutre : il informe, il ne célèbre pas.
+@export var chiffre_degats: Color = Color(0.97, 0.96, 0.92)
+## Le coup fatal. C'est le seul qu'on doit repérer sans le lire.
+@export var chiffre_fatal: Color = Color(1.0, 0.72, 0.32)
+
 @export_group("Créatures")
 @export var creature_commune: Color = Color(0.84, 0.36, 0.40)
 @export var creature_lourde: Color = Color(0.66, 0.25, 0.24)

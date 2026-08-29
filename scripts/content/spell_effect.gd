@@ -44,6 +44,10 @@ enum Comportement {
 @export var distance: float = 0.0
 @export_range(0.0, 180.0, 1.0) var angle: float = 0.0
 
+## Recul de la vue au lancer. Une boule de feu et un soin ne se lancent pas
+## pareil, et c'est ce nombre qui le dit — pas une ligne de code par sort.
+@export_range(0.0, 6.0, 0.05) var recul: float = 0.9
+
 @export_group("Durée")
 @export var cooldown: float = 1.0
 @export var duree: float = 0.0
