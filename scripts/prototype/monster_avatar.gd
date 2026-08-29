@@ -41,6 +41,8 @@ var _telegraphe: float = 0.0
 
 
 func _ready() -> void:
+	floor_snap_length = 0.5
+	floor_max_angle = deg_to_rad(50.0)
 	_mesh = get_node_or_null("Mesh") as MeshInstance3D
 	if _mesh != null:
 		_materiau = _mesh.get_surface_override_material(0) as StandardMaterial3D

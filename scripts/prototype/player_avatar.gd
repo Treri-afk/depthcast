@@ -49,6 +49,11 @@ func _ready() -> void:
 	camera.current = true
 	tete.add_child(camera)
 
+	# Sans accrochage au sol, on décolle en haut d'une rampe et on redescend en
+	# sautillant. 50° laisse de la marge au-dessus de la pente de 22° des rampes.
+	floor_snap_length = 0.5
+	floor_max_angle = deg_to_rad(50.0)
+
 	capture_souris(true)
 
 

@@ -103,6 +103,12 @@ func _bat() -> void:
 			if ralentissement < 1.0:
 				monstre.ralentis(ralentissement, intervalle * 1.6)
 			continue
+		# Une caisse posée dans un mur de flammes finit par brûler.
+		var objet := corps as PropDestructible
+		if objet != null:
+			if degats > 0:
+				objet.encaisse(degats, global_position)
+			continue
 		if corps is PlayerAvatar:
 			touche_le_joueur = true
 

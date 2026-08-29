@@ -49,8 +49,8 @@ var _apercu: MeshInstance3D
 
 ## Socles du marchand et portail de descente.
 var _socles: Array[Dictionary] = []
-## Caisses, tonneaux et tables : tout ce que les sorts peuvent projeter.
-var _objets_physiques: Array[RigidBody3D] = []
+## Caisses, tonneaux et tables : tout ce que les sorts peuvent projeter et casser.
+var _objets_physiques: Array[PropDestructible] = []
 var _portail: Node3D = null
 var _cible_interaction: Dictionary = {}
 
@@ -291,26 +291,41 @@ func _meuble_la_salle(centre: Vector3, cote: float, rng: RandomNumberGenerator,
 				14.0, Color(0.34, 0.26, 0.20), false)
 
 
-## Estrade et son escalier. Les marches sont assez basses pour être montées,
-## assez hautes pour que sauter serve.
+## Estrade et sa rampe.
+##
+## Une rampe plutôt qu'un escalier : en vue subjective, des marches obligent à
+## sauter à chaque montée, ce qui est pénible et donne l'impression d'un décor
+## qui résiste. Une pente se monte sans y penser — et les monstres la montent
+## aussi, sans code de navigation.
 func _ajoute_estrade(centre: Vector3, cote: float, rng: RandomNumberGenerator) -> void:
-	var hauteur: float = rng.randf_range(1.0, 1.8)
+	var hauteur: float = rng.randf_range(1.0, 1.9)
 	_ajoute_bloc(centre + Vector3(0, hauteur * 0.5, 0),
 		Vector3(cote, hauteur, cote), Color(0.26, 0.27, 0.33))
+	# Pente d'environ 22° : franchement en dessous des 45° au-delà desquels
+	# Godot cesse de considérer une surface comme un sol.
+	_ajoute_rampe(centre + Vector3(0, 0, cote * 0.5), Vector3.BACK,
+		hauteur, cote * 0.6)
 
-	var marches: int = 3
-	for i: int in marches:
-		var h: float = hauteur * (float(i + 1) / float(marches))
-		_ajoute_bloc(
-			centre + Vector3(0, h * 0.5, cote * 0.5 + 0.6 + float(marches - 1 - i) * 1.2),
-			Vector3(cote * 0.55, h, 1.2), Color(0.23, 0.24, 0.29))
+
+func _ajoute_rampe(pied: Vector3, direction: Vector3, hauteur: float,
+		largeur: float) -> void:
+	var longueur: float = hauteur / tan(deg_to_rad(22.0))
+	var pente: float = sqrt(hauteur * hauteur + longueur * longueur)
+	var centre: Vector3 = pied + direction * (longueur * 0.5) + Vector3(0, hauteur * 0.5, 0)
+	var lacet: float = atan2(direction.x, direction.z)
+	var tangage: float = atan2(hauteur, longueur)
+	_ajoute_bloc(centre, Vector3(largeur, 0.6, pente), Color(0.23, 0.24, 0.29),
+		Vector3(tangage, lacet, 0))
 
 
 func _ajoute_objet_physique(pos: Vector3, taille: Vector3, masse: float,
 		couleur: Color, cylindrique: bool) -> void:
-	var corps := RigidBody3D.new()
+	var corps := PropDestructible.new()
 	corps.position = Vector3(pos.x, taille.y * 0.5 + 0.1, pos.z)
 	corps.mass = masse
+	corps.couleur = couleur
+	# Un objet plus lourd encaisse plus : une table ne part pas comme un tonneau.
+	corps.pv = int(masse * 2.2)
 	# Un frein élevé : les objets glissent un peu puis se posent, au lieu de
 	# patiner à l'infini après une Répulsion.
 	corps.linear_damp = 1.6
@@ -339,6 +354,7 @@ func _ajoute_objet_physique(pos: Vector3, taille: Vector3, masse: float,
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = couleur
 	visuel.material_override = mat
+	visuel.name = "Mesh"
 	corps.add_child(forme)
 	corps.add_child(visuel)
 	_geometrie.add_child(corps)
@@ -389,9 +405,11 @@ func _batit_couloir(depart: Vector3, direction: Vector3) -> void:
 				Vector3(1, HAUTEUR_MUR, LONGUEUR_COULOIR), Color(0.18, 0.19, 0.24))
 
 
-func _ajoute_bloc(pos: Vector3, taille: Vector3, couleur: Color) -> void:
+func _ajoute_bloc(pos: Vector3, taille: Vector3, couleur: Color,
+		rotation_euler: Vector3 = Vector3.ZERO) -> void:
 	var corps := StaticBody3D.new()
 	corps.position = pos
+	corps.rotation = rotation_euler
 
 	var forme := CollisionShape3D.new()
 	var boite := BoxShape3D.new()
@@ -623,6 +641,16 @@ func _tire_projectile(slot_index: int, eff: Dictionary, direction: Vector3,
 	bille.body_entered.connect(func(corps: Node3D) -> void:
 		if touche[0]:
 			return
+
+		# Le décor encaisse aussi : un projectile qui traverse une caisse sans
+		# la marquer donne l'impression que rien n'est solide.
+		var objet := corps as PropDestructible
+		if objet != null:
+			touche[0] = true
+			objet.encaisse(degats, bille.global_position)
+			bille.queue_free()
+			return
+
 		var avatar := corps as MonsterAvatar
 		if avatar == null:
 			return
@@ -695,17 +723,19 @@ func _declenche_nova(slot_index: int, eff: Dictionary, couleur: Color) -> void:
 	var rayon: float = float(eff.get("rayon", 4.0))
 	_soumet_degats(slot_index, int(eff.get("degats", 10)),
 		_monstres_dans_rayon(rayon))
-	_deplace_les_objets(rayon, 14.0, true)
+	_deplace_les_objets(rayon, 14.0, true, int(eff.get("degats", 10)))
 	_anneau(rayon, couleur)
 
 
 ## Les caisses et les tables subissent les mêmes souffles que les monstres.
 ## Sans ça, une Répulsion dans une pièce meublée ne se voit qu'à moitié.
-func _deplace_les_objets(rayon: float, puissance: float, repousse: bool) -> void:
-	for corps: RigidBody3D in _objets_physiques:
+func _deplace_les_objets(rayon: float, puissance: float, repousse: bool,
+		degats: int = 0, origine := Vector3.INF) -> void:
+	var centre: Vector3 = _joueur.global_position if origine == Vector3.INF else origine
+	for corps: PropDestructible in _objets_physiques.duplicate():
 		if not is_instance_valid(corps):
 			continue
-		var vers: Vector3 = corps.global_position - _joueur.global_position
+		var vers: Vector3 = corps.global_position - centre
 		var distance: float = vers.length()
 		if distance > rayon or distance < 0.05:
 			continue
@@ -714,6 +744,22 @@ func _deplace_les_objets(rayon: float, puissance: float, repousse: bool) -> void
 		# Divisé par la masse : une table lourde bouge moins qu'un tonneau.
 		corps.apply_central_impulse(
 			(sens + Vector3.UP * 0.25) * puissance * attenuation * corps.mass * 0.5)
+		if degats > 0:
+			corps.encaisse(int(degats * attenuation), centre)
+
+
+## Décor pris dans un cône ou sur la trajectoire d'une charge.
+func _frappe_les_objets_devant(direction: Vector3, portee: float, demi_angle: float,
+		degats: int) -> void:
+	for corps: PropDestructible in _objets_physiques.duplicate():
+		if not is_instance_valid(corps):
+			continue
+		var vers: Vector3 = corps.global_position - _joueur.global_position
+		vers.y = 0.0
+		if vers.length() > portee or vers.length() < 0.05:
+			continue
+		if direction.angle_to(vers.normalized()) <= demi_angle:
+			corps.encaisse(degats, _joueur.global_position)
 
 
 ## Un éventail devant soi : très différent d'une nova, on doit être orienté.
@@ -735,6 +781,7 @@ func _souffle_conique(slot_index: int, eff: Dictionary, direction: Vector3,
 		if plat.angle_to(vers.normalized()) <= demi_angle:
 			cibles.append(id)
 	_soumet_degats(slot_index, int(eff.get("degats", 15)), cibles)
+	_frappe_les_objets_devant(plat, portee, demi_angle, int(eff.get("degats", 15)))
 	_cone_visuel(plat, portee, couleur)
 
 
@@ -773,7 +820,9 @@ func _pousse_ou_attire(slot_index: int, eff: Dictionary, couleur: Color,
 		avatar.repousse(sens * puissance * attenuation)
 		cibles.append(id)
 
-	_deplace_les_objets(rayon, puissance, repousse)
+	# Un souffle projette le mobilier ; il ne le pulvérise pas. Les dégâts au
+	# décor restent symboliques, sinon Poussée deviendrait l'outil de démolition.
+	_deplace_les_objets(rayon, puissance, repousse, 2)
 	_soumet_degats(slot_index, int(eff.get("degats", 5)), cibles)
 	_anneau(rayon, couleur)
 
@@ -799,6 +848,8 @@ func _charge(slot_index: int, eff: Dictionary, direction: Vector3,
 			touches.append(id)
 			avatar.repousse(plat * 12.0)
 	_soumet_degats(slot_index, int(eff.get("degats", 18)), touches)
+	_frappe_les_objets_devant(plat, float(eff.get("distance", 9.0)), deg_to_rad(28.0),
+		int(eff.get("degats", 18)))
 	_anneau(2.0, couleur)
 
 
