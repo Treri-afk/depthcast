@@ -51,7 +51,7 @@ static func cree(p_ecole: School, position_monde: Vector3, fx: FxLibrary) -> Sch
 	autel._materiau_flamme = autel._flamme.material_override as ShaderMaterial
 	autel.add_child(autel._flamme)
 
-	autel._lampe = fx.lampe(p_ecole.couleur, 2.0, 8.0)
+	autel._lampe = fx.lampe(p_ecole.couleur, 1.4, 5.5)
 	autel._lampe.position = Vector3(0, 2.2, 0)
 	autel.add_child(autel._lampe)
 
@@ -75,7 +75,7 @@ func _process(delta: float) -> void:
 	var souffle: float = sin(float(Time.get_ticks_msec()) * 0.003) * 0.08
 	_flamme.position.y = lerpf(_flamme.position.y, voulue + souffle, delta * 6.0)
 	_lampe.position.y = _flamme.position.y + 0.3
-	_lampe.light_energy = 3.4 if choisie else 1.6
+	_lampe.light_energy = 2.4 if choisie else 1.1
 
 
 func libelle(cout_deblocage: int) -> String:

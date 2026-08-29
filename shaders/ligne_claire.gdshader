@@ -61,15 +61,22 @@ void fragment() {
 
 
 void light() {
-	float incidence = dot(NORMAL, LIGHT) * ATTENUATION;
-
-	// Une seule bascule. Pas de bandes intermédiaires : à deux valeurs, une
-	// troisième nuance suffirait à casser la lecture d'aplat.
+	// L'ORIENTATION seule décide de la bascule lumière/ombre. L'atténuation
+	// est appliquée APRÈS, en fondu.
+	//
+	// L'inverse — atténuation incluse dans le seuil — donnait une frontière
+	// circulaire parfaitement nette autour de chaque lampe ponctuelle, que la
+	// grille pixel transformait ensuite en escalier et que le contour
+	// soulignait consciencieusement. C'était l'origine des marches sur les sols.
+	//
+	// Une lampe éclaire donc en s'estompant, mais la surface qu'elle éclaire
+	// garde ses deux valeurs : la règle tient, sans anneau parasite.
+	float incidence = dot(NORMAL, LIGHT);
 	float eclaire = smoothstep(seuil - nettete, seuil + nettete, incidence);
 
 	vec3 teinte_ombre = mix(couleur_ombre.rgb, couleur_ombre.rgb * ALBEDO * 2.0,
 		melange_ombre);
 	vec3 teinte_lumiere = ALBEDO * LIGHT_COLOR;
 
-	DIFFUSE_LIGHT += mix(teinte_ombre, teinte_lumiere, eclaire);
+	DIFFUSE_LIGHT += mix(teinte_ombre, teinte_lumiere, eclaire) * ATTENUATION;
 }

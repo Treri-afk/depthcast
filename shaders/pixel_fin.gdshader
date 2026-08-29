@@ -119,18 +119,22 @@ void fragment() {
 	vec3 couleur = texture(ecran, uv).rgb;
 
 	if (contour_epaisseur > 0.0) {
-		vec2 pas = (1.0 / taille_ecran) * taille_bloc * contour_epaisseur;
+		float maxf_contour = max(contour_epaisseur, 0.5);
+		// Le Sobel s'échantillonne en PIXELS RÉELS, sans passer par la grille.
+		// Mesuré sur les blocs, un contour oblique devient un escalier : on
+		// détecterait la trame plutôt que la forme.
+		vec2 pas = (1.0 / taille_ecran) * maxf_contour;
 
 		// Sobel sur la luminance. Huit voisins : un contour continu même sur
 		// des diagonales, là où quatre voisins laissent des escaliers.
-		float hg = luminance(texture(ecran, accroche(SCREEN_UV + vec2(-pas.x, -pas.y), grille)).rgb);
-		float h  = luminance(texture(ecran, accroche(SCREEN_UV + vec2( 0.0,   -pas.y), grille)).rgb);
-		float hd = luminance(texture(ecran, accroche(SCREEN_UV + vec2( pas.x, -pas.y), grille)).rgb);
-		float g  = luminance(texture(ecran, accroche(SCREEN_UV + vec2(-pas.x,  0.0),   grille)).rgb);
-		float d  = luminance(texture(ecran, accroche(SCREEN_UV + vec2( pas.x,  0.0),   grille)).rgb);
-		float bg = luminance(texture(ecran, accroche(SCREEN_UV + vec2(-pas.x,  pas.y), grille)).rgb);
-		float b  = luminance(texture(ecran, accroche(SCREEN_UV + vec2( 0.0,    pas.y), grille)).rgb);
-		float bd = luminance(texture(ecran, accroche(SCREEN_UV + vec2( pas.x,  pas.y), grille)).rgb);
+		float hg = luminance(texture(ecran, SCREEN_UV + vec2(-pas.x, -pas.y)).rgb);
+		float h  = luminance(texture(ecran, SCREEN_UV + vec2( 0.0,   -pas.y)).rgb);
+		float hd = luminance(texture(ecran, SCREEN_UV + vec2( pas.x, -pas.y)).rgb);
+		float g  = luminance(texture(ecran, SCREEN_UV + vec2(-pas.x,  0.0)).rgb);
+		float d  = luminance(texture(ecran, SCREEN_UV + vec2( pas.x,  0.0)).rgb);
+		float bg = luminance(texture(ecran, SCREEN_UV + vec2(-pas.x,  pas.y)).rgb);
+		float b  = luminance(texture(ecran, SCREEN_UV + vec2( 0.0,    pas.y)).rgb);
+		float bd = luminance(texture(ecran, SCREEN_UV + vec2( pas.x,  pas.y)).rgb);
 
 		float gx = (hd + 2.0 * d + bd) - (hg + 2.0 * g + bg);
 		float gy = (bg + 2.0 * b + bd) - (hg + 2.0 * h + hd);
