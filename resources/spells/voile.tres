@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="SpellEffect" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_usv8k"]
+
+[resource]
+script = ExtResource("1_usv8k")
+nom = "Voile"
+comportement = 13
+cooldown = 8.0
+duree = 4.0

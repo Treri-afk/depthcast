@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpellEffect" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_lglcs"]
+
+[resource]
+script = ExtResource("1_lglcs")
+nom = "Traînée Ardente"
+comportement = 2
+degats = 5
+rayon = 1.6
+cooldown = 7.0
+duree = 6.0
+duree_secondaire = 3.0
+intervalle = 0.35

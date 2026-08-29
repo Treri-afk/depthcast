@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="School" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_x45mu"]
+[ext_resource type="Resource" path="res://resources/spells/pas_d_ombre.tres" id="2_bgy5s"]
+[ext_resource type="Resource" path="res://resources/spells/voile.tres" id="3_o1per"]
+[ext_resource type="Resource" path="res://resources/spells/leurre.tres" id="4_fy1t1"]
+[ext_resource type="Resource" path="res://resources/spells/eclat_nocturne.tres" id="5_bhvdc"]
+[ext_resource type="Script" path="res://scripts/content/school.gd" id="6_awtcd"]
+
+[resource]
+script = ExtResource("6_awtcd")
+id = &"ombre"
+nom = "Ombre"
+couleur = Color(0.66, 0.44, 0.95, 1)
+identite = "Évasion et diversion"
+effets = Array[ExtResource("1_x45mu")]([ExtResource("2_bgy5s"), ExtResource("3_o1per"), ExtResource("4_fy1t1"), ExtResource("5_bhvdc")])

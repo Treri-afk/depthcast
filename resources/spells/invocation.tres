@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SpellEffect" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_5wuoe"]
+
+[resource]
+script = ExtResource("1_5wuoe")
+nom = "Invocation"
+comportement = 12
+soin = 6
+rayon = 3.2
+cooldown = 9.0
+duree = 8.0
+intervalle = 0.8

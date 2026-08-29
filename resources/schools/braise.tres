@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="School" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_dv2av"]
+[ext_resource type="Resource" path="res://resources/spells/boule_de_feu.tres" id="2_vh0gl"]
+[ext_resource type="Resource" path="res://resources/spells/mur_de_flammes.tres" id="3_p8pdp"]
+[ext_resource type="Resource" path="res://resources/spells/trainee_ardente.tres" id="4_j36un"]
+[ext_resource type="Script" path="res://scripts/content/school.gd" id="5_qlxtn"]
+
+[resource]
+script = ExtResource("5_qlxtn")
+id = &"braise"
+nom = "Braise"
+couleur = Color(0.98, 0.42, 0.14, 1)
+identite = "Dégâts et auto-soin instable"
+effets = Array[ExtResource("1_dv2av")]([ExtResource("2_vh0gl"), ExtResource("3_p8pdp"), ExtResource("4_j36un")])

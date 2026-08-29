@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="School" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_ddafk"]
+[ext_resource type="Resource" path="res://resources/spells/soin.tres" id="2_f4mgq"]
+[ext_resource type="Resource" path="res://resources/spells/siphon.tres" id="3_0pwtg"]
+[ext_resource type="Resource" path="res://resources/spells/invocation.tres" id="4_ut3iv"]
+[ext_resource type="Script" path="res://scripts/content/school.gd" id="5_ldiv6"]
+
+[resource]
+script = ExtResource("5_ldiv6")
+id = &"vie"
+nom = "Vie"
+couleur = Color(0.42, 0.92, 0.48, 1)
+identite = "Soutien et récupération"
+effets = Array[ExtResource("1_ddafk")]([ExtResource("2_f4mgq"), ExtResource("3_0pwtg"), ExtResource("4_ut3iv")])

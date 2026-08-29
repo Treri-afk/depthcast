@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="MonsterStats" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/monster_stats.gd" id="1_evo11"]
+
+[resource]
+script = ExtResource("1_evo11")
+id = &"rodeuse_ailee"
+nom = "Rôdeuse ailée"
+couleur = Color(0.55, 0.45, 0.85, 1)
+taille = Vector3(1, 0.8, 1)
+pv = 22
+degats = 9
+resonance = 18
+portee_frappe = 16.0
+vitesse = 3.6
+distance_garde = 11.0
+delai_assaut = 2.0
+duree_assaut = 0.0
+duree_repli = 0.0
+vole = true
+tire = true

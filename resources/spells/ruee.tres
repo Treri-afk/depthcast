@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="SpellEffect" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_dd3n6"]
+
+[resource]
+script = ExtResource("1_dd3n6")
+nom = "Ruée"
+comportement = 8
+degats = 18
+rayon = 2.2
+distance = 9.0
+cooldown = 2.0

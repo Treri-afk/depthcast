@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="MonsterStats" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/monster_stats.gd" id="1_84s37"]
+
+[resource]
+script = ExtResource("1_84s37")
+id = &"brute"
+nom = "Brute"
+couleur = Color(0.62, 0.24, 0.22, 1)
+taille = Vector3(1.9, 2.4, 1.9)
+pv = 78
+degats = 17
+resonance = 26
+portee_frappe = 2.6
+vitesse = 2.1
+distance_garde = 0.0
+delai_assaut = 1.6
+duree_assaut = 0.0
+duree_repli = 0.0

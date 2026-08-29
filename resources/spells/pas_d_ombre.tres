@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="SpellEffect" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_yfe2e"]
+
+[resource]
+script = ExtResource("1_yfe2e")
+nom = "Pas d'Ombre"
+comportement = 9
+portee = 16.0
+cooldown = 2.4

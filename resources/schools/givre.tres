@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="School" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_daxeo"]
+[ext_resource type="Resource" path="res://resources/spells/gel.tres" id="2_4vqn0"]
+[ext_resource type="Resource" path="res://resources/spells/bise_glaciale.tres" id="3_bkoy1"]
+[ext_resource type="Resource" path="res://resources/spells/rempart.tres" id="4_figwt"]
+[ext_resource type="Script" path="res://scripts/content/school.gd" id="5_2x1hs"]
+
+[resource]
+script = ExtResource("5_2x1hs")
+id = &"givre"
+nom = "Givre"
+couleur = Color(0.42, 0.82, 1, 1)
+identite = "Contrôle et défense"
+effets = Array[ExtResource("1_daxeo")]([ExtResource("2_4vqn0"), ExtResource("3_bkoy1"), ExtResource("4_figwt")])

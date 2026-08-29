@@ -67,4 +67,4 @@ jobs:
       # main_scene du projet : celui-ci deviendra le prototype jouable, qui ne
       # se termine pas tout seul. La CI resterait bloquée jusqu'au timeout.
       - name: Lancer les vérifications
-        run: ~/godot/godot --headless --path . res://scenes/main.tscn --quit-after 3
+        run: ~/godot/godot --headless --path . res://scenes/verification.tscn --quit-after 3

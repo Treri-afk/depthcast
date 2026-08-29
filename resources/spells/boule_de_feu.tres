@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="SpellEffect" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_qcw4o"]
+
+[resource]
+script = ExtResource("1_qcw4o")
+nom = "Boule de Feu"
+degats = 14
+portee = 24.0
+cooldown = 0.55

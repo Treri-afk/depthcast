@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="SpellEffect" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_7g8y0"]
+
+[resource]
+script = ExtResource("1_7g8y0")
+nom = "Éclat Nocturne"
+degats = 28
+portee = 15.0
+cooldown = 1.6

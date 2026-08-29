@@ -11,13 +11,14 @@ config_version=5
 [application]
 
 config/name="DepthCast"
-run/main_scene="res://scenes/prototype.tscn"
+run/main_scene="res://scenes/jeu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
 EventBus="*res://scripts/core/event_bus.gd"
+Content="*res://scripts/content/content_library.gd"
 RngService="*res://scripts/core/rng_service.gd"
 GameState="*res://scripts/core/game_state.gd"
 EffectResolver="*res://scripts/core/effect_resolver.gd"

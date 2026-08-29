@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpellEffect" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_w0hfs"]
+
+[resource]
+script = ExtResource("1_w0hfs")
+nom = "Mur de Flammes"
+comportement = 1
+degats = 7
+largeur = 9.0
+distance = 4.5
+cooldown = 5.0
+duree = 5.0
+intervalle = 0.4

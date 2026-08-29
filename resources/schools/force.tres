@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="School" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_b4jxb"]
+[ext_resource type="Resource" path="res://resources/spells/poussee.tres" id="2_bhvlh"]
+[ext_resource type="Resource" path="res://resources/spells/attraction.tres" id="3_ty6cf"]
+[ext_resource type="Resource" path="res://resources/spells/ruee.tres" id="4_b7lqf"]
+[ext_resource type="Script" path="res://scripts/content/school.gd" id="5_70xsg"]
+
+[resource]
+script = ExtResource("5_70xsg")
+id = &"force"
+nom = "Force"
+couleur = Color(0.92, 0.78, 0.22, 1)
+identite = "Positionnement et mobilité"
+effets = Array[ExtResource("1_b4jxb")]([ExtResource("2_bhvlh"), ExtResource("3_ty6cf"), ExtResource("4_b7lqf")])
