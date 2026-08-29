@@ -96,6 +96,13 @@ func _physics_process(delta: float) -> void:
 func _ecoute_les_sorts() -> void:
 	if not souris_capturee():
 		return
+	# Maj et Ctrl sont réservés au changement d'école et au verrouillage :
+	# sans ce garde, appuyer sur Maj+1 lancerait AUSSI le sort du slot 1.
+	var modificateur: bool = Input.is_key_pressed(KEY_SHIFT) \
+		or Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META)
+	if modificateur:
+		return
+
 	for i: int in 4:
 		if Input.is_action_just_pressed("proto_sort_%d" % (i + 1)) and _cooldowns[i] <= 0.0:
 			a_lance.emit(i, direction_visee())

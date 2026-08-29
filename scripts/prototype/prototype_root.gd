@@ -57,6 +57,26 @@ func _ready() -> void:
 	_hud.journalise("ZQSD pour bouger · souris pour viser · clic ou 1-4 pour lancer · F pour descendre · Échap pour le curseur")
 
 
+## Raccourcis clavier pour l'école et le verrou.
+##
+## Ils existent parce qu'en vue subjective la souris est capturée : sans eux,
+## les boutons du HUD seraient inatteignables sans passer par Échap à chaque
+## fois, ce qui rend le test pénible.
+func _unhandled_input(event: InputEvent) -> void:
+	var touche := event as InputEventKey
+	if touche == null or not touche.pressed or touche.echo:
+		return
+	var index: int = [KEY_1, KEY_2, KEY_3, KEY_4].find(touche.physical_keycode)
+	if index < 0:
+		return
+	if touche.shift_pressed:
+		_sur_ecole_changee(index, 1)
+		get_viewport().set_input_as_handled()
+	elif touche.ctrl_pressed or touche.meta_pressed:
+		_sur_verrou_demande(index)
+		get_viewport().set_input_as_handled()
+
+
 func _physics_process(_delta: float) -> void:
 	# Un tick de résolution par frame physique. Toutes les intentions soumises
 	# pendant cette frame sont triées puis appliquées ensemble (R4).
