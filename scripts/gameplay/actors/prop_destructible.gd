@@ -9,6 +9,11 @@ extends RigidBody3D
 
 const POUSSEE_MINIMALE: float = 2.0
 
+## Émis juste avant la libération. Le terrain d'essai s'en sert pour réarmer
+## son étal ; le donjon ne l'écoute pas, et c'est très bien — un signal qu'on
+## n'écoute pas ne coûte rien, une dépendance en dur coûte cher.
+signal detruit()
+
 var pv: int = 18
 var couleur: Color = Color(0.48, 0.36, 0.24)
 
@@ -51,6 +56,7 @@ func encaisse(degats: int, depuis: Vector3 = Vector3.ZERO) -> bool:
 
 func _casse() -> void:
 	_projette_des_debris()
+	detruit.emit()
 	queue_free()
 
 

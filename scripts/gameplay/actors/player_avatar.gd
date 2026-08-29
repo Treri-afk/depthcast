@@ -12,6 +12,14 @@ extends CharacterBody3D
 ## Hauteur des yeux, mesurée depuis le centre de la capsule.
 const HAUTEUR_YEUX: float = 0.65
 
+## Ressort de la culbute : raideur et amortissement. Ces deux nombres seuls
+## décident si une projection se sent comme un corps ou comme une caméra qui
+## glisse — d'où le ressort plutôt qu'un retour linéaire.
+const CULBUTE_RAIDEUR: float = 26.0
+const CULBUTE_AMORTI: float = 7.5
+## Au-delà, on aurait la tête à l'envers. En radians.
+const CULBUTE_MAX: float = 0.7
+
 signal a_lance(slot_index: int, direction: Vector3)
 
 var player_id: int = 0
@@ -21,6 +29,9 @@ var camera: Camera3D
 var _tuning: Tuning
 var _regard: MouseLook
 var _trainee: TrailEmitter
+## Porte la culbute de la vue. Nœud distinct de `tete` pour que la projection
+## et le regard à la souris se composent au lieu de se disputer la rotation.
+var _secousse: Node3D
 
 ## Cooldown restant par slot, en secondes.
 var _cooldowns: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
@@ -29,6 +40,12 @@ var _dash: Vector3 = Vector3.ZERO
 var _dash_restant: float = 0.0
 ## Tant que c'est > 0, les monstres ont perdu notre trace (Voile).
 var _voile_restant: float = 0.0
+## Projection par un souffle : temps de contrôle confisqué restant.
+var _projection_restant: float = 0.0
+## Culbute de la vue — x roulis, y tangage — et sa vitesse angulaire.
+var _culbute: Vector2 = Vector2.ZERO
+var _culbute_vitesse: Vector2 = Vector2.ZERO
+var _etait_au_sol: bool = true
 
 
 func _ready() -> void:
@@ -40,10 +57,14 @@ func _ready() -> void:
 	tete.position = Vector3(0, HAUTEUR_YEUX, 0)
 	add_child(tete)
 
+	_secousse = Node3D.new()
+	_secousse.name = "Secousse"
+	tete.add_child(_secousse)
+
 	camera = Camera3D.new()
 	camera.fov = 78.0
 	camera.current = true
-	tete.add_child(camera)
+	_secousse.add_child(camera)
 
 	_regard = MouseLook.new(self, tete, _tuning.sensibilite_souris)
 
@@ -68,10 +89,29 @@ func _unhandled_input(event: InputEvent) -> void:
 			MouseLook.capture(true)
 
 
+## La culbute vit dans _process et non dans la physique : c'est du regard, et
+## le regard se met à jour à chaque image affichée, pas à chaque tick physique.
+func _process(delta: float) -> void:
+	if _secousse == null:
+		return
+	if _culbute.is_zero_approx() and _culbute_vitesse.is_zero_approx():
+		return
+
+	# Ressort amorti : la vue part, dépasse une fois, puis se recale. Un retour
+	# linéaire ferait une caméra qui glisse ; un ressort fait un corps.
+	_culbute_vitesse -= (_culbute * CULBUTE_RAIDEUR
+		+ _culbute_vitesse * CULBUTE_AMORTI) * delta
+	_culbute += _culbute_vitesse * delta
+	_culbute.x = clampf(_culbute.x, -CULBUTE_MAX, CULBUTE_MAX)
+	_culbute.y = clampf(_culbute.y, -CULBUTE_MAX, CULBUTE_MAX)
+	_secousse.rotation = Vector3(_culbute.y, 0.0, _culbute.x)
+
+
 func _physics_process(delta: float) -> void:
 	for i: int in _cooldowns.size():
 		_cooldowns[i] = maxf(0.0, _cooldowns[i] - delta)
 	_voile_restant = maxf(0.0, _voile_restant - delta)
+	_projection_restant = maxf(0.0, _projection_restant - delta)
 
 	_deplace(delta)
 	_ecoute_les_sorts()
@@ -85,7 +125,19 @@ func _deplace(delta: float) -> void:
 		* _tuning.vitesse_joueur
 	var vitesse_verticale: float = velocity.y
 
-	if _dash_restant > 0.0:
+	var au_sol: bool = is_on_floor()
+	if au_sol and not _etait_au_sol and _projection_restant > 0.0:
+		_encaisse_l_atterrissage()
+	_etait_au_sol = au_sol
+
+	if _projection_restant > 0.0:
+		# Contrôle confisqué : on ne conduit plus, on subit. C'est exactement ce
+		# qu'un ragdoll donne à ressentir, et la seule partie qui se transpose
+		# en vue subjective — un squelette qui s'affale, on ne le verrait pas.
+		var frein: float = _tuning.projection_amortissement * delta
+		velocity.x = move_toward(velocity.x, 0.0, frein)
+		velocity.z = move_toward(velocity.z, 0.0, frein)
+	elif _dash_restant > 0.0:
 		# Pendant la charge, le contrôle horizontal est confisqué : c'est ce qui
 		# fait qu'une Ruée se sent comme une Ruée et pas comme un sprint.
 		_dash_restant -= delta
@@ -97,7 +149,12 @@ func _deplace(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, voulu.x, taux * delta)
 		velocity.z = move_toward(velocity.z, voulu.z, taux * delta)
 
-	if is_on_floor():
+	if _projection_restant > 0.0:
+		# Le sol ne reprend pas la main tant qu'on est projeté : sinon
+		# l'impulsion verticale serait annulée dès la première frame, alors
+		# qu'on touche encore le sol d'où l'on décolle.
+		vitesse_verticale -= _tuning.gravite * delta
+	elif au_sol:
 		vitesse_verticale = 0.0
 		if Input.is_action_just_pressed(InputActions.SAUTER) and MouseLook.est_capture():
 			vitesse_verticale = _tuning.impulsion_saut
@@ -173,6 +230,47 @@ func charge(direction: Vector3, distance: float, duree: float = 0.18) -> void:
 	_dash = direction.normalized() * (distance / maxf(duree, 0.01))
 	_dash.y = 0.0
 	_dash_restant = duree
+
+
+## Projeté par un souffle. Le corps part, la vue culbute, le contrôle est rendu
+## une demi-seconde plus tard.
+##
+## Cumulatif à dessein : deux explosions coup sur coup projettent plus loin
+## qu'une seule. Le plafond de vitesse empêche que ça sorte de la salle.
+func projete(impulsion: Vector3, origine: Vector3 = Vector3.ZERO) -> void:
+	if _tuning == null or impulsion.length_squared() < 0.01:
+		return
+
+	var lancee: Vector3 = velocity + impulsion
+	if lancee.length() > _tuning.projection_vitesse_max:
+		lancee = lancee.normalized() * _tuning.projection_vitesse_max
+	velocity = lancee
+
+	_projection_restant = maxf(_projection_restant, _tuning.projection_controle_perdu)
+	_arme_la_culbute(impulsion)
+	EventBus.player_blasted.emit(player_id, impulsion.length(), origine)
+
+
+## Tant que c'est vrai, le joueur subit une projection et ne se dirige plus.
+func est_projete() -> bool:
+	return _projection_restant > 0.0
+
+
+## La vue part dans le sens du souffle : projeté vers la droite, l'horizon
+## bascule ; projeté vers l'arrière, on voit le plafond arriver. C'est le seul
+## endroit où une projection est VISIBLE en vue subjective.
+func _arme_la_culbute(impulsion: Vector3) -> void:
+	var locale: Vector3 = global_transform.basis.inverse() * impulsion
+	var ampleur: float = _tuning.projection_culbute * 0.055
+	_culbute_vitesse += Vector2(-locale.x, locale.z) * ampleur
+	_culbute_vitesse = _culbute_vitesse.limit_length(6.0)
+
+
+## Le choc de la réception. Sans lui, une projection se termine en flottant :
+## on retouche le sol et il ne se passe rien.
+func _encaisse_l_atterrissage() -> void:
+	_culbute_vitesse.y += 1.8
+	_projection_restant = minf(_projection_restant, 0.12)
 
 
 func voile(duree: float) -> void:

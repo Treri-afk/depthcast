@@ -69,6 +69,15 @@ func monstres_dans_cone(origine: Vector3, direction: Vector3, portee: float,
 	return out
 
 
+## Ajoute un corps projetable, et oublie au passage ceux qui ont été détruits.
+## Sans ce nettoyage la liste enfle indéfiniment sur un terrain qui réarme son
+## mobilier en boucle.
+func enregistre_objet(corps: PropDestructible) -> void:
+	objets = objets.filter(func(c: PropDestructible) -> bool:
+		return is_instance_valid(c))
+	objets.append(corps)
+
+
 func objets_valides() -> Array:
 	var out: Array = []
 	for corps: PropDestructible in objets:
@@ -79,22 +88,20 @@ func objets_valides() -> Array:
 
 # ── Décor ─────────────────────────────────────────────────────────────────
 
-## Souffle sur le mobilier. `degats_decor` peut rester à zéro : un souffle
-## projette le décor, il n'est pas censé le pulvériser.
-func souffle_sur_objets(centre: Vector3, rayon: float, puissance: float,
-		repousse: bool, degats_decor: int = 0) -> void:
-	for corps: PropDestructible in objets_valides():
-		var vers: Vector3 = corps.global_position - centre
-		var distance: float = vers.length()
-		if distance > rayon or distance < 0.05:
-			continue
-		var sens: Vector3 = vers.normalized() * (1.0 if repousse else -1.0)
-		var attenuation: float = 1.0 - clampf(distance / rayon, 0.0, 0.85)
-		# Divisé par la masse : une table lourde bouge moins qu'un tonneau.
-		corps.apply_central_impulse(
-			(sens + Vector3.UP * 0.25) * puissance * attenuation * corps.mass * 0.5)
-		if degats_decor > 0:
-			corps.encaisse(int(degats_decor * attenuation), centre)
+## Déclenche un souffle : il bouscule le mobilier, repousse les monstres, et
+## projette le joueur s'il est trop près. Retourne les monstres touchés, que
+## l'appelant passe à `degats()` s'il veut aussi les blesser.
+##
+## La courbe d'atténuation n'est PAS écrite ici : elle vit dans Souffle, et
+## c'est la même pour un sort, pour un piège et pour le terrain d'essai. Deux
+## copies, et deux explosions du jeu cesseraient de se ressembler.
+func souffle(centre: Vector3, rayon: float, puissance: float, repousse: bool,
+		degats_decor: int = 0, epargne_le_lanceur: bool = false) -> Array:
+	var onde := Souffle.new(centre, rayon, puissance, not repousse)
+	onde.epargne_le_lanceur = epargne_le_lanceur
+	onde.sur_objets(objets_valides(), degats_decor)
+	onde.sur_joueur(joueur, tuning)
+	return onde.sur_monstres(monstres)
 
 
 func frappe_objets_devant(origine: Vector3, direction: Vector3, portee: float,

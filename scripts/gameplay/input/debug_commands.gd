@@ -14,6 +14,7 @@ const SAUTER_ETAGE := KEY_P
 const DONNER_RESONANCE := KEY_O
 const DONNER_ECLATS := KEY_I
 const TUER_LE_JOUEUR := KEY_M
+const SOIGNER_LE_JOUEUR := KEY_L
 
 const RESONANCE_DONNEE: int = 150
 const ECLATS_DONNES: int = 300
@@ -48,6 +49,12 @@ func traite(touche: InputEventKey) -> bool:
 				GameState.run.players[0].hp = 0
 				message.emit("[debug] mort forcée")
 			return true
+		SOIGNER_LE_JOUEUR:
+			if GameState.is_in_run():
+				var p: PlayerState = GameState.run.players[0]
+				p.hp = p.max_hp
+				message.emit("[debug] points de vie rendus")
+			return true
 	return false
 
 
@@ -55,4 +62,4 @@ func aide() -> String:
 	if not actif():
 		return ""
 	return ("[color=#7fd0ff][b]Debug[/b]  P sauter l'étage · O +Résonance\n"
-		+ "I +Éclats · M mourir[/color]")
+		+ "I +Éclats · L se soigner · M mourir[/color]")

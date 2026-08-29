@@ -38,6 +38,10 @@ signal slot_discovered(player_id: int, slot_index: int)
 ## des dégâts hors champ sans indication est illisible.
 signal player_damaged(player_id: int, degats: int, origine: Vector3)
 
+## Le joueur vient d'être projeté par un souffle. Le son et la caméra écoutent ;
+## aucun des deux n'a besoin de savoir QUI a déclenché l'explosion.
+signal player_blasted(player_id: int, force: float, origine: Vector3)
+
 # ── Monstres ──────────────────────────────────────────────────────────────
 signal monster_spawned(monster_id: int)
 signal monster_damaged(monster_id: int, hp_restant: int)

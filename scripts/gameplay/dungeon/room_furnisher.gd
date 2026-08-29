@@ -60,13 +60,12 @@ func meuble(salle: FloorPlan.Salle, rng: RandomNumberGenerator) -> void:
 		if pos.distance_to(salle.centre) < 3.0:
 			continue
 		var tirage: float = rng.randf()
+		var genre: PropFactory.Genre = PropFactory.Genre.TABLE
 		if tirage < 0.45:
-			_objet(pos, Vector3(1.0, 1.0, 1.0), 7.0, Content.palette.caisse, false)
+			genre = PropFactory.Genre.CAISSE
 		elif tirage < 0.8:
-			_objet(pos, Vector3(0.9, 1.2, 0.9), 9.0, Content.palette.tonneau, true)
-		else:
-			_objet(pos + Vector3(0, 0.35, 0), Vector3(2.2, 0.25, 1.2), 14.0,
-				Content.palette.table, false)
+			genre = PropFactory.Genre.TONNEAU
+		_pose(genre, pos)
 
 
 func _estrade(centre: Vector3, cote: float, rng: RandomNumberGenerator) -> void:
@@ -76,40 +75,9 @@ func _estrade(centre: Vector3, cote: float, rng: RandomNumberGenerator) -> void:
 	_builder.rampe(centre + Vector3(0, 0, cote * 0.5), Vector3.BACK, hauteur, cote * 0.6)
 
 
-func _objet(pos: Vector3, taille: Vector3, masse: float, couleur: Color,
-		cylindrique: bool) -> void:
-	var corps := PropDestructible.new()
-	corps.position = Vector3(pos.x, taille.y * 0.5 + 0.1, pos.z)
-	corps.mass = masse
-	corps.couleur = couleur
-	# Un objet plus lourd encaisse plus : une table ne part pas comme un tonneau.
-	corps.pv = int(masse * 2.2)
-	corps.linear_damp = 1.6
-	corps.angular_damp = 2.4
-
-	var forme := CollisionShape3D.new()
-	var visuel := MeshInstance3D.new()
-	visuel.name = "Mesh"
-	if cylindrique:
-		var cyl := CylinderShape3D.new()
-		cyl.radius = taille.x * 0.5
-		cyl.height = taille.y
-		forme.shape = cyl
-		var mesh := CylinderMesh.new()
-		mesh.top_radius = taille.x * 0.5
-		mesh.bottom_radius = taille.x * 0.5
-		mesh.height = taille.y
-		visuel.mesh = mesh
-	else:
-		var boite := BoxShape3D.new()
-		boite.size = taille
-		forme.shape = boite
-		var mesh := BoxMesh.new()
-		mesh.size = taille
-		visuel.mesh = mesh
-
-	visuel.material_override = MaterialLibrary.aplat(couleur, MaterialLibrary.Role.OBJET)
-	corps.add_child(forme)
-	corps.add_child(visuel)
+## Ce qu'est un meuble vit dans PropFactory : le terrain d'essai en pose les
+## mêmes, et deux définitions divergeraient au premier réglage de masse.
+func _pose(genre: PropFactory.Genre, pos: Vector3) -> void:
+	var corps := PropFactory.cree(genre, pos)
 	_parent.add_child(corps)
 	objets.append(corps)

@@ -6,6 +6,7 @@ extends RefCounted
 const CHEMIN_MENU := "res://scenes/menu.tscn"
 const CHEMIN_HUB := "res://scenes/hub.tscn"
 const CHEMIN_JEU := "res://scenes/jeu.tscn"
+const CHEMIN_LABO := "res://scenes/labo.tscn"
 
 
 static func fond(parent: Control) -> void:

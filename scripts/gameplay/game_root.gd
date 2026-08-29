@@ -9,14 +9,13 @@ extends Node3D
 
 const PORTEE_INTERACTION: float = 3.2
 
+## Le socle partagé avec le terrain d'essai : joueur, HUD, sorts.
+var _terrain: PlayField
 var _joueur: PlayerAvatar
 var _hud: GameHud
-var _geometrie: Node3D
-var _conteneur_monstres: Node3D
 
 var _fx: FxLibrary
 var _contexte: SpellContext
-var _caster: SpellCaster
 var _marchand: MerchantRoom
 var _spawner: MonsterSpawner
 var _etage: FloorDirector
@@ -24,23 +23,24 @@ var _etage: FloorDirector
 ## Slots ayant muté à la dernière descente. Rempli par les signaux, consommé
 ## par la séquence de reroll.
 var _mutations: Array[bool] = []
-var _sequence_en_cours: bool = false
 var _socle_vise: ShopPedestal = null
 var _portail_a_portee: bool = false
 var _debug := DebugCommands.new()
 
 
 func _ready() -> void:
-	InputActions.declare()
-	WorldLighting.installe(self)
-	_construit_les_conteneurs()
-	_construit_le_joueur()
-	_construit_le_hud()
-	_assemble_les_services()
+	_terrain = PlayField.new(self)
+	_terrain.monte()
+	_joueur = _terrain.joueur
+	_hud = _terrain.hud
+	_fx = _terrain.fx
+	_contexte = _terrain.contexte
+
+	_assemble_le_donjon()
 	_branche_les_evenements()
 
 	GameState.start_run(0, 1)
-	GameState.set_player_schools(0, _definitions_choisies())
+	GameState.set_player_schools(0, PlayField.definitions_choisies())
 	_contexte.objets = _etage.genere()
 	_hud.journalise("Nettoie l'étage, va voir le marchand au fond, puis prends le portail.")
 	_hud.aide_debug(_debug.aide())
@@ -51,10 +51,10 @@ func _physics_process(delta: float) -> void:
 	# pendant cette frame sont triées puis appliquées ensemble (R4).
 	EffectResolver.resolve_tick()
 
-	if _sequence_en_cours:
+	if _terrain.sequence_en_cours:
 		return
 
-	_seme_la_trainee(delta)
+	_terrain.seme_la_trainee(delta)
 	_maj_interaction()
 
 	if Input.is_action_just_pressed(InputActions.INTERAGIR):
@@ -69,100 +69,27 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _debug.traite(touche):
 		get_viewport().set_input_as_handled()
 		return
-	if touche == null or not touche.pressed or touche.echo or not touche.shift_pressed:
-		return
-	var index: int = InputActions.TOUCHES_SLOTS.find(touche.physical_keycode)
-	if index >= 0:
-		_change_ecole(index, 1)
+	if _terrain.traite_raccourci(touche):
 		get_viewport().set_input_as_handled()
 
 
 # ── Assemblage ────────────────────────────────────────────────────────────
 
-func _construit_les_conteneurs() -> void:
-	_geometrie = Node3D.new()
-	_geometrie.name = "Geometrie"
-	add_child(_geometrie)
-
-	_conteneur_monstres = Node3D.new()
-	_conteneur_monstres.name = "Monstres"
-	add_child(_conteneur_monstres)
-
-
-func _construit_le_joueur() -> void:
-	_joueur = PlayerAvatar.new()
-	_joueur.name = "Joueur"
-	_joueur.position = Vector3(0, 1.2, 0)
-
-	var forme := CollisionShape3D.new()
-	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.5
-	capsule.height = 2.0
-	forme.shape = capsule
-	_joueur.add_child(forme)
-	# Aucun mesh : en vue subjective, on ne se voit pas soi-même.
-	add_child(_joueur)
-	# Le post-traitement s'accroche à la caméra : c'est un quad de la passe 3D.
-	_joueur.camera.add_child(PostProcess.cree(Content.palette))
-
-
-func _construit_le_hud() -> void:
-	var couche := CanvasLayer.new()
-	# Calque 0 : au-dessus de la trame pixel, qui vit en -1. Le texte reste net.
-	couche.layer = 0
-	add_child(couche)
-	_hud = GameHud.new()
-	_hud.joueur = _joueur
-	_hud.ecole_changee.connect(_change_ecole)
-	couche.add_child(_hud)
-
-	var degats := DamageIndicator.new()
-	degats.joueur = _joueur
-	couche.add_child(degats)
-
-
-func _assemble_les_services() -> void:
+## Ce qui appartient au donjon, et rien d'autre. Le joueur, le HUD et les sorts
+## sont montés par PlayField : ils sont identiques au terrain d'essai, et le
+## jour où ils divergeraient, c'est qu'on aurait cessé de tester le vrai jeu.
+func _assemble_le_donjon() -> void:
 	var tuning: Tuning = Content.tuning
-	_fx = FxLibrary.new(self)
+	var geometrie: Node3D = _terrain.geometrie
 
-	_contexte = SpellContext.new()
-	_contexte.monde = self
-	_contexte.joueur = _joueur
-	_contexte.fx = _fx
-	_contexte.tuning = tuning
-	_caster = SpellCaster.new(_contexte)
-	_hud.caster = _caster
-
-	var builder := FloorBuilder.new(_geometrie, tuning)
-	var furnisher := RoomFurnisher.new(builder, _geometrie, tuning)
-	_marchand = MerchantRoom.new(_geometrie, tuning, _fx)
-	_spawner = MonsterSpawner.new(_conteneur_monstres, tuning)
+	var builder := FloorBuilder.new(geometrie, tuning)
+	var furnisher := RoomFurnisher.new(builder, geometrie, tuning)
+	_marchand = MerchantRoom.new(geometrie, tuning, _fx)
+	_spawner = MonsterSpawner.new(_terrain.conteneur_monstres, tuning)
 	_contexte.monstres = _spawner.avatars
 
-	_etage = FloorDirector.new(_geometrie, tuning, builder, furnisher,
+	_etage = FloorDirector.new(geometrie, tuning, builder, furnisher,
 		_marchand, _spawner, _joueur)
-
-	var apercu := TeleportPreview.new()
-	apercu.joueur = _joueur
-	apercu.caster = _caster
-	add_child(apercu)
-
-
-## Les écoles composées au hub. En leur absence — lancement direct de la scène
-## de jeu pendant le développement — on retombe sur les quatre premières
-## débloquées plutôt que de planter.
-func _definitions_choisies() -> Array:
-	var ids: Array[StringName] = GameState.ecoles_choisies
-	if ids.is_empty():
-		for ecole: School in Meta.ecoles_disponibles():
-			if ids.size() < PlayerState.SLOT_COUNT:
-				ids.append(ecole.id)
-	var out: Array = []
-	for id: StringName in ids:
-		var ecole: School = Content.ecole(id)
-		if ecole != null:
-			out.append({"id": ecole.id, "pool_size": ecole.taille_pool()})
-	return out
 
 
 ## Fin de run : par la mort, ou par la chute du boss.
@@ -185,7 +112,6 @@ func _termine_la_run(victoire: bool) -> void:
 
 
 func _branche_les_evenements() -> void:
-	_joueur.a_lance.connect(func(slot: int, dir: Vector3) -> void: _caster.lance(slot, dir))
 	_marchand.achat_effectue.connect(_hud.journalise)
 	_spawner.monstre_veut_tirer.connect(_sur_tir_monstre)
 	_etage.boss_invoque.connect(_sur_boss_invoque)
@@ -245,55 +171,12 @@ func _note_mutation(slot: int, mute: bool) -> void:
 func _descend_d_un_etage() -> void:
 	_mutations.clear()
 	_contexte.objets = _etage.descend()
-	_montre_le_reroll()
-
-
-## Arrête le jeu et présente ce que le grimoire a réécrit.
-##
-## Le contrôle est confisqué pendant la séquence : un évènement qu'on peut
-## ignorer en courant n'est pas un évènement.
-func _montre_le_reroll() -> void:
-	_sequence_en_cours = true
-	MouseLook.capture(false)
-	_joueur.set_physics_process(false)
-
-	var sequence := RerollSequence.new()
-	sequence.mutations = _mutations.duplicate()
-	sequence.etage = GameState.run.floor_index
-
-	var couche := CanvasLayer.new()
-	couche.layer = 5
-	couche.add_child(sequence)
-	add_child(couche)
-
-	sequence.terminee.connect(func() -> void:
-		_sequence_en_cours = false
-		_joueur.set_physics_process(true)
-		MouseLook.capture(true)
-		couche.queue_free())
+	_terrain.montre_le_reroll(_mutations, GameState.run.floor_index)
 	_hud.journalise("Étage %d. Tes sorts non scellés ont muté." %
 		(GameState.run.floor_index + 1))
 
 
 # ── Relais ────────────────────────────────────────────────────────────────
-
-## La traînée s'étale dans le temps : le joueur mémorise où semer, la racine
-## instancie. Aucun des deux ne connaît la logique de l'autre.
-func _seme_la_trainee(delta: float) -> void:
-	var flaque: Dictionary = _joueur.consomme_flaque(delta)
-	if flaque.is_empty():
-		return
-	var effet: SpellEffect = flaque["effet"]
-	var pos: Vector3 = flaque["position"]
-	var zone := ZoneEffet.cree(ZoneEffet.Forme.SPHERE,
-		Vector3(effet.rayon, 0, 0), Vector3(pos.x, 0.4, pos.z))
-	zone.duree = effet.duree_secondaire
-	zone.intervalle = effet.intervalle
-	zone.degats = effet.degats
-	zone.source_slot = int(flaque["slot"])
-	zone.couleur = flaque["couleur"]
-	add_child(zone)
-
 
 func _sur_tir_monstre(depuis: Vector3, direction: Vector3, degats: int) -> void:
 	add_child(EnemyProjectile.cree(_fx, depuis, direction, degats))
@@ -328,17 +211,3 @@ func _sur_boss_invoque(avatar: BossAvatar) -> void:
 		titre, (avatar.stats as BossStats).nombre_de_phases()])
 	avatar.phase_changee.connect(func(phase: int, total: int) -> void:
 		_hud.journalise("%s entre en phase %d sur %d." % [titre, phase + 1, total]))
-
-
-## Fait défiler les écoles sur un slot. Outil de comparaison : en jeu, les
-## écoles se choisissent avant la descente et ne bougent plus.
-func _change_ecole(slot_index: int, pas: int) -> void:
-	var total: int = Content.ecoles.size()
-	if total == 0:
-		return
-	var slot: SpellSlot = GameState.run.players[0].slots[slot_index]
-	var index: int = (Content.index_ecole(slot.school_id) + pas + total) % total
-	var suivante: School = Content.ecoles[index]
-	GameState.set_slot_school(0, slot_index, suivante.id, suivante.taille_pool())
-	_hud.journalise("Slot %d passe à %s — %d effets possibles." % [
-		slot_index + 1, suivante.nom, suivante.taille_pool()])

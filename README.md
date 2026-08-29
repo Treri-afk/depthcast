@@ -17,6 +17,24 @@
 
 Le suivi des tâches est dans Plane, projet `DEPTH`.
 
+### Le terrain d'essai
+
+Le menu principal propose **Terrain d'essai** : une salle sans enjeu où l'on ne
+meurt pas, avec des mannequins dont on peut couper l'IA et qui affichent leurs
+points de vie, une fosse qui explose en boucle à puissance réglable, un étal de
+mobilier qui se réarme, un portique gradué tous les quatre mètres et un pupitre
+qui rejoue le reroll à la demande.
+
+C'est l'outil de calibrage du projet. Une sensation — la portée d'un sort, la
+violence d'une projection, le rythme du reroll — ne se règle pas en lisant un
+nombre : il faut la subir vingt fois d'affilée en changeant un réglage entre
+deux essais. Le donjon rend chacune de ces boucles trop longue, donc on ne les
+fait pas, donc rien ne se règle.
+
+Le terrain monte le **même** `PlayField` que le jeu : même joueur, même HUD,
+mêmes sorts, mêmes matériaux, mêmes monstres. Un banc d'essai qui reconstruit
+une version simplifiée de ce qu'il mesure finit par ne mesurer que lui-même.
+
 ---
 
 ## Installation

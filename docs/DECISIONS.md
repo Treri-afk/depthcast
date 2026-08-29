@@ -188,6 +188,39 @@ publication.
 
 # Questions ouvertes
 
+## D10 — Une explosion projette le joueur, et le lanceur n'est pas toujours épargné
+*Décidé le 29 août 2026*
+
+Un souffle (`Souffle`) déplace trois choses avec la même courbe d'atténuation :
+le mobilier, les monstres, et **le joueur**. Pour le joueur, la projection
+confisque le contrôle une demi-seconde, lance le corps, et fait culbuter la vue.
+
+Ce n'est pas un ragdoll au sens strict — il n'y a pas de squelette à faire
+s'affaler, et en vue subjective on ne le verrait pas. C'est la seule moitié d'un
+ragdoll qui se transpose : **on ne conduit plus, on subit**, et on regarde le sol
+arriver.
+
+Chaque sort décide s'il épargne son lanceur (`epargne_le_lanceur`) :
+
+- **Répulsion et Attraction l'épargnent.** Sur ces sorts le lanceur est le point
+  d'ancrage : il pousse le monde, le monde ne le pousse pas. Une Attraction qui
+  s'attirerait elle-même s'annulerait.
+- **Nova ne l'épargne pas.** Le lanceur est au centre exact, donc le souffle le
+  **soulève** au lieu de le pousser — le cas « direction indéfinie » est traité
+  comme une élévation, à dessein. Un sort défensif devient ainsi un outil de
+  déplacement dès qu'un joueur y pense, sans qu'une règle ait eu à l'autoriser.
+
+Tous les réglages du ressenti sont dans le `Tuning`, groupe *Souffle et
+projection* : part de puissance reçue, élévation, seuil en dessous duquel on ne
+projette pas, plafond de vitesse, durée de perte de contrôle, amortissement et
+amplitude de la culbute. **Aucun n'est écrit en dur.**
+
+Le seuil mérite une mention : sans lui, un souffle lointain décolle le joueur
+d'un demi-mètre, et ça ne se lit pas comme une explosion — ça se lit comme un
+bug de collision.
+
+---
+
 ## Q1 — Le multiplicateur cumulatif de verrous : par joueur ou par équipe ?
 *Ouverte depuis le 27 août 2026 — conséquence directe de D3*
 

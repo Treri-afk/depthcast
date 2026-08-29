@@ -17,22 +17,15 @@ func _init(p_repousse: bool = true) -> void:
 func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 		couleur: Color, _direction: Vector3) -> void:
 	var centre: Vector3 = ctx.joueur.global_position
-	var cibles: Array = []
 
-	for id: int in ctx.monstres_dans_rayon(centre, effet.rayon):
-		var avatar: MonsterAvatar = ctx.monstres[id]
-		var vers: Vector3 = avatar.global_position - centre
-		vers.y = 0.0
-		if vers.length_squared() < 0.01:
-			vers = Vector3.FORWARD
-		var sens: Vector3 = vers.normalized() * (1.0 if repousse else -1.0)
-		var attenuation: float = 1.0 - clampf(vers.length() / effet.rayon, 0.0, 0.85)
-		avatar.repousse(sens * effet.puissance * attenuation)
-		cibles.append(id)
-
+	# Le lanceur est épargné : sur ce sort il est le point d'ancrage. Il pousse
+	# le monde, le monde ne le pousse pas — sinon une Attraction s'annulerait
+	# elle-même en tirant aussi celui qui l'a lancée.
+	#
 	# Un souffle projette le mobilier ; il ne le pulvérise pas. Sinon Poussée
 	# deviendrait l'outil de démolition et les autres écoles perdraient leur rôle.
-	ctx.souffle_sur_objets(centre, effet.rayon, effet.puissance, repousse, 2)
+	var cibles: Array = ctx.souffle(centre, effet.rayon, effet.puissance,
+		repousse, 2, true)
 	ctx.degats(slot_index, effet.degats, cibles)
 	ctx.fx.anneau(centre, effet.rayon, couleur)
 	ctx.fx.eclair(centre + Vector3(0, 1.0, 0), couleur, 0.2, 4.5, effet.rayon * 1.8)

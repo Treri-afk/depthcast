@@ -21,6 +21,19 @@ func _ready() -> void:
 		get_tree().change_scene_to_file(ScreenUtils.CHEMIN_HUB))
 	col.add_child(solo)
 
+	# Le terrain d'essai est au menu et non derrière une touche de debug : c'est
+	# là qu'on passe le plus de temps quand on règle le jeu, et une chose qu'on
+	# ouvre vingt fois par jour ne doit pas demander de traverser le hub.
+	var labo := ScreenUtils.bouton("Terrain d'essai")
+	labo.pressed.connect(func() -> void:
+		get_tree().change_scene_to_file(ScreenUtils.CHEMIN_LABO))
+	col.add_child(labo)
+	col.add_child(ScreenUtils.sous_titre(
+		"Mannequins, explosions en boucle, mobilier qui se réarme, portique de\n"
+		+ "mesure et pupitre de reroll. Aucun enjeu : on n'y meurt pas.",
+		Color(0.55, 0.85, 1.0, 0.75)))
+	col.add_child(_espace(12))
+
 	col.add_child(ScreenUtils.bouton("Jouer en coopération", false))
 	col.add_child(ScreenUtils.sous_titre(
 		"Le réseau n'est pas encore implémenté. L'architecture est prête — état\n"

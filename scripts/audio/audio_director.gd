@@ -82,6 +82,8 @@ func _branche_les_evenements() -> void:
 		joue(&"refus"))
 	EventBus.player_damaged.connect(func(_j: int, _d: int, _o: Vector3) -> void:
 		joue(&"blessure"))
+	EventBus.player_blasted.connect(func(_j: int, _f: float, _o: Vector3) -> void:
+		joue(&"souffle"))
 	EventBus.floor_entered.connect(func(_i: int) -> void: joue(&"descente"))
 	EventBus.run_ended.connect(func(_e: int, victoire: bool) -> void:
 		joue(&"victoire" if victoire else &"defaite"))

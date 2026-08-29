@@ -58,6 +58,30 @@ extends Resource
 @export var gravite: float = 26.0
 @export_range(0.0005, 0.01, 0.0001) var sensibilite_souris: float = 0.0022
 
+@export_group("Souffle et projection")
+## Part de la puissance d'un souffle qui s'applique au joueur. À zéro, les
+## explosions ne bousculent que le décor et les monstres.
+@export_range(0.0, 2.0, 0.05) var souffle_effet_sur_joueur: float = 0.6
+## Part d'élévation dans la projection. Sans elle, on est poussé au ras du sol
+## et le frottement absorbe tout en deux mètres.
+@export_range(0.0, 1.5, 0.05) var souffle_elevation: float = 0.45
+## Vitesse en dessous de laquelle on ne projette pas du tout. Un souffle
+## lointain qui décolle le joueur d'un demi-mètre se lit comme un bug de
+## collision, pas comme une explosion.
+@export_range(0.0, 12.0, 0.5) var souffle_seuil_projection: float = 3.0
+## Plafond de vitesse après projection. Deux explosions simultanées ne doivent
+## pas envoyer le joueur hors de la salle.
+@export_range(5.0, 60.0, 1.0) var projection_vitesse_max: float = 24.0
+## Durée pendant laquelle le contrôle est confisqué. C'est LE réglage du
+## ressenti : trop court et on ne subit rien, trop long et on s'agace.
+@export_range(0.0, 2.0, 0.05) var projection_controle_perdu: float = 0.45
+## Freinage horizontal pendant la projection. Bien plus faible que le freinage
+## normal : un corps projeté glisse, il ne s'arrête pas net.
+@export_range(0.0, 40.0, 0.5) var projection_amortissement: float = 3.0
+## Amplitude de la culbute de la vue. À zéro, la projection reste lisible mais
+## perd ce qui la rend physique.
+@export_range(0.0, 3.0, 0.05) var projection_culbute: float = 1.0
+
 
 ## Coût du prochain sceau, renchérissement compris.
 func cout_scelle(deja_acquis: int) -> int:

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SoundDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/sound_def.gd" id="1_755hx"]
+
+[resource]
+script = ExtResource("1_755hx")
+id = &"souffle"
+forme = 3
+frequence_debut = 260.0
+frequence_fin = 60.0
+duree = 0.55
+attaque = 0.01
+volume = 0.75
+variation_hauteur = 0.12
+gain_db = -3.0

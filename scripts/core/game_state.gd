@@ -62,6 +62,19 @@ func advance_floor() -> void:
 	EventBus.floor_entered.emit(run.floor_index)
 
 
+## Rejoue la mutation des slots non scellés SANS changer d'étage.
+##
+## Le donjon n'en a pas besoin — advance_floor() s'en charge — mais le terrain
+## d'essai doit pouvoir provoquer l'évènement à volonté, sinon le reroll ne se
+## teste qu'en jouant un étage entier.
+func reroll_slots(player_id: int) -> void:
+	if not is_in_run():
+		return
+	var p: PlayerState = run.get_player(player_id)
+	if p != null:
+		_reroll_player_slots(p)
+
+
 func end_run(is_victory: bool) -> void:
 	if run == null:
 		return
