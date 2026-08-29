@@ -153,6 +153,10 @@ func quitte() -> void:
 	_noms.clear()
 	transport = null
 	etat = Etat.HORS_LIGNE
+	# La graine meurt avec la session. Sans ça, une partie solo lancée après
+	# avoir quitté un salon rejouait le donjon de la partie d'avant, à
+	# l'identique, jusqu'au redémarrage du jeu.
+	graine = 0
 	GameState.local_player_id = 0
 
 

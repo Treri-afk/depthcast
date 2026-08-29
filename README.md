@@ -31,11 +31,16 @@ inviter des amis — et rien d'autre. C'est tout l'objet de
 Lancer deux instances sur la même machine :
 
 ```
-/Applications/Godot.app/Contents/MacOS/Godot --path .
+Godot --path . --windowed --resolution 960x540 --position 40,80
+Godot --path . --windowed --resolution 960x540 --position 1020,80
 ```
 
-deux fois, dans deux terminaux. Depuis l'éditeur, `Débogage → Exécuter plusieurs
-instances → 2`.
+Les deux drapeaux de fenêtre comptent : le projet s'ouvre **maximisé** par
+défaut, donc deux instances se recouvrent exactement et la seconde donne
+l'impression que rien ne s'est ouvert. En les plaçant côte à côte, on voit les
+deux écrans en même temps — ce qui est tout l'intérêt.
+
+Depuis l'éditeur, `Débogage → Exécuter plusieurs instances → 2`.
 
 Le salon affiche l'état de la connexion. **`connecté — hôte` ou `connecté —
 invité` en vert**, sinon vous n'êtes pas ensemble : une tentative de connexion

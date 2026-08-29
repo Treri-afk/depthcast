@@ -120,6 +120,12 @@ func _check_session_hors_ligne() -> void:
 	verifie("qui porte l'identifiant 0", ids.size() == 1 and ids[0] == 0, str(ids))
 	verifie("la graine vaut zéro — la run en tirera une",
 		Net.graine == 0)
+	# La graine meurt avec la session : sinon une partie solo lancée après avoir
+	# quitté un salon rejoue le donjon précédent, à l'identique, jusqu'au
+	# redémarrage du jeu.
+	Net.graine = 12345
+	Net.quitte()
+	verifie("et elle meurt avec la session", Net.graine == 0)
 	# Le plafond vient du transport, qui ouvre les connexions : deux plafonds
 	# différents laisseraient entrer un joueur que le jeu ne saurait pas placer.
 	verifie("le plafond de joueurs est celui du transport",

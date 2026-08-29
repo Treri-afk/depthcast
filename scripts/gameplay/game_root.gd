@@ -30,10 +30,12 @@ var _debug := DebugCommands.new()
 
 func _ready() -> void:
 	_terrain = PlayField.new(self)
-	# La graine et le nombre de joueurs viennent de la session : en solo elle
-	# répond 0 et 1, donc rien ne change et le solo n'est pas un cas
-	# particulier du multijoueur.
-	_terrain.monte(Net.graine, Net.nombre_de_joueurs())
+	# La graine ne vient de la session QUE si l'on est en ligne : elle n'existe
+	# que pour que deux machines génèrent le même donjon. Hors ligne on passe
+	# zéro, et la run en tire une — sinon une partie solo lancée après un salon
+	# rejouerait le même étage indéfiniment.
+	var graine: int = Net.graine if Net.en_ligne() else 0
+	_terrain.monte(graine, Net.nombre_de_joueurs())
 	_joueur = _terrain.joueur
 	_hud = _terrain.hud
 	_fx = _terrain.fx
