@@ -188,32 +188,57 @@ publication.
 
 # Questions ouvertes
 
-## D10 — Une explosion projette le joueur, et le lanceur n'est pas toujours épargné
+## D10 — Une explosion projette le joueur, et le ragdoll dure jusqu'à l'atterrissage
 *Décidé le 29 août 2026*
 
 Un souffle (`Souffle`) déplace trois choses avec la même courbe d'atténuation :
-le mobilier, les monstres, et **le joueur**. Pour le joueur, la projection
-confisque le contrôle une demi-seconde, lance le corps, et fait culbuter la vue.
+le mobilier, les monstres, et **le joueur**.
 
 Ce n'est pas un ragdoll au sens strict — il n'y a pas de squelette à faire
-s'affaler, et en vue subjective on ne le verrait pas. C'est la seule moitié d'un
-ragdoll qui se transpose : **on ne conduit plus, on subit**, et on regarde le sol
-arriver.
+s'affaler, et en vue subjective on ne le verrait pas. C'est la seule moitié qui
+se transpose : **on ne conduit plus, on subit**, on ne peut plus lancer de sort,
+et la vue se relâche.
 
-Chaque sort décide s'il épargne son lanceur (`epargne_le_lanceur`) :
+### Deux phases, et c'est là qu'est le ressenti
 
-- **Répulsion et Attraction l'épargnent.** Sur ces sorts le lanceur est le point
-  d'ancrage : il pousse le monde, le monde ne le pousse pas. Une Attraction qui
-  s'attirerait elle-même s'annulerait.
+**Le vol dure exactement tant qu'on n'a pas retouché le sol.** Aucun minuteur.
+Un minuteur fixe donne la même secousse qu'on ait été déplacé de deux mètres ou
+envoyé par-dessus une estrade ; en attendant l'atterrissage, la durée découle de
+la trajectoire — donc de la violence de l'explosion — sans être calculée nulle
+part.
+
+**Le relevé, lui, est proportionnel à la vitesse reçue.** C'est la moitié qui
+fait « plusieurs secondes » : après un gros souffle on ne se remet pas debout
+comme après une bourrade. Mesuré au terrain d'essai, un souffle moyen à trois
+mètres du centre donne 1,05 s de vol puis 1,2 s à terre — 2,3 s sans contrôle.
+Un souffle violent approche les quatre secondes.
+
+### La verticale est bornée, l'horizontale ne l'est pas
+
+Premier essai : vingt mètres de haut, pour des murs qui en font cinq et demi. On
+sortait du décor. `projection_hauteur_max` borne donc la seule composante
+verticale — **on part loin, pas haut**. C'est aussi bien plus lisible : on voit
+où l'on va atterrir.
+
+### Le lanceur n'est pas toujours épargné
+
+Chaque sort décide (`epargne_le_lanceur`) :
+
+- **Répulsion et Attraction l'épargnent.** Le lanceur est le point d'ancrage :
+  il pousse le monde, le monde ne le pousse pas. Une Attraction qui s'attirerait
+  elle-même s'annulerait.
 - **Nova ne l'épargne pas.** Le lanceur est au centre exact, donc le souffle le
-  **soulève** au lieu de le pousser — le cas « direction indéfinie » est traité
-  comme une élévation, à dessein. Un sort défensif devient ainsi un outil de
-  déplacement dès qu'un joueur y pense, sans qu'une règle ait eu à l'autoriser.
+  **soulève** — le cas « direction indéfinie » est traité comme une élévation, à
+  dessein. Un sort défensif devient un outil de déplacement dès qu'un joueur y
+  pense, sans qu'une règle ait eu à l'autoriser. Il le paie : on ne lance rien
+  pendant qu'on vole.
 
-Tous les réglages du ressenti sont dans le `Tuning`, groupe *Souffle et
-projection* : part de puissance reçue, élévation, seuil en dessous duquel on ne
-projette pas, plafond de vitesse, durée de perte de contrôle, amortissement et
-amplitude de la culbute. **Aucun n'est écrit en dur.**
+### Tout est réglable
+
+Groupe *Souffle et projection* du `Tuning` : part de puissance reçue, élévation,
+seuil de déclenchement, plafond de vitesse, hauteur maximale, durée du relevé,
+amortissement en vol, amplitude de la culbute, et un booléen pour rendre les
+sorts pendant la projection. **Aucune de ces valeurs n'est écrite en dur.**
 
 Le seuil mérite une mention : sans lui, un souffle lointain décolle le joueur
 d'un demi-mètre, et ça ne se lit pas comme une explosion — ça se lit comme un

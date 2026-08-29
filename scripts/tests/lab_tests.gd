@@ -103,12 +103,34 @@ func _check_reglages() -> void:
 	verifie("le seuil de projection est non nul — sinon tout souffle décolle",
 		t.souffle_seuil_projection > 0.0)
 	verifie("la vitesse est plafonnée", t.projection_vitesse_max > 0.0)
-	verifie("le contrôle est rendu — une projection n'est pas une paralysie",
-		t.projection_controle_perdu > 0.0 and t.projection_controle_perdu < 2.0)
-	# Bien plus faible que le freinage normal : un corps projeté glisse.
-	verifie("on glisse pendant la projection",
+	verifie("un garde-fou borne la projection — on ne reste jamais coincé",
+		t.projection_duree_max > 0.0 and t.projection_duree_max <= 20.0)
+	# Bien plus faible que le freinage normal : un corps projeté garde sa
+	# trajectoire, il ne freine pas en l'air.
+	verifie("on ne freine pas en vol",
 		t.projection_amortissement < t.freinage_joueur)
 
+	# Le vol dure ce qu'il dure — jusqu'à l'atterrissage. C'est le RELEVÉ, une
+	# fois à terre, qui se paie en secondes proportionnelles à la violence.
+	var doux: float = PlayerAvatar.duree_de_releve(6.0, t)
+	var brutal: float = PlayerAvatar.duree_de_releve(40.0, t)
+	verifie("un gros souffle laisse à terre plus longtemps qu'un petit",
+		brutal > doux, "%.2f s contre %.2f s" % [brutal, doux])
+	verifie("même le plus faible laisse une trace", doux >= t.projection_releve_min)
+	verifie("et le plus violent reste borné",
+		PlayerAvatar.duree_de_releve(9999.0, t) == t.projection_releve_max)
+	verifie("perdre la main fait partie du contrat",
+		t.projection_bloque_les_sorts)
+
+	# La verticale est bornée, l'horizontale ne l'est pas : on part loin, pas
+	# haut. Au-dessus des murs, on quitte le décor.
+	var sommet: float = PlayerAvatar.vitesse_pour_culminer_a(
+		t.projection_hauteur_max, t.gravite)
+	verifie("la projection ne dépasse pas la hauteur des murs",
+		t.projection_hauteur_max < t.hauteur_mur,
+		"%.1f m contre %.1f m" % [t.projection_hauteur_max, t.hauteur_mur])
+	verifie("et elle décolle quand même franchement", sommet > t.impulsion_saut,
+		"%.1f m/s contre un saut à %.1f" % [sommet, t.impulsion_saut])
 
 func _genres_de_l_etal() -> Array:
 	var vus: Array = []

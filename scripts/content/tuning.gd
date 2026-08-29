@@ -61,26 +61,51 @@ extends Resource
 @export_group("Souffle et projection")
 ## Part de la puissance d'un souffle qui s'applique au joueur. À zéro, les
 ## explosions ne bousculent que le décor et les monstres.
-@export_range(0.0, 2.0, 0.05) var souffle_effet_sur_joueur: float = 0.6
+@export_range(0.0, 4.0, 0.05) var souffle_effet_sur_joueur: float = 1.5
 ## Part d'élévation dans la projection. Sans elle, on est poussé au ras du sol
-## et le frottement absorbe tout en deux mètres.
-@export_range(0.0, 1.5, 0.05) var souffle_elevation: float = 0.45
+## et le frottement absorbe tout en deux mètres — or la projection ne dure que
+## tant qu'on est en l'air, donc c'est aussi ce réglage qui décide de sa durée.
+@export_range(0.0, 1.5, 0.05) var souffle_elevation: float = 0.9
 ## Vitesse en dessous de laquelle on ne projette pas du tout. Un souffle
 ## lointain qui décolle le joueur d'un demi-mètre se lit comme un bug de
 ## collision, pas comme une explosion.
-@export_range(0.0, 12.0, 0.5) var souffle_seuil_projection: float = 3.0
+@export_range(0.0, 12.0, 0.5) var souffle_seuil_projection: float = 2.5
+## Puissance du souffle d'une Nova. Le lanceur étant au centre, c'est aussi la
+## hauteur à laquelle son propre sort le catapulte.
+@export_range(0.0, 40.0, 0.5) var puissance_souffle_nova: float = 9.0
+
 ## Plafond de vitesse après projection. Deux explosions simultanées ne doivent
 ## pas envoyer le joueur hors de la salle.
-@export_range(5.0, 60.0, 1.0) var projection_vitesse_max: float = 24.0
-## Durée pendant laquelle le contrôle est confisqué. C'est LE réglage du
-## ressenti : trop court et on ne subit rien, trop long et on s'agace.
-@export_range(0.0, 2.0, 0.05) var projection_controle_perdu: float = 0.45
-## Freinage horizontal pendant la projection. Bien plus faible que le freinage
-## normal : un corps projeté glisse, il ne s'arrête pas net.
-@export_range(0.0, 40.0, 0.5) var projection_amortissement: float = 3.0
+@export_range(5.0, 80.0, 1.0) var projection_vitesse_max: float = 48.0
+## Hauteur maximale atteinte par une projection, en mètres.
+##
+## Borne la seule composante verticale, jamais l'horizontale. Sans elle, un
+## souffle violent envoie à vingt mètres — au-dessus de murs qui en font cinq
+## et demi, donc hors du décor. La violence part vers l'horizon, pas vers le
+## ciel : c'est aussi bien plus lisible, on voit où l'on atterrit.
+@export_range(0.5, 20.0, 0.5) var projection_hauteur_max: float = 4.0
+## Garde-fou du vol. Une chute qui n'en finit pas — trou dans le décor, corps
+## coincé — ne doit jamais confisquer le contrôle indéfiniment.
+@export_range(1.0, 20.0, 0.5) var projection_duree_max: float = 6.0
+
+## Temps passé à terre APRÈS l'impact, par unité de vitesse reçue.
+##
+## C'est ici que la violence de l'explosion se paie en secondes. Le vol, lui,
+## dure ce qu'il dure : on reste en ragdoll tant qu'on n'a pas retouché le sol,
+## et pas une frame de plus ni de moins.
+@export_range(0.0, 0.3, 0.005) var projection_releve_par_vitesse: float = 0.06
+@export_range(0.05, 2.0, 0.05) var projection_releve_min: float = 0.25
+@export_range(0.2, 8.0, 0.1) var projection_releve_max: float = 3.5
+## Freinage horizontal pendant le vol. Très faible : un corps projeté conserve
+## sa trajectoire, il ne freine pas en l'air.
+@export_range(0.0, 40.0, 0.5) var projection_amortissement: float = 1.0
 ## Amplitude de la culbute de la vue. À zéro, la projection reste lisible mais
 ## perd ce qui la rend physique.
-@export_range(0.0, 3.0, 0.05) var projection_culbute: float = 1.0
+@export_range(0.0, 4.0, 0.05) var projection_culbute: float = 1.6
+## Lancer un sort pendant qu'on est projeté. Désactivé, c'est ce qui donne son
+## poids à une explosion : on ne se contente pas d'être déplacé, on perd la
+## main. Activé, la projection redevient un simple effet de caméra.
+@export var projection_bloque_les_sorts: bool = true
 
 
 ## Coût du prochain sceau, renchérissement compris.

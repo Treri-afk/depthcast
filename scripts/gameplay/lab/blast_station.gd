@@ -10,15 +10,15 @@ extends LabStation
 ## Le souffle du banc ne BLESSE pas. On vient y mesurer une trajectoire, pas y
 ## mourir toutes les trois secondes.
 
-const RAYON: float = 6.0
+const RAYON: float = 7.0
 const INTERVALLE: float = 3.0
 
 ## Les crans de puissance, arrêt compris. Nommés parce qu'on les annonce.
 const CRANS: Array[Dictionary] = [
 	{"nom": "arrêt", "puissance": 0.0},
-	{"nom": "faible", "puissance": 9.0},
-	{"nom": "moyen", "puissance": 18.0},
-	{"nom": "violent", "puissance": 30.0},
+	{"nom": "faible", "puissance": 12.0},
+	{"nom": "moyen", "puissance": 24.0},
+	{"nom": "violent", "puissance": 42.0},
 ]
 
 var _cran: int = 2

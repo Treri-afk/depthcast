@@ -84,6 +84,10 @@ func _branche_les_evenements() -> void:
 		joue(&"blessure"))
 	EventBus.player_blasted.connect(func(_j: int, _f: float, _o: Vector3) -> void:
 		joue(&"souffle"))
+	# Le volume de la réception suit la vitesse de chute : une chute de dix
+	# mètres ne doit pas sonner comme un pas manqué.
+	EventBus.player_slammed.connect(func(_j: int, vitesse: float) -> void:
+		joue(&"chute", clampf(vitesse - 12.0, -14.0, 4.0)))
 	EventBus.floor_entered.connect(func(_i: int) -> void: joue(&"descente"))
 	EventBus.run_ended.connect(func(_e: int, victoire: bool) -> void:
 		joue(&"victoire" if victoire else &"defaite"))

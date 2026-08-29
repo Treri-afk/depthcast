@@ -8,13 +8,12 @@ extends SpellBehaviour
 ## faire — un sort défensif qui devient un outil de déplacement dès qu'on y
 ## pense, sans qu'une seule ligne de règle ait eu à l'autoriser.
 
-const PUISSANCE_SOUFFLE: float = 14.0
-
 
 func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 		couleur: Color, _direction: Vector3) -> void:
 	var centre: Vector3 = ctx.joueur.global_position
 	ctx.degats(slot_index, effet.degats, ctx.monstres_dans_rayon(centre, effet.rayon))
-	ctx.souffle(centre, effet.rayon, PUISSANCE_SOUFFLE, true, effet.degats)
+	ctx.souffle(centre, effet.rayon, ctx.tuning.puissance_souffle_nova, true,
+		effet.degats)
 	ctx.fx.anneau(centre, effet.rayon, couleur)
 	ctx.fx.eclair(centre + Vector3(0, 1.0, 0), couleur, 0.25, 6.0, effet.rayon * 2.2)
