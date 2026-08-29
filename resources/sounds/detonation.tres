@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SoundDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/sound_def.gd" id="1_755hx"]
+
+[resource]
+script = ExtResource("1_755hx")
+id = &"detonation"
+forme = 3
+frequence_debut = 420.0
+frequence_fin = 40.0
+duree = 0.7
+attaque = 0.0
+volume = 0.85
+variation_hauteur = 0.15
+gain_db = -1.0

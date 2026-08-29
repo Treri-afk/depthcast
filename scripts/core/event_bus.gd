@@ -45,6 +45,11 @@ signal player_blasted(player_id: int, force: float, origine: Vector3)
 ## la vitesse de chute : c'est elle qui dit si c'est une réception ou un impact.
 signal player_slammed(player_id: int, vitesse: float)
 
+# ── Décor ─────────────────────────────────────────────────────────────────
+## Une explosion vient de partir — un tonneau aujourd'hui, un piège demain. Le
+## son écoute ; rien d'autre n'a besoin de savoir d'où elle venait.
+signal explosion_triggered(origine: Vector3, puissance: float)
+
 # ── Monstres ──────────────────────────────────────────────────────────────
 signal monster_spawned(monster_id: int)
 signal monster_damaged(monster_id: int, hp_restant: int)

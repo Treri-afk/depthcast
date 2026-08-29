@@ -91,6 +91,59 @@ func sur_monstres(monstres: Dictionary) -> Array:
 	return touches
 
 
+## Applique le souffle à tout ce que la PHYSIQUE trouve dans le rayon.
+##
+## Variante des méthodes ci-dessus, qui reçoivent des listes tenues par le jeu.
+## Ici on interroge le monde, et c'est plus juste pour une explosion qui part du
+## décor : un tonneau n'a aucune raison de connaître le registre des monstres.
+## C'est aussi ce qui fait chaîner les explosions sans une ligne de plus — un
+## tonneau en trouve un autre exactement comme il trouve une caisse.
+##
+## Retourne ce qui a été touché : `monstres` et `joueurs` par identifiant, à
+## passer au resolver par l'appelant s'il veut aussi blesser (R4).
+func sur_les_corps_autour(depuis: Node3D, tuning: Tuning,
+		degats_decor: int = 0) -> Dictionary:
+	var touches: Dictionary = {"monstres": [], "joueurs": []}
+	var espace: PhysicsDirectSpaceState3D = depuis.get_world_3d().direct_space_state
+	if espace == null:
+		return touches
+
+	var boule := SphereShape3D.new()
+	boule.radius = rayon
+	var requete := PhysicsShapeQueryParameters3D.new()
+	requete.shape = boule
+	requete.transform = Transform3D(Basis(), centre)
+	requete.collide_with_bodies = true
+	requete.collide_with_areas = false
+	# On ne se souffle pas soi-même : le tonneau qui explose est déjà mort.
+	requete.exclude = [depuis.get_rid()]
+
+	for resultat: Dictionary in espace.intersect_shape(requete, 48):
+		var corps: Node = resultat.get("collider")
+		if corps == null or not is_instance_valid(corps):
+			continue
+
+		var meuble := corps as PropDestructible
+		if meuble != null:
+			sur_objets([meuble], degats_decor)
+			continue
+
+		var monstre := corps as MonsterAvatar
+		if monstre != null:
+			var part: float = attenuation(monstre.global_position)
+			if part > 0.0:
+				monstre.repousse(sens_vers(monstre.global_position) * puissance * part)
+				(touches["monstres"] as Array).append(monstre.monster_id)
+			continue
+
+		var joueur := corps as PlayerAvatar
+		if joueur != null:
+			sur_joueur(joueur, tuning)
+			(touches["joueurs"] as Array).append(joueur.player_id)
+
+	return touches
+
+
 ## Projette le joueur. C'est ici que le souffle cesse d'être un effet visuel :
 ## perdre le contrôle une demi-seconde est la seule chose qui fasse ressentir
 ## une explosion de l'intérieur.

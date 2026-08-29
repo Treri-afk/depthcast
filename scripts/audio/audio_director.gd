@@ -88,6 +88,8 @@ func _branche_les_evenements() -> void:
 	# mètres ne doit pas sonner comme un pas manqué.
 	EventBus.player_slammed.connect(func(_j: int, vitesse: float) -> void:
 		joue(&"chute", clampf(vitesse - 12.0, -14.0, 4.0)))
+	EventBus.explosion_triggered.connect(func(_o: Vector3, _p: float) -> void:
+		joue(&"detonation"))
 	EventBus.floor_entered.connect(func(_i: int) -> void: joue(&"descente"))
 	EventBus.run_ended.connect(func(_e: int, victoire: bool) -> void:
 		joue(&"victoire" if victoire else &"defaite"))

@@ -58,6 +58,23 @@ extends Resource
 @export var gravite: float = 26.0
 @export_range(0.0005, 0.01, 0.0001) var sensibilite_souris: float = 0.0022
 
+@export_group("Tonneaux explosifs")
+## Le rayon d'un tonneau. Plus large que sa taille ne le laisse croire : on doit
+## pouvoir se dire « j'aurais dû m'écarter », pas « je ne pouvais pas savoir ».
+@export_range(1.0, 20.0, 0.5) var tonneau_rayon: float = 6.0
+@export_range(1.0, 60.0, 1.0) var tonneau_puissance: float = 26.0
+@export var tonneau_degats: int = 34
+## Dégâts infligés au mobilier alentour. C'est ce nombre qui décide de la
+## PORTÉE DE PROPAGATION : un tonneau voisin saute si ces dégâts, atténués par
+## la distance, dépassent ses points de vie. À 80 contre 13 pv et un rayon de 6,
+## la chaîne se propage jusqu'à environ cinq mètres — assez pour qu'une rangée
+## parte, trop peu pour qu'une salle entière saute d'un seul tir.
+@export var tonneau_degats_decor: int = 80
+## Longueur de la mèche. Courte mais JAMAIS nulle : sans elle une rangée part en
+## une seule frame et on ne voit qu'un flash. Avec elle la chaîne se lit, et on
+## a le temps de courir.
+@export_range(0.05, 2.0, 0.05) var tonneau_meche: float = 0.4
+
 @export_group("Souffle et projection")
 ## Part de la puissance d'un souffle qui s'applique au joueur. À zéro, les
 ## explosions ne bousculent que le décor et les monstres.

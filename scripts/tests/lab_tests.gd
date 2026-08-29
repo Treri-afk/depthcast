@@ -14,6 +14,7 @@ func nom() -> String:
 func execute() -> void:
 	_check_souffle()
 	_check_mobilier()
+	_check_tonneaux()
 	_check_postes()
 	_check_reglages()
 
@@ -76,6 +77,40 @@ func _check_mobilier() -> void:
 		masses[0] < masses[1] and masses[1] < masses[2], str(masses))
 
 
+func _check_tonneaux() -> void:
+	print("Tonneaux explosifs")
+
+	var t: Tuning = Content.tuning
+	var baril := PropFactory.cree(PropFactory.Genre.TONNEAU_EXPLOSIF, Vector3.ZERO)
+	var ordinaire := PropFactory.cree(PropFactory.Genre.TONNEAU, Vector3.ZERO)
+
+	verifie("un tonneau explosif est bien un ExplosiveProp", baril is ExplosiveProp)
+	# Il doit partir au premier projectile : un baril qu'il faut viser trois
+	# fois n'est plus une opportunité, c'est une corvée.
+	verifie("il est plus fragile qu'un tonneau ordinaire", baril.pv < ordinaire.pv,
+		"%d contre %d" % [baril.pv, ordinaire.pv])
+	verifie("il se repère : sa couleur sort de la gamme du décor",
+		baril.couleur == Content.palette.tonneau_explosif)
+
+	# LA règle qui décide si une rangée part en chaîne ou s'arrête au premier.
+	verifie("un tonneau en fait sauter un autre — les dégâts de décor le tuent",
+		t.tonneau_degats_decor > baril.pv,
+		"%d contre %d pv" % [t.tonneau_degats_decor, baril.pv])
+	# Courte mais jamais nulle : sans mèche, une rangée part en une frame et on
+	# ne voit qu'un flash.
+	verifie("la mèche existe", t.tonneau_meche > 0.0)
+	verifie("et elle reste courte", t.tonneau_meche <= 1.0)
+	verifie("le rayon dépasse largement la taille du tonneau", t.tonneau_rayon > 2.0)
+
+	var explosif := baril as ExplosiveProp
+	explosif.amorce()
+	explosif.amorce()
+	verifie("amorcer deux fois n'allume qu'une mèche", true)
+
+	baril.free()
+	ordinaire.free()
+
+
 func _check_postes() -> void:
 	print("Terrain d'essai — les postes")
 
@@ -93,7 +128,9 @@ func _check_postes() -> void:
 		float(BlastStation.CRANS[1]["puissance"])
 			< float(BlastStation.CRANS[3]["puissance"]))
 	verifie("l'étal mélange les masses — sinon un souffle ne compare rien",
-		_genres_de_l_etal().size() == 3, str(_genres_de_l_etal()))
+		_genres_de_l_etal().size() >= 3, str(_genres_de_l_etal()))
+	verifie("et il porte de quoi essayer une chaîne d'explosions",
+		_genres_de_l_etal().has(PropFactory.Genre.TONNEAU_EXPLOSIF))
 
 
 func _check_reglages() -> void:

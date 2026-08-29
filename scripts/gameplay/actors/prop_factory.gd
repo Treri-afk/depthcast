@@ -6,7 +6,7 @@ extends RefCounted
 ## définitions d'un tonneau, et la masse qu'on calibre dans le donjon ne serait
 ## pas celle qu'on mesure au banc — le banc mentirait sans prévenir.
 
-enum Genre { CAISSE, TONNEAU, TABLE }
+enum Genre { CAISSE, TONNEAU, TABLE, TONNEAU_EXPLOSIF }
 
 ## Ce qu'est chaque meuble, en trois nombres. Les points de vie découlent de la
 ## masse : une table encaisse plus qu'un tonneau parce qu'elle est plus lourde,
@@ -21,6 +21,12 @@ const MODELES: Dictionary = {
 	Genre.TABLE: {
 		"taille": Vector3(2.2, 0.25, 1.2), "masse": 14.0, "cylindrique": false,
 	},
+	# Plus léger qu'un tonneau ordinaire, donc bien moins résistant : il doit
+	# partir au premier projectile. Un baril qu'il faut viser trois fois n'est
+	# plus une opportunité, c'est une corvée.
+	Genre.TONNEAU_EXPLOSIF: {
+		"taille": Vector3(0.9, 1.2, 0.9), "masse": 6.0, "cylindrique": true,
+	},
 }
 
 
@@ -31,6 +37,8 @@ static func couleur(genre: Genre) -> Color:
 			return p.tonneau
 		Genre.TABLE:
 			return p.table
+		Genre.TONNEAU_EXPLOSIF:
+			return p.tonneau_explosif
 	return p.caisse
 
 
@@ -40,6 +48,8 @@ static func nom(genre: Genre) -> String:
 			return "tonneau"
 		Genre.TABLE:
 			return "table"
+		Genre.TONNEAU_EXPLOSIF:
+			return "tonneau explosif"
 	return "caisse"
 
 
@@ -49,7 +59,11 @@ static func cree(genre: Genre, pos: Vector3) -> PropDestructible:
 	var masse: float = modele["masse"]
 	var teinte: Color = couleur(genre)
 
-	var corps := PropDestructible.new()
+	var explosif: bool = genre == Genre.TONNEAU_EXPLOSIF
+	var corps: PropDestructible = ExplosiveProp.new() if explosif \
+		else PropDestructible.new()
+	if explosif:
+		ExplosiveProp.regle(corps as ExplosiveProp, Content.tuning)
 	corps.position = Vector3(pos.x, taille.y * 0.5 + 0.1, pos.z)
 	corps.mass = masse
 	corps.couleur = teinte
@@ -83,4 +97,20 @@ static func cree(genre: Genre, pos: Vector3) -> PropDestructible:
 	visuel.material_override = MaterialLibrary.aplat(teinte, MaterialLibrary.Role.OBJET)
 	corps.add_child(forme)
 	corps.add_child(visuel)
+	if explosif:
+		corps.add_child(_bouchon(taille, teinte))
 	return corps
+
+
+## La charge, posée sur le tonneau. La couleur suffit de près, pas de loin :
+## une salle encombrée avale une nuance, jamais une source lumineuse. Un baril
+## qu'on ne repère qu'une fois à côté n'est pas une opportunité tactique.
+static func _bouchon(taille: Vector3, teinte: Color) -> MeshInstance3D:
+	var visuel := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = taille.x * 0.24
+	mesh.height = taille.x * 0.48
+	visuel.mesh = mesh
+	visuel.position = Vector3(0, taille.y * 0.5, 0)
+	visuel.material_override = MaterialLibrary.lumineux(teinte, 2.2)
+	return visuel

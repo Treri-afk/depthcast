@@ -88,6 +88,10 @@ var filtre: int = 0
 @export_group("Mobilier")
 @export var caisse: Color = Color(0.72, 0.55, 0.34)
 @export var tonneau: Color = Color(0.60, 0.44, 0.27)
+## Le tonneau explosif. Volontairement HORS de la gamme sourde du décor : c'est
+## la seule chose du mobilier qui doive se repérer d'un bout à l'autre d'une
+## salle, avant d'avoir à y réfléchir.
+@export var tonneau_explosif: Color = Color(0.92, 0.45, 0.20)
 @export var table: Color = Color(0.51, 0.38, 0.27)
 
 @export_group("Interactifs")

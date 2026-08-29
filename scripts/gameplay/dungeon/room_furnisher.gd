@@ -59,12 +59,17 @@ func meuble(salle: FloorPlan.Salle, rng: RandomNumberGenerator) -> void:
 			rng.randf_range(-demi * 0.78, demi * 0.78))
 		if pos.distance_to(salle.centre) < 3.0:
 			continue
+		# Environ un tonneau explosif par salle. Assez pour que la question
+		# « est-ce que je m'en sers ou est-ce que je m'en écarte ? » se pose à
+		# chaque combat, assez rare pour qu'elle reste une question.
 		var tirage: float = rng.randf()
 		var genre: PropFactory.Genre = PropFactory.Genre.TABLE
-		if tirage < 0.45:
+		if tirage < 0.40:
 			genre = PropFactory.Genre.CAISSE
-		elif tirage < 0.8:
+		elif tirage < 0.66:
 			genre = PropFactory.Genre.TONNEAU
+		elif tirage < 0.80:
+			genre = PropFactory.Genre.TONNEAU_EXPLOSIF
 		_pose(genre, pos)
 
 

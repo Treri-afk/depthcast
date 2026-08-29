@@ -19,6 +19,10 @@ const ETAL: Array[Dictionary] = [
 	{"genre": PropFactory.Genre.TONNEAU, "pos": Vector3(0.0, 0, 0.0)},
 	{"genre": PropFactory.Genre.TONNEAU, "pos": Vector3(1.4, 0, 0.0)},
 	{"genre": PropFactory.Genre.TABLE, "pos": Vector3(0.0, 0, -1.8)},
+	# Deux, et espacés : c'est la distance à laquelle on vérifie si la chaîne
+	# se propage. Collés, ils n'auraient rien appris.
+	{"genre": PropFactory.Genre.TONNEAU_EXPLOSIF, "pos": Vector3(-2.25, 0, -1.0)},
+	{"genre": PropFactory.Genre.TONNEAU_EXPLOSIF, "pos": Vector3(2.25, 0, -1.0)},
 ]
 
 
