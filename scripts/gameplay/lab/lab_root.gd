@@ -24,16 +24,13 @@ var _debug := DebugCommands.new()
 
 func _ready() -> void:
 	_terrain = PlayField.new(self)
-	_terrain.monte()
+	# La run est ouverte par le terrain lui-même : les slots, la Résonance et
+	# les monstres n'existent qu'à l'intérieur d'une run (R1), et le banc
+	# d'essai ne fait pas exception — sinon il testerait un autre état.
+	_terrain.monte(1, 1)
 	_terrain.joueur.position = Vector3(0, 1.2, 18.0)
 
 	_batit_la_salle()
-
-	# Une run est ouverte comme en jeu : les slots, la Résonance et les
-	# monstres n'existent qu'à l'intérieur d'une run (R1). Le terrain d'essai
-	# ne fait pas exception, sinon il testerait un autre état que le jeu.
-	GameState.start_run(1, 1)
-	GameState.set_player_schools(0, PlayField.definitions_choisies())
 
 	_spawner = MonsterSpawner.new(_terrain.conteneur_monstres, Content.tuning)
 	_spawner.monstre_veut_tirer.connect(func(depuis: Vector3, dir: Vector3,
@@ -135,7 +132,9 @@ func _maj_interaction() -> void:
 func _empeche_la_mort() -> void:
 	if not GameState.is_in_run():
 		return
-	var p: PlayerState = GameState.run.players[0]
+	var p: PlayerState = GameState.local_player()
+	if p == null:
+		return
 	if p.hp > 0:
 		return
 	p.hp = p.max_hp

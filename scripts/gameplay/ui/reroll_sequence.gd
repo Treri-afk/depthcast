@@ -71,7 +71,7 @@ func _construit_les_cartes() -> void:
 	barre.add_theme_constant_override("separation", 16)
 	add_child(barre)
 
-	var joueur: PlayerState = GameState.run.players[0]
+	var joueur: PlayerState = GameState.local_player()
 	for i: int in PlayerState.SLOT_COUNT:
 		var carte := HudSlotCard.cree(i)
 		carte.rafraichit(joueur.slots[i], GameState.run.floor_index, 0.0)

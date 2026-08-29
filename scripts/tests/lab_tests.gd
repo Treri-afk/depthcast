@@ -216,18 +216,14 @@ func _check_portage() -> void:
 	# La diversion et son retour sont tenus par le monstre : le sort de leurre
 	# et la balise en objet obtiennent le même comportement sans partager une
 	# seule ligne.
-	var faux_defaut := Node3D.new()
 	var faux_leurre := Node3D.new()
 	var bestiole := MonsterAvatar.new()
 	bestiole.stats = Content.monstre(&"rodeur")
-	bestiole.cible_par_defaut = faux_defaut
-	bestiole.cible = faux_defaut
 	bestiole.distrait_par(faux_leurre, 3.0)
 	verifie("une balise détourne l'attention", bestiole.cible == faux_leurre)
 	bestiole.distrait_par(null, 3.0)
 	verifie("mais pas vers rien du tout", bestiole.cible == faux_leurre)
 	bestiole.free()
-	faux_defaut.free()
 	faux_leurre.free()
 
 	# Permutation : une Resource, une ligne de registre, et le pool d'Ombre

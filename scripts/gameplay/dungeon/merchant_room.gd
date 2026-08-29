@@ -75,7 +75,7 @@ func installe(salle: FloorPlan.Salle) -> void:
 
 
 func cout_du_prochain_sceau() -> int:
-	return _tuning.cout_scelle(GameState.run.players[0].locks_bought_this_floor)
+	return _tuning.cout_scelle(GameState.local_player().locks_bought_this_floor)
 
 
 ## Socle disponible le plus proche, ou null. Le portail est traité à part par
@@ -105,7 +105,7 @@ func libelle(socle: ShopPedestal) -> String:
 	match socle.genre:
 		ShopPedestal.Genre.SCEAU:
 			var ecole: School = Content.ecole(
-				GameState.run.players[0].slots[socle.slot_index].school_id)
+				GameState.local_player().slots[socle.slot_index].school_id)
 			return "[E] Sceller le slot %d (%s) — %d Résonance" % [
 				socle.slot_index + 1, ecole.nom if ecole != null else "?",
 				cout_du_prochain_sceau()]
@@ -132,7 +132,7 @@ func achete(socle: ShopPedestal) -> bool:
 
 func _achete_sceau(socle: ShopPedestal) -> bool:
 	var cout: int = cout_du_prochain_sceau()
-	if not GameState.try_lock_slot(0, socle.slot_index, cout):
+	if not GameState.try_lock_slot(GameState.local_player_id, socle.slot_index, cout):
 		return false
 	socle.consomme()
 	achat_effectue.emit("Slot %d scellé pour %d Résonance. Le prochain coûtera %d." % [
@@ -141,9 +141,9 @@ func _achete_sceau(socle: ShopPedestal) -> bool:
 
 
 func _achete_consommable(socle: ShopPedestal) -> bool:
-	if not GameState.try_spend_resonance(0, socle.cout):
+	if not GameState.try_spend_resonance(GameState.local_player_id, socle.cout):
 		return false
-	var p: PlayerState = GameState.run.players[0]
+	var p: PlayerState = GameState.local_player()
 	if socle.genre == ShopPedestal.Genre.VIGUEUR:
 		p.max_hp += socle.valeur
 		p.hp += socle.valeur
@@ -158,7 +158,7 @@ func _achete_consommable(socle: ShopPedestal) -> bool:
 ## La balise achetée tombe au pied du socle : c'est un objet du monde, pas une
 ## ligne d'inventaire. Il faut se baisser pour la prendre, et on peut l'oublier.
 func _achete_balise(socle: ShopPedestal) -> bool:
-	if not GameState.try_spend_resonance(0, socle.cout):
+	if not GameState.try_spend_resonance(GameState.local_player_id, socle.cout):
 		return false
 	var balise := PropFactory.cree(PropFactory.Genre.BALISE_LEURRE,
 		socle.global_position + Vector3(0, 0, 1.4))
@@ -175,7 +175,7 @@ func _ajoute(socle: ShopPedestal) -> void:
 
 func _couleur_ecole(slot_index: int) -> Color:
 	var ecole: School = Content.ecole(
-		GameState.run.players[0].slots[slot_index].school_id)
+		GameState.local_player().slots[slot_index].school_id)
 	return ecole.couleur if ecole != null else Color.WHITE
 
 

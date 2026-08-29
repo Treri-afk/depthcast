@@ -48,7 +48,7 @@ func interagit() -> String:
 	for poste: Dictionary in _postes:
 		var avatar: MonsterAvatar = poste.get("avatar")
 		if is_instance_valid(avatar):
-			avatar.cible = terrain.joueur if ia_active else null
+			avatar.inerte = not ia_active
 	return "Mannequins : IA %s." % ("active — ils frappent" if ia_active
 		else "coupée — ils encaissent sans bouger")
 
@@ -59,9 +59,11 @@ func _fait_apparaitre(index: int) -> void:
 	if stats == null:
 		return
 	var pos: Vector3 = global_position + (poste["decalage"] as Vector3)
-	# `cible` à null : l'avatar n'interroge pas son cerveau et reste planté.
+	# `inerte` plutôt qu'une cible nulle : le mannequin garde la liste des
+	# joueurs et reprendra la poursuite dès qu'on rallume son intelligence.
 	var avatar: MonsterAvatar = spawner.fait_apparaitre(stats, pos,
-		terrain.joueur if ia_active else null, 0)
+		terrain.avatars, 0)
+	avatar.inerte = not ia_active
 	poste["avatar"] = avatar
 	poste["vivant"] = true
 	_postes[index] = poste

@@ -112,6 +112,17 @@ var filtre: int = 0
 ## surprise est chaude : on lit l'état avant de lire le signe.
 @export var emote_interrogation: Color = Color(0.62, 0.82, 0.98)
 
+@export_group("Joueurs")
+## Une couleur par joueur, dans l'ordre des identifiants. En vue subjective on
+## ne se voit pas soi-même : ces couleurs servent à reconnaître les AUTRES d'un
+## bout à l'autre d'une salle, avant d'avoir lu le moindre nom.
+@export var couleurs_joueurs: Array[Color] = [
+	Color(0.45, 0.78, 1.0),
+	Color(0.98, 0.70, 0.32),
+	Color(0.52, 0.90, 0.55),
+	Color(0.92, 0.48, 0.72),
+]
+
 @export_group("Chiffres de dégâts")
 ## Le chiffre ordinaire. Clair et neutre : il informe, il ne célèbre pas.
 @export var chiffre_degats: Color = Color(0.97, 0.96, 0.92)
@@ -123,3 +134,11 @@ var filtre: int = 0
 @export var creature_lourde: Color = Color(0.66, 0.25, 0.24)
 @export var creature_ailee: Color = Color(0.58, 0.47, 0.88)
 @export var boss: Color = Color(0.88, 0.29, 0.45)
+
+
+## La couleur d'un joueur, quel que soit son identifiant. Elle boucle plutôt que
+## de déborder : quatre joueurs prévus, mais rien ne doit planter à cinq.
+func couleur_joueur(player_id: int) -> Color:
+	if couleurs_joueurs.is_empty():
+		return Color.WHITE
+	return couleurs_joueurs[player_id % couleurs_joueurs.size()]

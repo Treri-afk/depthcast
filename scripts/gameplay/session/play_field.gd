@@ -24,6 +24,9 @@ signal sequence_terminee()
 ## Vrai pendant la séquence de reroll : la racine doit suspendre sa boucle.
 var sequence_en_cours: bool = false
 
+## Tous les avatars, dans l'ordre des identifiants de joueur.
+var avatars: Array[PlayerAvatar] = []
+## Celui que ce client contrôle. Toujours présent dans `avatars`.
 var joueur: PlayerAvatar
 var hud: GameHud
 var fx: FxLibrary
@@ -35,14 +38,30 @@ func _init(p_racine: Node3D) -> void:
 	racine = p_racine
 
 
-func monte() -> void:
+## Monte une session complète.
+##
+## Elle ouvre la run elle-même, et c'est délibéré : le nombre de joueurs décide
+## du nombre d'avatars, donc l'état doit exister avant le monde. Les racines
+## dupliquaient cet appel, chacune avec ses propres oublis.
+func monte(graine: int = 0, nb_joueurs: int = 1) -> void:
 	InputActions.declare()
 	WorldLighting.installe(racine)
 	_conteneurs()
-	_joueur()
+	_ouvre_la_run(graine, nb_joueurs)
+	_joueurs()
 	_interface()
 	_services()
 	_branche_le_ressenti()
+
+
+func _ouvre_la_run(graine: int, nb_joueurs: int) -> void:
+	GameState.start_run(graine, maxi(nb_joueurs, 1))
+	# Tout le monde part avec la même composition tant que le lobby n'existe
+	# pas. En co-op, chaque joueur compose la sienne au hub : ce sera un
+	# `set_player_schools` par joueur, et rien d'autre à changer ici.
+	var composition: Array = definitions_choisies()
+	for etat: PlayerState in GameState.run.players:
+		GameState.set_player_schools(etat.player_id, composition)
 
 
 func _conteneurs() -> void:
@@ -55,21 +74,40 @@ func _conteneurs() -> void:
 	racine.add_child(conteneur_monstres)
 
 
-func _joueur() -> void:
-	joueur = PlayerAvatar.new()
-	joueur.name = "Joueur"
-	joueur.position = Vector3(0, 1.2, 0)
+func _joueurs() -> void:
+	for etat: PlayerState in GameState.run.players:
+		var avatar := _cree_avatar(etat.player_id)
+		avatars.append(avatar)
+		if avatar.local:
+			joueur = avatar
+	# Il y a toujours un avatar local : sans lui, personne ne tient la caméra
+	# et l'écran reste noir sans dire pourquoi.
+	if joueur == null and not avatars.is_empty():
+		push_error("Aucun avatar local : local_player_id ne correspond à personne.")
+
+
+func _cree_avatar(player_id: int) -> PlayerAvatar:
+	var avatar := PlayerAvatar.new()
+	avatar.player_id = player_id
+	avatar.local = GameState.est_local(player_id)
+	avatar.name = "Joueur%d" % player_id
+	# Écartés au départ : empilés au même point, les corps se repoussent et
+	# partent en gerbe au premier tick physique.
+	avatar.position = Vector3(float(player_id) * 1.6, 1.2, 0)
 
 	var forme := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.5
 	capsule.height = 2.0
 	forme.shape = capsule
-	joueur.add_child(forme)
-	# Aucun mesh : en vue subjective, on ne se voit pas soi-même.
-	racine.add_child(joueur)
-	# Le post-traitement s'accroche à la caméra : c'est un quad de la passe 3D.
-	joueur.camera.add_child(PostProcess.cree(Content.palette))
+	avatar.add_child(forme)
+	racine.add_child(avatar)
+
+	# Le post-traitement s'accroche à la SEULE caméra active : c'est un quad de
+	# la passe 3D, et il n'y a qu'un écran.
+	if avatar.local:
+		avatar.camera.add_child(PostProcess.cree(Content.palette))
+	return avatar
 
 
 func _interface() -> void:
@@ -94,7 +132,7 @@ func _services() -> void:
 	contexte = SpellContext.new()
 	contexte.monde = racine
 	contexte.joueur = joueur
-	contexte.joueurs = [joueur]
+	contexte.joueurs = avatars
 	contexte.fx = fx
 	contexte.tuning = Content.tuning
 	caster = SpellCaster.new(contexte)
@@ -187,10 +225,11 @@ func change_ecole(slot_index: int, pas: int) -> void:
 	var total: int = Content.ecoles.size()
 	if total == 0 or not GameState.is_in_run():
 		return
-	var slot: SpellSlot = GameState.run.players[0].slots[slot_index]
+	var slot: SpellSlot = GameState.local_player().slots[slot_index]
 	var index: int = (Content.index_ecole(slot.school_id) + pas + total) % total
 	var suivante: School = Content.ecoles[index]
-	GameState.set_slot_school(0, slot_index, suivante.id, suivante.taille_pool())
+	GameState.set_slot_school(GameState.local_player_id, slot_index,
+		suivante.id, suivante.taille_pool())
 	hud.journalise("Slot %d passe à %s — %d effets possibles." % [
 		slot_index + 1, suivante.nom, suivante.taille_pool()])
 

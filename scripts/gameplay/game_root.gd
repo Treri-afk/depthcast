@@ -38,9 +38,6 @@ func _ready() -> void:
 
 	_assemble_le_donjon()
 	_branche_les_evenements()
-
-	GameState.start_run(0, 1)
-	GameState.set_player_schools(0, PlayField.definitions_choisies())
 	_contexte.objets = _etage.genere()
 	_hud.journalise("Nettoie l'étage, va voir le marchand au fond, puis prends le portail.")
 	_hud.aide_debug(_debug.aide())
@@ -60,7 +57,8 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed(InputActions.INTERAGIR):
 		_interagit()
 
-	if GameState.is_in_run() and GameState.run.players[0].hp <= 0:
+	var local: PlayerState = GameState.local_player()
+	if GameState.is_in_run() and local != null and local.hp <= 0:
 		_termine_la_run(false)
 
 
@@ -89,7 +87,7 @@ func _assemble_le_donjon() -> void:
 	_contexte.monstres = _spawner.avatars
 
 	_etage = FloorDirector.new(geometrie, tuning, builder, furnisher,
-		_marchand, _spawner, _joueur)
+		_marchand, _spawner, _terrain.avatars)
 
 
 ## Fin de run : par la mort, ou par la chute du boss.

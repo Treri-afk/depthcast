@@ -10,16 +10,26 @@ const AMORTISSEMENT: float = 6.0
 const GRAVITE: float = 26.0
 ## Force avec laquelle un monstre bouscule les caisses et les tables.
 const POUSSEE_OBJETS: float = 3.0
+## Intervalle de reconsidération de la cible.
+const RECIBLAGE: float = 0.7
 
 signal veut_tirer(depuis: Vector3, direction: Vector3, degats: int)
 
 var monster_id: int = -1
 ## Ce que le monstre poursuit. Un leurre peut prendre la place du joueur.
 var cible: Node3D = null
-## Ce vers quoi il revient quand une diversion s'achève. Mémorisé plutôt que
-## reconstruit : c'est ce qui rend `distrait_par()` sûr — un leurre n'a pas à
-## savoir qui poursuivait qui avant lui.
-var cible_par_defaut: Node3D = null
+## Tout ce qu'il pourrait poursuivre : les avatars de joueurs. Il choisit le
+## plus proche encore en vie, et il rechoisit régulièrement.
+##
+## En solo la liste en contient un et le comportement est identique à avant. En
+## co-op, c'est ce qui fait qu'un monstre lâche celui qui fuit pour celui qui
+## arrive — sans quoi le premier joueur entré dans la salle garderait toute
+## l'attention jusqu'à sa mort.
+var cibles: Array[Node3D] = []
+## Planté sur place, sans rien poursuivre. Sert aux mannequins du terrain
+## d'essai — et c'est plus honnête qu'une cible nulle, qui voulait dire deux
+## choses différentes selon l'endroit d'où on la lisait.
+var inerte: bool = false
 ## Tant que c'est vrai, le monstre a perdu la trace du joueur (Voile).
 var aveugle: bool = false
 var stats: MonsterStats = null
@@ -49,6 +59,9 @@ var _errance: Vector3 = Vector3.ZERO
 var _errance_restante: float = 0.0
 ## Temps restant de diversion. Zéro = il poursuit sa cible par défaut.
 var _distraction_restante: float = 0.0
+## Temps avant de reconsidérer qui poursuivre. Rechoisir à chaque frame ferait
+## hésiter le monstre entre deux joueurs à distance égale.
+var _delai_de_ciblage: float = 0.0
 var _mesh: MeshInstance3D = null
 var _materiau: ShaderMaterial = null
 
@@ -85,6 +98,7 @@ func _physics_process(delta: float) -> void:
 	_envol_restant = maxf(0.0, _envol_restant - delta)
 	_maj_vrille(delta)
 	_maj_distraction(delta)
+	_maj_ciblage(delta)
 	_maj_ralentissement(delta)
 	_maj_teinte(delta)
 	_impulsion = _impulsion.move_toward(Vector3.ZERO, AMORTISSEMENT * delta)
@@ -287,11 +301,53 @@ func _maj_distraction(delta: float) -> void:
 	if _distraction_restante <= 0.0:
 		return
 	_distraction_restante -= delta
-	# On revient aussi si le leurre disparaît avant la fin : poursuivre une
-	# référence morte laisserait le monstre planté pour de bon.
+	# On sort aussi de la diversion si le leurre disparaît avant la fin :
+	# poursuivre une référence morte laisserait le monstre planté pour de bon.
 	if _distraction_restante <= 0.0 or not is_instance_valid(cible):
 		_distraction_restante = 0.0
-		cible = cible_par_defaut
+		# Pas de cible mémorisée à restaurer : on rechoisit, ce qui est plus
+		# juste — six secondes ont passé, ce n'est plus forcément le même
+		# joueur qui est le plus proche.
+		cible = null
+		_delai_de_ciblage = 0.0
+
+
+## Choisit qui poursuivre : le joueur vivant le plus proche.
+func _maj_ciblage(delta: float) -> void:
+	if inerte:
+		cible = null
+		return
+	if _distraction_restante > 0.0:
+		return
+
+	_delai_de_ciblage -= delta
+	if _delai_de_ciblage > 0.0 and is_instance_valid(cible):
+		return
+	_delai_de_ciblage = RECIBLAGE
+	cible = _la_plus_proche()
+
+
+func _la_plus_proche() -> Node3D:
+	var meilleure: Node3D = null
+	var distance: float = INF
+	for candidat: Node3D in cibles:
+		if not is_instance_valid(candidat) or not _est_poursuivable(candidat):
+			continue
+		var d: float = global_position.distance_to(candidat.global_position)
+		if d < distance:
+			distance = d
+			meilleure = candidat
+	return meilleure
+
+
+## Un joueur à terre cesse d'être une cible : s'acharner sur un corps pendant
+## que ses coéquipiers vous frappent n'a aucun sens, et c'est frustrant à voir.
+func _est_poursuivable(candidat: Node3D) -> bool:
+	var avatar := candidat as PlayerAvatar
+	if avatar == null or not GameState.is_in_run():
+		return true
+	var etat: PlayerState = GameState.run.get_player(avatar.player_id)
+	return etat == null or etat.is_alive()
 
 
 ## Perdre le fil de son assaut sans être bousculé. Se faire permuter ne pousse

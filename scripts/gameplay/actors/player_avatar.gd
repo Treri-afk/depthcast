@@ -35,6 +35,13 @@ const DELAI_DECOLLAGE: float = 0.25
 signal a_lance(slot_index: int, direction: Vector3)
 
 var player_id: int = 0
+## Ce client contrôle-t-il cet avatar ?
+##
+## Un avatar distant a le même corps, la même physique et les mêmes réactions
+## aux souffles — il ne lit simplement aucune entrée et ne porte pas la caméra
+## active. C'est ce qui permet de tout écrire une seule fois : le jour où le
+## réseau pilote un avatar distant, il n'y a rien de particulier à prévoir.
+var local: bool = true
 var tete: Node3D
 var camera: Camera3D
 
@@ -102,7 +109,10 @@ func _ready() -> void:
 
 	camera = Camera3D.new()
 	camera.fov = 78.0
-	camera.current = true
+	# Une seule caméra active par écran. Les avatars distants gardent la leur —
+	# éteinte — pour que `position_yeux()` et `direction_visee()` fonctionnent
+	# sur eux aussi, sans un seul cas particulier ailleurs.
+	camera.current = local
 	_secousse.add_child(camera)
 
 	_mains = Node3D.new()
@@ -110,7 +120,11 @@ func _ready() -> void:
 	_mains.position = Vector3(0.5, -0.5, -1.25)
 	_secousse.add_child(_mains)
 
-	_regard = MouseLook.new(self, tete, _tuning.sensibilite_souris)
+	if local:
+		_regard = MouseLook.new(self, tete, _tuning.sensibilite_souris)
+	else:
+		# Un coéquipier se voit, contrairement à soi-même.
+		_montre_le_corps()
 
 	# Encaisser secoue la vue. Le voile rouge dit COMBIEN, la secousse dit QUE —
 	# et elle le dit avant qu'on ait eu le temps de lire quoi que ce soit.
@@ -122,10 +136,35 @@ func _ready() -> void:
 	# sautillant. 50° laisse de la marge au-dessus de la pente de 22° des rampes.
 	floor_snap_length = 0.5
 	floor_max_angle = deg_to_rad(50.0)
-	MouseLook.capture(true)
+	if local:
+		MouseLook.capture(true)
+
+
+## Le corps d'un coéquipier. Une capsule à sa couleur et un repère de regard :
+## en co-op, savoir où un allié REGARDE vaut souvent plus que savoir où il est.
+func _montre_le_corps() -> void:
+	var teinte: Color = Content.palette.couleur_joueur(player_id)
+
+	var corps := MeshInstance3D.new()
+	var capsule := CapsuleMesh.new()
+	capsule.radius = 0.5
+	capsule.height = 2.0
+	corps.mesh = capsule
+	corps.material_override = MaterialLibrary.aplat(teinte, MaterialLibrary.Role.CREATURE)
+	add_child(corps)
+
+	var regard := MeshInstance3D.new()
+	var museau := BoxMesh.new()
+	museau.size = Vector3(0.34, 0.22, 0.5)
+	regard.mesh = museau
+	regard.position = Vector3(0, 0, -0.45)
+	regard.material_override = MaterialLibrary.lumineux(teinte, 1.4)
+	tete.add_child(regard)
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not local:
+		return
 	if event is InputEventMouseMotion and MouseLook.est_capture():
 		_regard.applique(event as InputEventMouseMotion)
 
@@ -173,8 +212,11 @@ func _physics_process(delta: float) -> void:
 
 
 func _deplace(delta: float) -> void:
+	# Un avatar distant garde toute sa physique — gravité, collisions, souffles —
+	# mais ne se dirige pas tout seul. Le réseau écrira sa position ; d'ici là
+	# il attend, et il se fait quand même catapulter comme les autres.
 	var entree := Input.get_vector(InputActions.GAUCHE, InputActions.DROITE,
-		InputActions.AVANT, InputActions.ARRIERE)
+		InputActions.AVANT, InputActions.ARRIERE) if local else Vector2.ZERO
 	# Déplacement relatif au regard : avancer, c'est aller où l'on regarde.
 	# Porter coûte de la vitesse. Sans coût, porter serait gratuit et il n'y
 	# aurait aucune décision à prendre entre traverser vite et traverser armé.
@@ -245,7 +287,8 @@ func _deplace(delta: float) -> void:
 ## tôt. Personne ne sait nommer ces deux défauts ; tout le monde les sent.
 func _maj_les_fenetres_de_saut(delta: float, au_sol: bool) -> void:
 	_coyote = _tuning.saut_coyote if au_sol else maxf(0.0, _coyote - delta)
-	if Input.is_action_just_pressed(InputActions.SAUTER) and MouseLook.est_capture():
+	if local and Input.is_action_just_pressed(InputActions.SAUTER) \
+			and MouseLook.est_capture():
 		_tampon_de_saut = _tuning.saut_tampon
 	else:
 		_tampon_de_saut = maxf(0.0, _tampon_de_saut - delta)
@@ -266,7 +309,7 @@ func _bouscule_les_objets() -> void:
 
 
 func _ecoute_les_sorts() -> void:
-	if not MouseLook.est_capture():
+	if not local or not MouseLook.est_capture():
 		return
 	# Projeté, on perd la main. C'est ce qui donne son poids à une explosion :
 	# sans ça on est déplacé mais on continue de jouer, et le ragdoll n'est plus
@@ -513,7 +556,7 @@ func objet_a_portee() -> PropDestructible:
 
 
 func _ecoute_le_portage() -> void:
-	if not MouseLook.est_capture() or est_projete():
+	if not local or not MouseLook.est_capture() or est_projete():
 		return
 
 	if Input.is_action_just_pressed(InputActions.PORTER):

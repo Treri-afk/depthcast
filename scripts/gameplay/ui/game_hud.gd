@@ -109,7 +109,9 @@ func invite(texte: String) -> void:
 func _process(_delta: float) -> void:
 	if not GameState.is_in_run():
 		return
-	var p: PlayerState = GameState.run.players[0]
+	var p: PlayerState = GameState.local_player()
+	if p == null:
+		return
 	var etage: int = GameState.run.floor_index
 
 	var curseur: String = "capturé" if (joueur != null and joueur.souris_capturee()) \

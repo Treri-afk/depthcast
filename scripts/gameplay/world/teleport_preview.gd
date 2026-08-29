@@ -38,10 +38,10 @@ func _portee_disponible() -> float:
 		return 0.0
 	var etage: int = GameState.run.floor_index
 	for i: int in PlayerState.SLOT_COUNT:
-		var slot: SpellSlot = GameState.run.players[0].slots[i]
+		var slot: SpellSlot = GameState.local_player().slots[i]
 		if not slot.is_discovered_on(etage) or joueur.cooldown_restant(i) > 0.0:
 			continue
-		var effet: SpellEffect = caster.effet_actif(0, i)
+		var effet: SpellEffect = caster.effet_actif(GameState.local_player_id, i)
 		if effet != null and effet.comportement == SpellEffect.Comportement.TELEPORT:
 			return effet.portee
 	return 0.0

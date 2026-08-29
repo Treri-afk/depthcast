@@ -17,19 +17,19 @@ var _builder: FloorBuilder
 var _furnisher: RoomFurnisher
 var _marchand: MerchantRoom
 var _spawner: MonsterSpawner
-var _joueur: PlayerAvatar
+var _joueurs: Array[PlayerAvatar]
 
 
 func _init(geometrie: Node3D, tuning: Tuning, builder: FloorBuilder,
 		furnisher: RoomFurnisher, marchand: MerchantRoom, spawner: MonsterSpawner,
-		joueur: PlayerAvatar) -> void:
+		joueurs: Array[PlayerAvatar]) -> void:
 	_geometrie = geometrie
 	_tuning = tuning
 	_builder = builder
 	_furnisher = furnisher
 	_marchand = marchand
 	_spawner = spawner
-	_joueur = joueur
+	_joueurs = joueurs
 
 
 ## Construit l'étage courant de zéro. Retourne les objets destructibles créés,
@@ -57,15 +57,26 @@ func genere() -> Array[PropDestructible]:
 		_marchand.installe(plan.salle_du_marchand())
 
 	if boss:
-		var avatar: BossAvatar = _spawner.invoque_le_boss(plan, _joueur, etage)
+		var avatar: BossAvatar = _spawner.invoque_le_boss(plan, _joueurs, etage)
 		if avatar != null:
 			boss_invoque.emit(avatar)
 	else:
-		_spawner.peuple(plan, _joueur, etage, rng)
-	_joueur.global_position = plan.salle_de_depart().centre + Vector3(0, 1.2, 0)
+		_spawner.peuple(plan, _joueurs, etage, rng)
+	_pose_les_joueurs(plan.salle_de_depart().centre)
 
 	etage_pret.emit(GameState.run.floor_index)
 	return _furnisher.objets
+
+
+## Tout le monde arrive dans la salle de départ, en cercle. Empilés au même
+## point, les corps se repoussent et partent en gerbe au premier tick physique.
+func _pose_les_joueurs(centre: Vector3) -> void:
+	var total: int = maxi(_joueurs.size(), 1)
+	for i: int in _joueurs.size():
+		var angle: float = TAU * float(i) / float(total)
+		var ecart: float = 0.0 if total == 1 else 1.6
+		_joueurs[i].global_position = centre + Vector3(
+			cos(angle) * ecart, 1.2, sin(angle) * ecart)
 
 
 ## Le portail ne s'ouvre qu'une fois l'étage nettoyé : sinon on traverse le

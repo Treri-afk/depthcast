@@ -49,6 +49,9 @@ func _sur_contact(_corps: Node) -> void:
 
 func _declenche() -> void:
 	_active = true
+	# Même groupe que le leurre du sort : les cerveaux poursuivent un leurre
+	# sans jamais le frapper, et cette règle ne doit exister qu'à un endroit.
+	add_to_group(&"leurre")
 	portable = false
 	# Elle s'ancre : une balise qu'on peut repousser du pied ne détourne rien.
 	freeze_mode = RigidBody3D.FREEZE_MODE_STATIC

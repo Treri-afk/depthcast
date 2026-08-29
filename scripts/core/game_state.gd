@@ -19,6 +19,30 @@ var run: RunState = null
 ## foi, y compris entre deux scènes (R1).
 var ecoles_choisies: Array[StringName] = []
 
+## Le joueur que CE client contrôle.
+##
+## Hors de `run` à dessein : il diffère d'une machine à l'autre, donc il ne doit
+## ni être sérialisé, ni traverser le réseau, ni entrer dans une comparaison
+## d'états entre host et client. Deux clients qui joueraient la même run avec
+## des `local_player_id` différents doivent produire exactement le même
+## `serialize()`.
+##
+## C'est le SEUL endroit où la présentation a le droit de demander « qui suis
+## je ». Partout ailleurs, un système prend un `player_id` en paramètre (R2).
+var local_player_id: int = 0
+
+
+## L'état du joueur local, ou null hors run.
+##
+## Remplace les `run.players[0]` semés dans l'interface : en solo le résultat
+## est identique, en co-op c'est la seule version correcte.
+func local_player() -> PlayerState:
+	return null if run == null else run.get_player(local_player_id)
+
+
+func est_local(player_id: int) -> bool:
+	return player_id == local_player_id
+
 
 func is_in_run() -> bool:
 	return run != null and not run.is_over

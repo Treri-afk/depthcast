@@ -46,12 +46,12 @@ func traite(touche: InputEventKey) -> bool:
 			return true
 		TUER_LE_JOUEUR:
 			if GameState.is_in_run():
-				GameState.run.players[0].hp = 0
+				GameState.local_player().hp = 0
 				message.emit("[debug] mort forcée")
 			return true
 		SOIGNER_LE_JOUEUR:
 			if GameState.is_in_run():
-				var p: PlayerState = GameState.run.players[0]
+				var p: PlayerState = GameState.local_player()
 				p.hp = p.max_hp
 				message.emit("[debug] points de vie rendus")
 			return true

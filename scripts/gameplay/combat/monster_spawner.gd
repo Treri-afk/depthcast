@@ -46,17 +46,17 @@ func vide() -> void:
 
 
 ## Fait apparaître le boss au centre de l'arène.
-func invoque_le_boss(plan: FloorPlan, cible: Node3D, etage: int) -> BossAvatar:
+func invoque_le_boss(plan: FloorPlan, cibles: Array, etage: int) -> BossAvatar:
 	vide()
 	var stats: BossStats = Content.monstre(&"gardien_du_seuil") as BossStats
 	if stats == null:
 		push_error("Boss introuvable dans le contenu.")
 		return null
 	var centre: Vector3 = plan.salles[0].centre
-	return fait_apparaitre(stats, centre + Vector3(0, 0, -8.0), cible, etage) as BossAvatar
+	return fait_apparaitre(stats, centre + Vector3(0, 0, -8.0), cibles, etage) as BossAvatar
 
 
-func peuple(plan: FloorPlan, cible: Node3D, etage: int,
+func peuple(plan: FloorPlan, cibles: Array, etage: int,
 		rng: RandomNumberGenerator) -> void:
 	vide()
 	for index: int in plan.salles.size():
@@ -72,10 +72,10 @@ func peuple(plan: FloorPlan, cible: Node3D, etage: int,
 				continue
 			fait_apparaitre(stats, salle.centre + Vector3(
 				rng.randf_range(-bord, bord), 0.0, rng.randf_range(-bord, bord)),
-				cible, etage)
+				cibles, etage)
 
 
-func fait_apparaitre(stats: MonsterStats, pos: Vector3, cible: Node3D,
+func fait_apparaitre(stats: MonsterStats, pos: Vector3, cibles: Array,
 		etage: int) -> MonsterAvatar:
 	var pv: int = stats.pv + etage * _tuning.pv_monstre_par_etage
 	var id: int = GameState.spawn_monster(pv, stats.resonance, stats.id)
@@ -84,8 +84,9 @@ func fait_apparaitre(stats: MonsterStats, pos: Vector3, cible: Node3D,
 	var avatar: MonsterAvatar = BossAvatar.new() if stats is BossStats \
 		else MonsterAvatar.new()
 	avatar.monster_id = id
-	avatar.cible = cible
-	avatar.cible_par_defaut = cible
+	# La liste, pas une cible : le monstre choisit lui-même le joueur vivant le
+	# plus proche, et rechoisit au fil du combat.
+	avatar.cibles.assign(cibles)
 	avatar.stats = stats
 
 	var forme := CollisionShape3D.new()
