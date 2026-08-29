@@ -16,9 +16,7 @@ const PV_MONSTRE: int = 34
 const RESONANCE_PAR_MONSTRE: int = 12
 const COUT_VERROU: int = 20
 const TAILLE_SALLE: float = 22.0
-const VITESSE_PROJECTILE: float = 26.0
-const HAUTEUR_CAMERA: float = 11.5
-const RECUL_CAMERA: float = 8.5
+const VITESSE_PROJECTILE: float = 34.0
 
 var _joueur: PlayerAvatar
 var _camera: Camera3D
@@ -48,7 +46,7 @@ func _ready() -> void:
 	)
 
 	_peuple_l_etage()
-	_hud.journalise("ZQSD/WASD pour bouger · souris pour viser · 1-4 pour lancer · F pour descendre")
+	_hud.journalise("ZQSD pour bouger · souris pour viser · clic ou 1-4 pour lancer · F pour descendre · Échap pour le curseur")
 
 
 func _physics_process(_delta: float) -> void:
@@ -79,6 +77,7 @@ func _declare_les_touches() -> void:
 		"proto_sort_3": [KEY_3, KEY_KP_3],
 		"proto_sort_4": [KEY_4, KEY_KP_4],
 		"proto_etage_suivant": [KEY_F],
+		"proto_liberer_souris": [KEY_ESCAPE],
 	}
 	for action: String in touches:
 		if not InputMap.has_action(action):
@@ -87,6 +86,12 @@ func _declare_les_touches() -> void:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = code
 			InputMap.action_add_event(action, ev)
+
+	if not InputMap.has_action("proto_tir"):
+		InputMap.add_action("proto_tir")
+	var clic := InputEventMouseButton.new()
+	clic.button_index = MOUSE_BUTTON_LEFT
+	InputMap.action_add_event("proto_tir", clic)
 
 
 func _construit_la_salle() -> void:
@@ -150,35 +155,11 @@ func _construit_le_joueur() -> void:
 	forme.shape = capsule
 	_joueur.add_child(forme)
 
-	var visuel := MeshInstance3D.new()
-	var mesh := CapsuleMesh.new()
-	mesh.radius = 0.5
-	mesh.height = 2.0
-	visuel.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.9, 0.9, 0.95)
-	visuel.material_override = mat
-	_joueur.add_child(visuel)
-
-	# Un museau pour voir dans quelle direction on vise.
-	var nez := MeshInstance3D.new()
-	var nez_mesh := BoxMesh.new()
-	nez_mesh.size = Vector3(0.25, 0.25, 0.7)
-	nez.mesh = nez_mesh
-	nez.position = Vector3(0, 0.25, 0.6)
-	var nez_mat := StandardMaterial3D.new()
-	nez_mat.albedo_color = Color(0.95, 0.75, 0.2)
-	nez.material_override = nez_mat
-	_joueur.add_child(nez)
-
+	# Aucun mesh : en vue subjective, on ne se voit pas soi-même.
+	# La caméra est créée par PlayerAvatar, à hauteur des yeux.
 	_joueur.a_lance.connect(_sur_lancer)
 	add_child(_joueur)
-
-	_camera = Camera3D.new()
-	_camera.position = Vector3(0, HAUTEUR_CAMERA, RECUL_CAMERA)
-	_camera.rotation_degrees = Vector3(-54, 0, 0)
-	_camera.fov = 62.0
-	add_child(_camera)
+	_camera = _joueur.camera
 
 	_conteneur_monstres = Node3D.new()
 	_conteneur_monstres.name = "Monstres"
@@ -193,13 +174,6 @@ func _construit_le_hud() -> void:
 	_hud.verrou_demande.connect(_sur_verrou_demande)
 	_hud.etage_suivant_demande.connect(_descend)
 	couche.add_child(_hud)
-
-
-func _process(delta: float) -> void:
-	if _camera != null and _joueur != null:
-		var vise := Vector3(_joueur.global_position.x, HAUTEUR_CAMERA,
-			_joueur.global_position.z + RECUL_CAMERA)
-		_camera.global_position = _camera.global_position.lerp(vise, 6.0 * delta)
 
 
 # ── Peuplement des étages ─────────────────────────────────────────────────
@@ -272,7 +246,7 @@ func _tire_projectile(slot_index: int, eff: Dictionary, direction: Vector3,
 	var degats: int = int(eff.get("degats", 10))
 
 	var bille := Area3D.new()
-	bille.position = _joueur.global_position + direction * 0.9
+	bille.position = _joueur.position_yeux() + direction * 0.8
 	var forme := CollisionShape3D.new()
 	var sphere := SphereShape3D.new()
 	sphere.radius = 0.35

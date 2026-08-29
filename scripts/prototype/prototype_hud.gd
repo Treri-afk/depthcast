@@ -66,6 +66,15 @@ func _ready() -> void:
 		_labels_slot.append(label)
 		_boutons_verrou.append(bouton)
 
+	# Réticule : indispensable en vue subjective pour savoir où l'on vise.
+	var reticule := Label.new()
+	reticule.text = "+"
+	reticule.add_theme_font_size_override("font_size", 24)
+	reticule.set_anchors_preset(Control.PRESET_CENTER)
+	reticule.position = Vector2(-8, -18)
+	reticule.modulate = Color(1, 1, 1, 0.7)
+	add_child(reticule)
+
 	var suivant := Button.new()
 	suivant.text = "Étage suivant  (F)"
 	suivant.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
