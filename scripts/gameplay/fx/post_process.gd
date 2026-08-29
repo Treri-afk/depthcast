@@ -21,6 +21,7 @@ static func cree(palette: Palette) -> PostProcess:
 	mat.set_shader_parameter("contour_couleur", palette.encre)
 	mat.set_shader_parameter("contour_epaisseur", palette.contour_epaisseur)
 	mat.set_shader_parameter("contour_seuil", palette.contour_seuil)
+	mat.set_shader_parameter("grain_force", palette.grain_force)
 	mat.set_shader_parameter("filtre", palette.filtre)
 	mat.set_shader_parameter("filtre_teinte", palette.filtre_teinte)
 	mat.set_shader_parameter("filtre_ombre", palette.filtre_ombre)

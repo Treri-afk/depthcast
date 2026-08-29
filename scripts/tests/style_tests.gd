@@ -102,6 +102,20 @@ func _check_trame() -> void:
 	verifie("le filtre de couleur est un mode connu",
 		p.filtre >= 0 and p.filtre <= 4, "mode %d" % p.filtre)
 
+	# Le grain doit rester du papier, pas du bruit vidéo.
+	verifie("le grain reste discret", p.grain_force <= 0.1,
+		"%.3f" % p.grain_force)
+
+	# La brume par paliers ne vaut que si elle en a plusieurs : à un seul
+	# palier c'est un mur de couleur, à trop ce redevient un dégradé.
+	verifie("la brume a plusieurs paliers sans redevenir un dégradé",
+		p.brume_paliers >= 2 and p.brume_paliers <= 6,
+		"%d palier(s)" % p.brume_paliers)
+	verifie("elle commence avant de finir", p.brume_debut < p.brume_fin,
+		"%.0f → %.0f" % [p.brume_debut, p.brume_fin])
+	verifie("elle fond vers la couleur de fond, pas vers une autre",
+		p.brume_couleur == p.fond)
+
 	var post := PostProcess.cree(p)
 	verifie("la trame est dessinée avant le HUD", post.layer < 0,
 		"calque %d" % post.layer)

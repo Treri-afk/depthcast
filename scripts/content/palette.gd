@@ -26,10 +26,23 @@ extends Resource
 ## Côté d'un bloc en pixels d'écran. 2 accroche discrètement, 4 est un parti pris.
 @export_range(1.0, 8.0, 0.5) var pixel_taille: float = 2.0
 ## Épaisseur du contour, en blocs de trame. Le trait suit donc la grille.
-@export_range(0.0, 6.0, 0.25) var contour_epaisseur: float = 2.0
+@export_range(0.0, 6.0, 0.25) var contour_epaisseur: float = 1.25
 ## Écart de luminance à partir duquel on trace. Bas = trait partout, y compris
 ## dans le bruit ; haut = seules les vraies ruptures sont soulignées.
-@export_range(0.01, 0.6, 0.005) var contour_seuil: float = 0.085
+@export_range(0.01, 0.6, 0.005) var contour_seuil: float = 0.10
+
+## Bruit fixe posé sur l'image. Il ne bouge jamais : un grain animé fait du
+## bruit vidéo, un grain fixe fait du papier.
+@export_range(0.0, 0.2, 0.005) var grain_force: float = 0.045
+
+@export_group("Brume")
+## La brume de distance est le plus gros indice de rendu réaliste. Quantifiée
+## en paliers, elle donne la profondeur sans trahir les aplats.
+@export var brume_couleur: Color = Color(0.11, 0.11, 0.17)
+@export_range(0.0, 60.0, 1.0) var brume_debut: float = 14.0
+@export_range(1.0, 120.0, 1.0) var brume_fin: float = 46.0
+@export_range(1, 6, 1) var brume_paliers: int = 3
+@export_range(0.0, 1.0, 0.05) var brume_force: float = 0.75
 
 @export_group("Filtre de couleur")
 ## Aucun, Négatif, Monochrome, Duotone, Teinté. Un seul réglage pour changer

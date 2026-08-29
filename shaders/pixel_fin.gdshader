@@ -29,12 +29,25 @@ uniform float contour_epaisseur : hint_range(0.0, 6.0) = 2.0;
 // dans le bruit ; haut = seules les vraies ruptures sont soulignées.
 uniform float contour_seuil : hint_range(0.01, 0.6) = 0.085;
 
+group_uniforms Grain;
+// GRAIN DE PAPIER.
+//
+// Un bruit fixe, très faible, posé sur toute l'image. Il ne bouge JAMAIS : un
+// grain animé fait du bruit vidéo, un grain fixe fait du papier. C'est ce qui
+// donne l'impression d'une image imprimée plutôt que calculée.
+uniform float grain_force : hint_range(0.0, 0.2) = 0.045;
+
 group_uniforms Filtre;
 // 0 aucun · 1 négatif · 2 monochrome · 3 duotone · 4 teinté
 uniform int filtre : hint_range(0, 4) = 0;
 uniform vec4 filtre_teinte : source_color = vec4(0.45, 0.62, 1.0, 1.0);
 uniform vec4 filtre_ombre : source_color = vec4(0.06, 0.05, 0.12, 1.0);
 uniform float filtre_force : hint_range(0.0, 1.0) = 1.0;
+
+
+float bruit_fixe(vec2 p) {
+	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
 
 
 float luminance(vec3 c) {
@@ -95,6 +108,12 @@ void fragment() {
 
 		float trace = smoothstep(contour_seuil, contour_seuil * 2.2, force);
 		couleur = mix(couleur, contour_couleur.rgb, trace * contour_couleur.a);
+	}
+
+	if (grain_force > 0.0) {
+		// Ancré sur les pixels d'écran, donc immobile quand la caméra bouge.
+		float g = bruit_fixe(floor(SCREEN_UV * taille_ecran)) - 0.5;
+		couleur += vec3(g * grain_force);
 	}
 
 	COLOR = vec4(applique_filtre(couleur), 1.0);

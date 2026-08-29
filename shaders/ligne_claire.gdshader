@@ -24,10 +24,39 @@ uniform float nettete : hint_range(0.001, 0.2) = 0.02;
 
 uniform float emission_force : hint_range(0.0, 4.0) = 0.0;
 
+// BRUME PAR BANDES.
+//
+// La brume de distance est le plus gros indice de rendu « réaliste » : un
+// dégradé continu contredit frontalement la règle des aplats. Quantifiée en
+// trois paliers, elle donne la profondeur — indispensable pour lire un couloir
+// — tout en restant dans le langage du dessin.
+//
+// Les objets lointains fondent vers la couleur de fond. Le contour, tracé sur
+// le contraste, s'efface donc de lui-même avec la distance : ce qui est loin
+// est moins dessiné, exactement comme sur une planche.
+uniform vec4 brume_couleur : source_color = vec4(0.11, 0.11, 0.17, 1.0);
+uniform float brume_debut : hint_range(0.0, 60.0) = 14.0;
+uniform float brume_fin : hint_range(1.0, 120.0) = 46.0;
+uniform int brume_paliers : hint_range(1, 6) = 3;
+uniform float brume_force : hint_range(0.0, 1.0) = 0.75;
+
 
 void fragment() {
-	ALBEDO = albedo.rgb;
-	EMISSION = albedo.rgb * emission_force;
+	vec3 teinte = albedo.rgb;
+
+	if (brume_force > 0.0) {
+		// VERTEX est en espace vue dans fragment() : sa longueur est la
+		// distance à la caméra.
+		float distance = length(VERTEX);
+		float t = clamp((distance - brume_debut) / max(brume_fin - brume_debut, 0.001),
+			0.0, 1.0);
+		float paliers = float(brume_paliers);
+		t = floor(t * paliers) / paliers;
+		teinte = mix(teinte, brume_couleur.rgb, t * brume_force);
+	}
+
+	ALBEDO = teinte;
+	EMISSION = teinte * emission_force;
 }
 
 
