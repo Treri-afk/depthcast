@@ -28,6 +28,11 @@ var locked_until_floor: int = NOT_SET
 ## Étage sur lequel l'effet actif a été lancé au moins une fois.
 var discovered_on_floor: int = NOT_SET
 
+## Taille du pool de l'école rattachée à ce slot. Entre 2 et 5 (GDD §4).
+## Stockée ici parce que le reroll doit la connaître sans que le coeur du jeu
+## ait à charger les Resources d'écoles — et surtout sans jamais la supposer.
+var pool_size: int = 3
+
 
 func _init(p_school_id: StringName = &"", p_effect_index: int = 0) -> void:
 	school_id = p_school_id
@@ -65,6 +70,7 @@ func to_dict() -> Dictionary:
 		"effect_index": effect_index,
 		"locked_until_floor": locked_until_floor,
 		"discovered_on_floor": discovered_on_floor,
+		"pool_size": pool_size,
 	}
 
 
@@ -72,4 +78,5 @@ static func from_dict(d: Dictionary) -> SpellSlot:
 	var s := SpellSlot.new(StringName(d.get("school_id", "")), int(d.get("effect_index", 0)))
 	s.locked_until_floor = int(d.get("locked_until_floor", NOT_SET))
 	s.discovered_on_floor = int(d.get("discovered_on_floor", NOT_SET))
+	s.pool_size = int(d.get("pool_size", 3))
 	return s

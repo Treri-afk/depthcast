@@ -78,6 +78,28 @@ func _register_player(player_id: int, display_name: String) -> PlayerState:
 	return p
 
 
+## Affecte les écoles choisies aux slots d'un joueur, avant la descente.
+##
+## `schools` est une liste de dictionnaires {id: StringName, pool_size: int}.
+## Le tirage initial passe par le flux du joueur : deux joueurs qui prennent la
+## même école ne démarrent pas forcément sur le même effet.
+func set_player_schools(player_id: int, schools: Array) -> void:
+	var p: PlayerState = run.get_player(player_id) if run != null else null
+	if p == null:
+		return
+	var rng: RandomNumberGenerator = RngService.player_stream(
+		RngService.STREAM_REROLL, player_id
+	)
+	for i: int in mini(schools.size(), p.slots.size()):
+		var def: Dictionary = schools[i]
+		var slot: SpellSlot = p.slots[i]
+		slot.school_id = StringName(def.get("id", "inconnue"))
+		slot.pool_size = clampi(int(def.get("pool_size", 3)), 2, 5)
+		slot.effect_index = rng.randi_range(0, slot.pool_size - 1)
+		slot.locked_until_floor = SpellSlot.NOT_SET
+		slot.discovered_on_floor = SpellSlot.NOT_SET
+
+
 # ── Monstres ──────────────────────────────────────────────────────────────
 
 ## Enregistre un monstre dans l'état de la run et retourne son identifiant.
@@ -176,10 +198,9 @@ func _reroll_player_slots(p: PlayerState) -> void:
 	)
 	for i: int in p.slots.size():
 		var slot: SpellSlot = p.slots[i]
-		# TODO(C2) : tirer dans le pool réel de l'école, de taille 2 à 5.
-		# Ne jamais coder en dur une taille de pool.
-		var pool_size: int = 3
-		var draw: int = rng.randi_range(0, pool_size - 1)
+		# La taille du pool vient du slot, jamais d'une constante : les écoles
+		# ont entre 2 et 5 effets et rien ici ne doit supposer un nombre.
+		var draw: int = rng.randi_range(0, maxi(2, slot.pool_size) - 1)
 		if slot.try_reroll(run.floor_index, draw):
 			EventBus.slot_rerolled.emit(p.player_id, i, slot.effect_index)
 		else:
