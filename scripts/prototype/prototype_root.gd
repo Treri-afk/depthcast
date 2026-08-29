@@ -14,7 +14,11 @@ extends Node3D
 const MONSTRES_PAR_SALLE: int = 3
 const PV_MONSTRE: int = 34
 const RESONANCE_PAR_MONSTRE: int = 12
-const COUT_VERROU: int = 20
+const COUT_VERROU_BASE: int = 18
+## Multiplicateur cumulatif par verrou acheté dans l'étage (GDD §4).
+## Sans lui, dès qu'on a de la Résonance on fige tout et le jeu n'a plus de sujet.
+const MULTIPLICATEURS: Array[float] = [1.0, 1.5, 2.0, 3.0]
+const PORTEE_INTERACTION: float = 3.2
 const SALLES_PAR_ETAGE: int = 3
 const TAILLE_SALLE_MIN: float = 13.0
 const TAILLE_SALLE_MAX: float = 19.0
@@ -42,6 +46,11 @@ var _derniere_flaque: Vector3 = Vector3.ZERO
 ## Marqueur d'atterrissage de la téléportation.
 var _apercu: MeshInstance3D
 
+## Socles du marchand et portail de descente.
+var _socles: Array[Dictionary] = []
+var _portail: Node3D = null
+var _cible_interaction: Dictionary = {}
+
 
 func _ready() -> void:
 	_declare_les_touches()
@@ -65,7 +74,7 @@ func _ready() -> void:
 
 	_assemble_l_etage()
 	_peuple_l_etage()
-	_hud.journalise("ZQSD pour bouger · souris pour viser · clic ou 1-4 pour lancer · F pour descendre · Échap pour le curseur")
+	_hud.journalise("Nettoie l'étage, va voir le marchand au fond, puis prends le portail.")
 
 
 ## Raccourcis clavier pour l'école et le verrou.
@@ -83,9 +92,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if touche.shift_pressed:
 		_sur_ecole_changee(index, 1)
 		get_viewport().set_input_as_handled()
-	elif touche.ctrl_pressed or touche.meta_pressed:
-		_sur_verrou_demande(index)
-		get_viewport().set_input_as_handled()
 
 
 func _physics_process(_delta: float) -> void:
@@ -95,9 +101,10 @@ func _physics_process(_delta: float) -> void:
 
 	_maj_trainee(_delta)
 	_maj_apercu_teleport()
+	_maj_interaction()
 
-	if Input.is_action_just_pressed("proto_etage_suivant"):
-		_descend()
+	if Input.is_action_just_pressed("proto_interagir"):
+		_interagit()
 
 	if GameState.is_in_run() and GameState.run.players[0].hp <= 0:
 		_hud.journalise("Mort à l'étage %d. La run redémarre." % (GameState.run.floor_index + 1))
@@ -118,7 +125,8 @@ func _declare_les_touches() -> void:
 		"proto_sort_2": [KEY_2, KEY_KP_2],
 		"proto_sort_3": [KEY_3, KEY_KP_3],
 		"proto_sort_4": [KEY_4, KEY_KP_4],
-		"proto_etage_suivant": [KEY_F],
+		"proto_interagir": [KEY_E],
+		"proto_saut": [KEY_SPACE],
 		"proto_liberer_souris": [KEY_ESCAPE],
 	}
 	for action: String in touches:
@@ -158,65 +166,75 @@ func _construit_l_eclairage() -> void:
 	add_child(_geometrie)
 
 
-## Assemble l'étage : une chaîne de salles reliées par des couloirs.
+## Assemble l'étage : une chaîne de salles reliées par des couloirs, la
+## dernière servant de salle du marchand.
 ##
-## C'est une version minuscule du principe posé au GDD §5 — des salles
-## pré-conçues assemblées selon une seed, jamais de géométrie inventée à la
-## volée. Ici les salles sont de simples boîtes, mais le générateur ne connaît
-## déjà que des connecteurs et une seed : c'est la structure qui compte.
+## Le plan est calculé EN ENTIER avant de bâtir quoi que ce soit. La version
+## précédente tirait la taille de la salle suivante pour calculer l'espacement,
+## puis en retirait une autre au tour d'après : les couloirs ne tombaient donc
+## pas en face des ouvertures, et les murs les bouchaient.
 func _assemble_l_etage() -> void:
 	for enfant: Node in _geometrie.get_children():
 		enfant.queue_free()
 	_salles.clear()
+	_socles.clear()
+	_portail = null
 
 	var rng: RandomNumberGenerator = RngService.stream(RngService.STREAM_DUNGEON)
-	var centre := Vector3.ZERO
-	var direction := Vector3.RIGHT
 
+	# 1. Toutes les tailles d'abord.
+	var cotes: Array[float] = []
 	for i: int in SALLES_PAR_ETAGE:
-		var cote: float = rng.randf_range(TAILLE_SALLE_MIN, TAILLE_SALLE_MAX)
-		var salle := {"centre": centre, "taille": cote}
-		_salles.append(salle)
+		cotes.append(rng.randf_range(TAILLE_SALLE_MIN, TAILLE_SALLE_MAX))
+	# La salle du marchand est toujours généreuse : il faut la place de
+	# tourner autour des socles.
+	cotes[SALLES_PAR_ETAGE - 1] = maxf(cotes[SALLES_PAR_ETAGE - 1], 17.0)
 
-		var ouverture_entree: bool = i > 0
-		var ouverture_sortie: bool = i < SALLES_PAR_ETAGE - 1
-		_batit_salle(centre, cote, direction, ouverture_entree, ouverture_sortie)
+	# 2. Les directions, alternées pour éviter la ligne droite.
+	var directions: Array[Vector3] = []
+	var courante := Vector3.RIGHT
+	for i: int in SALLES_PAR_ETAGE - 1:
+		directions.append(courante)
+		courante = Vector3.FORWARD if courante == Vector3.RIGHT else Vector3.RIGHT
 
-		if not ouverture_sortie:
-			break
+	# 3. Les centres, déduits des tailles réelles.
+	var centres: Array[Vector3] = [Vector3.ZERO]
+	for i: int in SALLES_PAR_ETAGE - 1:
+		centres.append(centres[i] + directions[i] * (
+			cotes[i] * 0.5 + LONGUEUR_COULOIR + cotes[i + 1] * 0.5
+		))
 
-		# La direction alterne pour que l'étage ne soit pas une ligne droite.
-		var suivante: Vector3 = Vector3.FORWARD if direction == Vector3.RIGHT else Vector3.RIGHT
-		var cote_suivant: float = rng.randf_range(TAILLE_SALLE_MIN, TAILLE_SALLE_MAX)
-		var depart: Vector3 = centre + direction * (cote * 0.5)
-		_batit_couloir(depart, direction)
-		centre = centre + direction * (cote * 0.5 + LONGUEUR_COULOIR + cote_suivant * 0.5)
-		direction = suivante
+	# 4. Construction.
+	for i: int in SALLES_PAR_ETAGE:
+		var ouvertures: Array[Vector3] = []
+		if i > 0:
+			ouvertures.append(-directions[i - 1])
+		if i < SALLES_PAR_ETAGE - 1:
+			ouvertures.append(directions[i])
+		_batit_salle(centres[i], cotes[i], ouvertures)
+		_salles.append({"centre": centres[i], "taille": cotes[i],
+			"marchand": i == SALLES_PAR_ETAGE - 1})
+
+	for i: int in SALLES_PAR_ETAGE - 1:
+		_batit_couloir(centres[i] + directions[i] * (cotes[i] * 0.5), directions[i])
+
+	_installe_le_marchand(centres[SALLES_PAR_ETAGE - 1], cotes[SALLES_PAR_ETAGE - 1])
 
 
-func _batit_salle(centre: Vector3, cote: float, direction_sortie: Vector3,
-		ouverture_entree: bool, ouverture_sortie: bool) -> void:
+func _batit_salle(centre: Vector3, cote: float, ouvertures: Array[Vector3]) -> void:
 	_ajoute_bloc(centre + Vector3(0, -0.5, 0), Vector3(cote, 1, cote),
 		Color(0.30, 0.31, 0.36))
 
 	var demi: float = cote * 0.5
-	# Les quatre murs. Celui qui porte la sortie — et celui d'où l'on vient —
-	# reçoivent une ouverture de la largeur du couloir.
 	var murs := [
-		{"pos": Vector3(demi, 0, 0), "axe_z": true, "dir": Vector3.RIGHT},
-		{"pos": Vector3(-demi, 0, 0), "axe_z": true, "dir": Vector3.LEFT},
-		{"pos": Vector3(0, 0, demi), "axe_z": false, "dir": Vector3.BACK},
-		{"pos": Vector3(0, 0, -demi), "axe_z": false, "dir": Vector3.FORWARD},
+		{"pos": Vector3(demi, 0, 0), "le_long_de_z": true, "dir": Vector3.RIGHT},
+		{"pos": Vector3(-demi, 0, 0), "le_long_de_z": true, "dir": Vector3.LEFT},
+		{"pos": Vector3(0, 0, demi), "le_long_de_z": false, "dir": Vector3.BACK},
+		{"pos": Vector3(0, 0, -demi), "le_long_de_z": false, "dir": Vector3.FORWARD},
 	]
-	# L'entrée vient forcément du côté opposé à la sortie précédente.
-	var entree_dir: Vector3 = -direction_sortie if not ouverture_sortie else Vector3.LEFT
-	if ouverture_entree and ouverture_sortie:
-		entree_dir = Vector3.LEFT if direction_sortie == Vector3.FORWARD else Vector3.FORWARD
-
 	for mur: Dictionary in murs:
-		var perce: bool = (ouverture_sortie and mur["dir"] == direction_sortie) \
-			or (ouverture_entree and mur["dir"] == entree_dir)
-		_batit_mur(centre + mur["pos"], cote, mur["axe_z"], perce)
+		_batit_mur(centre + mur["pos"], cote, mur["le_long_de_z"],
+			ouvertures.has(mur["dir"]))
 
 
 func _batit_mur(centre: Vector3, longueur: float, le_long_de_z: bool, perce: bool) -> void:
@@ -331,7 +349,6 @@ func _construit_le_hud() -> void:
 	add_child(couche)
 	_hud = PrototypeHud.new()
 	_hud.joueur = _joueur
-	_hud.verrou_demande.connect(_sur_verrou_demande)
 	_hud.etage_suivant_demande.connect(_descend)
 	_hud.ecole_changee.connect(_sur_ecole_changee)
 	couche.add_child(_hud)
@@ -350,6 +367,9 @@ func _peuple_l_etage() -> void:
 
 	for index_salle: int in _salles.size():
 		var salle: Dictionary = _salles[index_salle]
+		# La salle du marchand est un sas : on y respire et on y décide.
+		if salle.get("marchand", false):
+			continue
 		var centre: Vector3 = salle["centre"]
 		var bord: float = float(salle["taille"]) * 0.5 - 2.5
 		# La première salle en contient moins : on y arrive sans être encerclé.
@@ -826,6 +846,217 @@ func _maj_apercu_teleport() -> void:
 		_apercu.global_position = _joueur.point_vise(portee) - Vector3(0, 0.9, 0)
 
 
+# ── Le marchand ───────────────────────────────────────────────────────────
+
+## La dernière salle de chaque étage. On y achète ses verrous — c'est LE moment
+## de décision de la boucle — puis on prend le portail, qui déclenche le reroll.
+##
+## L'ordre compte et il est celui du GDD : on achète d'ABORD, on reroll ENSUITE.
+## Un portail qui rerollerait avant l'achat rendrait les verrous inutiles.
+func _installe_le_marchand(centre: Vector3, cote: float) -> void:
+	var marchand := Node3D.new()
+	marchand.position = centre + Vector3(0, 1.2, -cote * 0.28)
+	var corps := _sphere_lumineuse(0.9, Color(0.95, 0.85, 0.45))
+	marchand.add_child(corps)
+	var chapeau := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.0
+	cone.bottom_radius = 0.85
+	cone.height = 1.1
+	chapeau.mesh = cone
+	chapeau.position = Vector3(0, 1.1, 0)
+	var mat_chapeau := StandardMaterial3D.new()
+	mat_chapeau.albedo_color = Color(0.35, 0.28, 0.55)
+	chapeau.material_override = mat_chapeau
+	marchand.add_child(chapeau)
+	_geometrie.add_child(marchand)
+
+	# Un socle par slot : le verrou devient un objet posé au sol qu'on va
+	# chercher, pas une case à cocher dans un menu.
+	var largeur: float = cote * 0.62
+	for i: int in 4:
+		var pos: Vector3 = centre + Vector3(
+			-largeur * 0.5 + largeur * (float(i) / 3.0), 0.0, cote * 0.06
+		)
+		_ajoute_socle(pos, {"type": "verrou", "slot": i})
+
+	# Deux consommables, pour que la Résonance ait un usage concurrent.
+	_ajoute_socle(centre + Vector3(-largeur * 0.36, 0, cote * 0.3),
+		{"type": "soin", "cout": 25, "valeur": 45})
+	_ajoute_socle(centre + Vector3(largeur * 0.36, 0, cote * 0.3),
+		{"type": "vigueur", "cout": 40, "valeur": 15})
+
+	_portail = _cree_portail(centre + Vector3(0, 0, -cote * 0.42))
+
+
+func _ajoute_socle(pos: Vector3, donnees: Dictionary) -> void:
+	var socle := Node3D.new()
+	socle.position = Vector3(pos.x, 0.0, pos.z)
+
+	var pied := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.55
+	mesh.bottom_radius = 0.7
+	mesh.height = 0.9
+	pied.mesh = mesh
+	pied.position = Vector3(0, 0.45, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.34, 0.34, 0.42)
+	pied.material_override = mat
+	socle.add_child(pied)
+
+	var objet := _sphere_lumineuse(0.32, _couleur_objet(donnees))
+	objet.position = Vector3(0, 1.35, 0)
+	objet.name = "Objet"
+	socle.add_child(objet)
+
+	_geometrie.add_child(socle)
+	donnees["node"] = socle
+	donnees["objet"] = objet
+	donnees["achete"] = false
+	_socles.append(donnees)
+
+
+func _couleur_objet(donnees: Dictionary) -> Color:
+	match String(donnees.get("type", "")):
+		"soin":
+			return Color(0.42, 0.92, 0.48)
+		"vigueur":
+			return Color(0.95, 0.55, 0.35)
+		_:
+			var slot: SpellSlot = GameState.run.players[0].slots[int(donnees.get("slot", 0))]
+			var ecole: Dictionary = PrototypeCatalogue.school_by_id(slot.school_id)
+			return ecole.get("couleur", Color.WHITE)
+
+
+func _cree_portail(pos: Vector3) -> Node3D:
+	var portail := Node3D.new()
+	portail.position = Vector3(pos.x, 0.1, pos.z)
+	var anneau := MeshInstance3D.new()
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = 1.5
+	mesh.outer_radius = 2.0
+	anneau.mesh = mesh
+	anneau.rotation_degrees = Vector3(90, 0, 0)
+	anneau.position = Vector3(0, 2.0, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.75, 1.0)
+	mat.emission_enabled = true
+	mat.emission = Color(0.45, 0.7, 1.0)
+	mat.emission_energy_multiplier = 1.6
+	anneau.material_override = mat
+	portail.add_child(anneau)
+	_geometrie.add_child(portail)
+	return portail
+
+
+## Coût du prochain verrou, multiplicateur cumulatif compris.
+func _cout_verrou() -> int:
+	var deja: int = GameState.run.players[0].locks_bought_this_floor
+	var facteur: float = MULTIPLICATEURS[mini(deja, MULTIPLICATEURS.size() - 1)]
+	return int(round(COUT_VERROU_BASE * facteur))
+
+
+## Cherche l'objet interactif le plus proche et met à jour l'invite.
+func _maj_interaction() -> void:
+	_cible_interaction = {}
+	var meilleure: float = PORTEE_INTERACTION
+
+	for socle: Dictionary in _socles:
+		if socle["achete"]:
+			continue
+		var d: float = _joueur.global_position.distance_to(
+			(socle["node"] as Node3D).global_position
+		)
+		if d < meilleure:
+			meilleure = d
+			_cible_interaction = socle
+
+	if _portail != null:
+		var d: float = _joueur.global_position.distance_to(_portail.global_position)
+		if d < meilleure:
+			_cible_interaction = {"type": "portail"}
+
+	_hud.invite(_libelle_interaction())
+
+
+func _libelle_interaction() -> String:
+	if _cible_interaction.is_empty():
+		return ""
+	match String(_cible_interaction.get("type", "")):
+		"portail":
+			var restants: int = GameState.run.alive_monsters().size()
+			if restants > 0:
+				return "[E] Portail scellé — %d monstre(s) à éliminer" % restants
+			return "[E] Descendre à l'étage suivant"
+		"verrou":
+			var i: int = int(_cible_interaction["slot"])
+			var nom: String = String(PrototypeCatalogue.school_by_id(
+				GameState.run.players[0].slots[i].school_id).get("nom", "?"))
+			return "[E] Sceller le slot %d (%s) — %d Résonance" % [
+				i + 1, nom, _cout_verrou()]
+		"soin":
+			return "[E] Fiole de soin (+%d PV) — %d Résonance" % [
+				int(_cible_interaction["valeur"]), int(_cible_interaction["cout"])]
+		"vigueur":
+			return "[E] Éclat de vigueur (+%d PV max) — %d Résonance" % [
+				int(_cible_interaction["valeur"]), int(_cible_interaction["cout"])]
+	return ""
+
+
+func _interagit() -> void:
+	if _cible_interaction.is_empty():
+		return
+	match String(_cible_interaction.get("type", "")):
+		"portail":
+			_prend_le_portail()
+		"verrou":
+			_achete_verrou(_cible_interaction)
+		"soin", "vigueur":
+			_achete_consommable(_cible_interaction)
+
+
+func _achete_verrou(socle: Dictionary) -> void:
+	var i: int = int(socle["slot"])
+	var cout: int = _cout_verrou()
+	if not GameState.try_lock_slot(0, i, cout):
+		return
+	_consomme_socle(socle)
+	_hud.journalise("Slot %d scellé pour %d Résonance. Le prochain coûtera %d." % [
+		i + 1, cout, _cout_verrou()])
+
+
+func _achete_consommable(socle: Dictionary) -> void:
+	var cout: int = int(socle["cout"])
+	if not GameState.try_spend_resonance(0, cout):
+		return
+	var p: PlayerState = GameState.run.players[0]
+	if String(socle["type"]) == "vigueur":
+		p.max_hp += int(socle["valeur"])
+		p.hp += int(socle["valeur"])
+		_hud.journalise("Vigueur : %d PV max." % p.max_hp)
+	else:
+		_soumet_soin(-1, int(socle["valeur"]))
+		_hud.journalise("Fiole bue.")
+	_consomme_socle(socle)
+
+
+func _consomme_socle(socle: Dictionary) -> void:
+	socle["achete"] = true
+	var objet: Node3D = socle["objet"]
+	if is_instance_valid(objet):
+		objet.queue_free()
+
+
+## Le portail ne s'ouvre qu'une fois l'étage nettoyé : sans ça, on peut
+## traverser le donjon sans jamais combattre, et il n'y a plus de boucle.
+func _prend_le_portail() -> void:
+	if GameState.run.alive_monsters().size() > 0:
+		_hud.journalise("Le portail reste scellé tant que l'étage n'est pas nettoyé.")
+		return
+	_descend()
+
+
 # ── Réactions aux évènements du moteur ────────────────────────────────────
 
 func _sur_degat_monstre(monster_id: int, _pv: int) -> void:
@@ -872,24 +1103,22 @@ func _sur_ecole_changee(slot_index: int, pas: int) -> void:
 	])
 
 
-func _sur_verrou_demande(slot_index: int) -> void:
-	if GameState.try_lock_slot(0, slot_index, COUT_VERROU):
-		_hud.journalise("Slot %d verrouillé pour %d de Résonance." % [slot_index + 1, COUT_VERROU])
-
-
 func _descend() -> void:
 	if not GameState.is_in_run():
 		return
+	# complete_floor puis advance_floor : l'achat a déjà eu lieu chez le
+	# marchand, le reroll se produit maintenant. Jamais l'inverse.
 	GameState.complete_floor()
 	GameState.advance_floor()
 	_assemble_l_etage()
-	_joueur.position = Vector3(0, 1.0, 0)
+	_joueur.global_position = Vector3(0, 1.2, 0)
 	_peuple_l_etage()
+	_hud.journalise("Étage %d. Tes sorts non scellés ont muté." % (GameState.run.floor_index + 1))
 
 
 func _redemarre() -> void:
 	GameState.start_run(0, 1)
 	GameState.set_player_schools(0, PrototypeCatalogue.school_defs([0, 1, 2, 4]))
 	_assemble_l_etage()
-	_joueur.position = Vector3(0, 1.0, 0)
+	_joueur.global_position = Vector3(0, 1.2, 0)
 	_peuple_l_etage()

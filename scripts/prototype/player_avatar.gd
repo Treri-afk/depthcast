@@ -19,6 +19,8 @@ const SENSIBILITE: float = 0.0022
 const PITCH_MAX: float = 1.45
 ## Hauteur des yeux, mesurée depuis le centre de la capsule.
 const HAUTEUR_YEUX: float = 0.65
+const GRAVITE: float = 26.0
+const IMPULSION_SAUT: float = 8.4
 
 signal a_lance(slot_index: int, direction: Vector3)
 
@@ -92,16 +94,27 @@ func _physics_process(delta: float) -> void:
 
 	_voile_restant = maxf(0.0, _voile_restant - delta)
 
+	var vitesse_verticale: float = velocity.y
+
 	if _dash_restant > 0.0:
-		# Pendant la charge, le contrôle est confisqué : c'est ce qui fait
-		# qu'une Ruée se sent comme une Ruée et pas comme un sprint.
+		# Pendant la charge, le contrôle horizontal est confisqué : c'est ce qui
+		# fait qu'une Ruée se sent comme une Ruée et pas comme un sprint.
 		_dash_restant -= delta
-		velocity = _dash
+		velocity.x = _dash.x
+		velocity.z = _dash.z
 	else:
 		var taux: float = ACCELERATION if entree.length_squared() > 0.01 else FREINAGE
 		velocity.x = move_toward(velocity.x, voulu.x, taux * delta)
 		velocity.z = move_toward(velocity.z, voulu.z, taux * delta)
-	velocity.y = 0.0
+
+	if is_on_floor():
+		vitesse_verticale = 0.0
+		if Input.is_action_just_pressed("proto_saut") and souris_capturee():
+			vitesse_verticale = IMPULSION_SAUT
+	else:
+		vitesse_verticale -= GRAVITE * delta
+
+	velocity.y = vitesse_verticale
 	move_and_slide()
 
 	_ecoute_les_sorts()
@@ -153,7 +166,7 @@ func point_vise(portee: float) -> Vector3:
 
 
 func teleporte(vers: Vector3) -> void:
-	global_position = vers
+	global_position = vers + Vector3(0, 0.2, 0)
 	velocity = Vector3.ZERO
 
 

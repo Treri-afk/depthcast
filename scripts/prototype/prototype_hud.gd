@@ -10,7 +10,6 @@ extends Control
 ## Il ne fait que LIRE GameState. Il ne modifie rien : les boutons émettent des
 ## signaux que la racine du prototype traite.
 
-signal verrou_demande(slot_index: int)
 signal etage_suivant_demande()
 ## Demande de changer l'école d'un slot. `pas` vaut -1 ou +1.
 signal ecole_changee(slot_index: int, pas: int)
@@ -21,7 +20,7 @@ var _info: RichTextLabel
 var _journal: Label
 var _aide: RichTextLabel
 var _cartes: Array[RichTextLabel] = []
-var _boutons_verrou: Array[Button] = []
+var _invite: Label
 
 
 func _ready() -> void:
@@ -32,10 +31,10 @@ func _ready() -> void:
 	_aide = _panneau_texte(-346, 14, 330, 168, true)
 	_aide.text = ("[b]Commandes[/b]\n"
 		+ "ZQSD / WASD — se déplacer\n"
-		+ "Souris — viser  ·  Clic ou 1-4 — lancer\n"
+		+ "Espace — sauter  ·  Souris — viser\n"
+		+ "Clic ou 1-4 — lancer un sort\n"
+		+ "[color=#ffd24a]E — interagir (marchand, portail)[/color]\n"
 		+ "[color=#ffd24a]Maj + 1-4 — changer l'école du slot[/color]\n"
-		+ "[color=#ffd24a]Ctrl + 1-4 — verrouiller le slot[/color]\n"
-		+ "F — étage suivant\n"
 		+ "Échap — libérer le curseur\n"
 		+ "Clic droit — reprendre la visée")
 
@@ -48,15 +47,16 @@ func _ready() -> void:
 	_construit_les_cartes()
 	_construit_le_reticule()
 
-	var suivant := Button.new()
-	suivant.text = "Étage suivant  (F)"
-	suivant.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	suivant.offset_left = -200
-	suivant.offset_top = -56
-	suivant.offset_right = -20
-	suivant.offset_bottom = -20
-	suivant.pressed.connect(func() -> void: etage_suivant_demande.emit())
-	add_child(suivant)
+	# Invite d'interaction, juste sous le réticule : c'est là que l'oeil est.
+	_invite = Label.new()
+	_invite.set_anchors_preset(Control.PRESET_CENTER)
+	_invite.offset_left = -320
+	_invite.offset_right = 320
+	_invite.offset_top = 40
+	_invite.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_invite.add_theme_font_size_override("font_size", 17)
+	_invite.add_theme_color_override("font_color", Color(1, 0.93, 0.6))
+	add_child(_invite)
 
 
 func _panneau_texte(x: float, y: float, largeur: float, hauteur: float,
@@ -138,11 +138,13 @@ func _construit_les_cartes() -> void:
 		gauche.pressed.connect(func() -> void: ecole_changee.emit(i, -1))
 		actions.add_child(gauche)
 
-		var verrou := Button.new()
-		verrou.text = "Verrouiller"
-		verrou.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		verrou.pressed.connect(func() -> void: verrou_demande.emit(i))
-		actions.add_child(verrou)
+		var titre := Label.new()
+		titre.text = "école"
+		titre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		titre.add_theme_font_size_override("font_size", 12)
+		titre.modulate = Color(1, 1, 1, 0.5)
+		actions.add_child(titre)
 
 		var droite := Button.new()
 		droite.text = ">"
@@ -156,7 +158,6 @@ func _construit_les_cartes() -> void:
 		barre.add_child(carte)
 
 		_cartes.append(texte)
-		_boutons_verrou.append(verrou)
 
 
 func _construit_le_reticule() -> void:
@@ -172,6 +173,10 @@ func _construit_le_reticule() -> void:
 
 func journalise(texte: String) -> void:
 	_journal.text = texte
+
+
+func invite(texte: String) -> void:
+	_invite.text = texte
 
 
 func _process(_delta: float) -> void:
@@ -234,4 +239,3 @@ func _maj_carte(i: int, slot: SpellSlot, etage: int) -> void:
 		lignes += "[color=#8fd694]prêt[/color]"
 
 	_cartes[i].text = lignes
-	_boutons_verrou[i].disabled = verrouille
