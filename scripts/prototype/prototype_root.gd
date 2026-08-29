@@ -20,11 +20,12 @@ const COUT_VERROU_BASE: int = 18
 const MULTIPLICATEURS: Array[float] = [1.0, 1.5, 2.0, 3.0]
 const PORTEE_INTERACTION: float = 3.2
 const SALLES_PAR_ETAGE: int = 3
-const TAILLE_SALLE_MIN: float = 13.0
-const TAILLE_SALLE_MAX: float = 19.0
+const TAILLE_SALLE_MIN: float = 22.0
+const TAILLE_SALLE_MAX: float = 30.0
+const HAUTEUR_PILIER: float = 4.0
 const LONGUEUR_COULOIR: float = 7.0
 const LARGEUR_COULOIR: float = 4.0
-const HAUTEUR_MUR: float = 4.0
+const HAUTEUR_MUR: float = 5.5
 const VITESSE_PROJECTILE: float = 34.0
 
 var _joueur: PlayerAvatar
@@ -48,6 +49,8 @@ var _apercu: MeshInstance3D
 
 ## Socles du marchand et portail de descente.
 var _socles: Array[Dictionary] = []
+## Caisses, tonneaux et tables : tout ce que les sorts peuvent projeter.
+var _objets_physiques: Array[RigidBody3D] = []
 var _portail: Node3D = null
 var _cible_interaction: Dictionary = {}
 
@@ -178,6 +181,7 @@ func _assemble_l_etage() -> void:
 		enfant.queue_free()
 	_salles.clear()
 	_socles.clear()
+	_objets_physiques.clear()
 	_portail = null
 
 	var rng: RandomNumberGenerator = RngService.stream(RngService.STREAM_DUNGEON)
@@ -214,6 +218,7 @@ func _assemble_l_etage() -> void:
 		_batit_salle(centres[i], cotes[i], ouvertures)
 		_salles.append({"centre": centres[i], "taille": cotes[i],
 			"marchand": i == SALLES_PAR_ETAGE - 1})
+		_meuble_la_salle(centres[i], cotes[i], rng, i == SALLES_PAR_ETAGE - 1)
 
 	for i: int in SALLES_PAR_ETAGE - 1:
 		_batit_couloir(centres[i] + directions[i] * (cotes[i] * 0.5), directions[i])
@@ -235,6 +240,109 @@ func _batit_salle(centre: Vector3, cote: float, ouvertures: Array[Vector3]) -> v
 	for mur: Dictionary in murs:
 		_batit_mur(centre + mur["pos"], cote, mur["le_long_de_z"],
 			ouvertures.has(mur["dir"]))
+
+
+## Meuble une salle : piliers, estrade avec marches, caisses et tables.
+##
+## Deux intentions. D'abord casser la ligne de vue — un espace vide se traverse
+## en ligne droite, un espace encombré force à choisir un chemin. Ensuite donner
+## de la matière aux sorts : la Répulsion n'a aucun sens dans une pièce nue.
+func _meuble_la_salle(centre: Vector3, cote: float, rng: RandomNumberGenerator,
+		marchand: bool) -> void:
+	var demi: float = cote * 0.5
+
+	# Piliers : posés en retrait des murs, ils créent des angles morts.
+	var recul: float = demi * 0.52
+	for signe_x: float in [-1.0, 1.0]:
+		for signe_z: float in [-1.0, 1.0]:
+			if rng.randf() < 0.25:
+				continue
+			_ajoute_bloc(
+				centre + Vector3(signe_x * recul, HAUTEUR_PILIER * 0.5, signe_z * recul),
+				Vector3(1.5, HAUTEUR_PILIER, 1.5), Color(0.24, 0.25, 0.30))
+
+	if marchand:
+		_ajoute_estrade(centre + Vector3(0, 0, -demi * 0.62), 7.0, rng)
+		return
+
+	# Une estrade avec ses marches : de la verticalité, et une raison de sauter.
+	if rng.randf() < 0.7:
+		var angle: float = rng.randf() * TAU
+		var pos := centre + Vector3(cos(angle), 0, sin(angle)) * (demi * 0.55)
+		_ajoute_estrade(pos, rng.randf_range(4.5, 6.5), rng)
+
+	# Caisses, tonneaux, tables.
+	var combien: int = int(rng.randf_range(5, 9))
+	for i: int in combien:
+		var pos := centre + Vector3(
+			rng.randf_range(-demi * 0.78, demi * 0.78), 0.0,
+			rng.randf_range(-demi * 0.78, demi * 0.78))
+		if pos.distance_to(centre) < 3.0:
+			continue
+		var tirage: float = rng.randf()
+		if tirage < 0.45:
+			_ajoute_objet_physique(pos, Vector3(1.0, 1.0, 1.0), 7.0,
+				Color(0.48, 0.36, 0.24), false)
+		elif tirage < 0.8:
+			_ajoute_objet_physique(pos, Vector3(0.9, 1.2, 0.9), 9.0,
+				Color(0.40, 0.30, 0.20), true)
+		else:
+			_ajoute_objet_physique(pos + Vector3(0, 0.35, 0), Vector3(2.2, 0.25, 1.2),
+				14.0, Color(0.34, 0.26, 0.20), false)
+
+
+## Estrade et son escalier. Les marches sont assez basses pour être montées,
+## assez hautes pour que sauter serve.
+func _ajoute_estrade(centre: Vector3, cote: float, rng: RandomNumberGenerator) -> void:
+	var hauteur: float = rng.randf_range(1.0, 1.8)
+	_ajoute_bloc(centre + Vector3(0, hauteur * 0.5, 0),
+		Vector3(cote, hauteur, cote), Color(0.26, 0.27, 0.33))
+
+	var marches: int = 3
+	for i: int in marches:
+		var h: float = hauteur * (float(i + 1) / float(marches))
+		_ajoute_bloc(
+			centre + Vector3(0, h * 0.5, cote * 0.5 + 0.6 + float(marches - 1 - i) * 1.2),
+			Vector3(cote * 0.55, h, 1.2), Color(0.23, 0.24, 0.29))
+
+
+func _ajoute_objet_physique(pos: Vector3, taille: Vector3, masse: float,
+		couleur: Color, cylindrique: bool) -> void:
+	var corps := RigidBody3D.new()
+	corps.position = Vector3(pos.x, taille.y * 0.5 + 0.1, pos.z)
+	corps.mass = masse
+	# Un frein élevé : les objets glissent un peu puis se posent, au lieu de
+	# patiner à l'infini après une Répulsion.
+	corps.linear_damp = 1.6
+	corps.angular_damp = 2.4
+
+	var forme := CollisionShape3D.new()
+	var visuel := MeshInstance3D.new()
+	if cylindrique:
+		var cyl := CylinderShape3D.new()
+		cyl.radius = taille.x * 0.5
+		cyl.height = taille.y
+		forme.shape = cyl
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = taille.x * 0.5
+		mesh.bottom_radius = taille.x * 0.5
+		mesh.height = taille.y
+		visuel.mesh = mesh
+	else:
+		var boite := BoxShape3D.new()
+		boite.size = taille
+		forme.shape = boite
+		var mesh := BoxMesh.new()
+		mesh.size = taille
+		visuel.mesh = mesh
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = couleur
+	visuel.material_override = mat
+	corps.add_child(forme)
+	corps.add_child(visuel)
+	_geometrie.add_child(corps)
+	_objets_physiques.append(corps)
 
 
 func _batit_mur(centre: Vector3, longueur: float, le_long_de_z: bool, perce: bool) -> void:
@@ -361,9 +469,8 @@ func _peuple_l_etage() -> void:
 		enfant.queue_free()
 	_avatars.clear()
 
-	# Placement seedé : la même seed rejoue le même étage (R3).
 	var rng: RandomNumberGenerator = RngService.stream(RngService.STREAM_DUNGEON)
-	var pv: int = PV_MONSTRE + GameState.run.floor_index * 8
+	var etage: int = GameState.run.floor_index
 
 	for index_salle: int in _salles.size():
 		var salle: Dictionary = _salles[index_salle]
@@ -371,40 +478,85 @@ func _peuple_l_etage() -> void:
 		if salle.get("marchand", false):
 			continue
 		var centre: Vector3 = salle["centre"]
-		var bord: float = float(salle["taille"]) * 0.5 - 2.5
-		# La première salle en contient moins : on y arrive sans être encerclé.
-		var combien: int = MONSTRES_PAR_SALLE - (1 if index_salle == 0 else 0)
+		var bord: float = float(salle["taille"]) * 0.5 - 3.0
 
-		for i: int in combien:
-			var id: int = GameState.spawn_monster(pv, RESONANCE_PAR_MONSTRE)
-			var avatar := MonsterAvatar.new()
-			avatar.monster_id = id
-			avatar.cible = _joueur
-
-			var forme := CollisionShape3D.new()
-			var boite := BoxShape3D.new()
-			boite.size = Vector3(1.2, 1.6, 1.2)
-			forme.shape = boite
-			avatar.add_child(forme)
-
-			var visuel := MeshInstance3D.new()
-			visuel.name = "Mesh"
-			var mesh := BoxMesh.new()
-			mesh.size = Vector3(1.2, 1.6, 1.2)
-			visuel.mesh = mesh
-			var mat := StandardMaterial3D.new()
-			mat.albedo_color = Color(0.75, 0.3, 0.35)
-			visuel.set_surface_override_material(0, mat)
-			avatar.add_child(visuel)
-
-			avatar.position = centre + Vector3(
-				rng.randf_range(-bord, bord), 0.9, rng.randf_range(-bord, bord)
-			)
-			_conteneur_monstres.add_child(avatar)
-			_avatars[id] = avatar
+		for archetype: int in PrototypeBestiaire.composition(etage, rng):
+			# La première salle est allégée : on ne doit pas être encerclé
+			# dès la première seconde d'un étage.
+			if index_salle == 0 and rng.randf() < 0.3:
+				continue
+			_fait_apparaitre(archetype, centre + Vector3(
+				rng.randf_range(-bord, bord), 0.0, rng.randf_range(-bord, bord)), etage)
 
 
-# ── Lancer de sorts ───────────────────────────────────────────────────────
+func _fait_apparaitre(archetype: int, pos: Vector3, etage: int) -> void:
+	var stats: Dictionary = PrototypeBestiaire.stats(archetype)
+	var pv: int = int(stats["pv"]) + etage * 6
+	var id: int = GameState.spawn_monster(pv, int(stats["resonance"]),
+		StringName(String(stats["nom"]).to_lower()))
+
+	var avatar := MonsterAvatar.new()
+	avatar.monster_id = id
+	avatar.cible = _joueur
+	avatar.stats = stats
+
+	var taille: Vector3 = stats["taille"]
+	var forme := CollisionShape3D.new()
+	var boite := BoxShape3D.new()
+	boite.size = taille
+	forme.shape = boite
+	avatar.add_child(forme)
+
+	var visuel := MeshInstance3D.new()
+	visuel.name = "Mesh"
+	var mesh := BoxMesh.new()
+	mesh.size = taille
+	visuel.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = stats["couleur"]
+	visuel.set_surface_override_material(0, mat)
+	avatar.add_child(visuel)
+
+	# Le volant démarre déjà en l'air, sinon on le voit décoller bêtement.
+	var hauteur: float = float(stats.get("hauteur_vol", taille.y * 0.5 + 0.2))
+	avatar.position = Vector3(pos.x, hauteur, pos.z)
+	avatar.veut_tirer.connect(_sur_tir_monstre)
+	_conteneur_monstres.add_child(avatar)
+	_avatars[id] = avatar
+
+
+## Projectile ennemi. Il passe par le resolver comme tout le reste (R4).
+func _sur_tir_monstre(depuis: Vector3, direction: Vector3, degats: int) -> void:
+	var bille := Area3D.new()
+	bille.position = depuis
+	var forme := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = 0.3
+	forme.shape = sphere
+	bille.add_child(forme)
+	bille.add_child(_sphere_lumineuse(0.3, Color(0.85, 0.4, 0.9)))
+	add_child(bille)
+
+	var touche: Array[bool] = [false]
+	bille.body_entered.connect(func(corps: Node3D) -> void:
+		if touche[0]:
+			return
+		touche[0] = true
+		if corps is PlayerAvatar:
+			var intent := EffectIntent.new()
+			intent.source_player_id = -1
+			intent.source_slot = -1
+			intent.kind = EffectIntent.Kind.DAMAGE
+			intent.amount = degats
+			intent.target_ids = PackedInt64Array([0])
+			EffectResolver.submit(intent)
+		bille.queue_free()
+	)
+
+	var tween := create_tween()
+	tween.tween_property(bille, "position", depuis + direction * 22.0, 1.7)
+	tween.tween_callback(bille.queue_free)
+
 
 func _sur_lancer(slot_index: int, direction: Vector3) -> void:
 	var p: PlayerState = GameState.run.players[0]
@@ -543,7 +695,25 @@ func _declenche_nova(slot_index: int, eff: Dictionary, couleur: Color) -> void:
 	var rayon: float = float(eff.get("rayon", 4.0))
 	_soumet_degats(slot_index, int(eff.get("degats", 10)),
 		_monstres_dans_rayon(rayon))
+	_deplace_les_objets(rayon, 14.0, true)
 	_anneau(rayon, couleur)
+
+
+## Les caisses et les tables subissent les mêmes souffles que les monstres.
+## Sans ça, une Répulsion dans une pièce meublée ne se voit qu'à moitié.
+func _deplace_les_objets(rayon: float, puissance: float, repousse: bool) -> void:
+	for corps: RigidBody3D in _objets_physiques:
+		if not is_instance_valid(corps):
+			continue
+		var vers: Vector3 = corps.global_position - _joueur.global_position
+		var distance: float = vers.length()
+		if distance > rayon or distance < 0.05:
+			continue
+		var sens: Vector3 = vers.normalized() * (1.0 if repousse else -1.0)
+		var attenuation: float = 1.0 - clampf(distance / rayon, 0.0, 0.85)
+		# Divisé par la masse : une table lourde bouge moins qu'un tonneau.
+		corps.apply_central_impulse(
+			(sens + Vector3.UP * 0.25) * puissance * attenuation * corps.mass * 0.5)
 
 
 ## Un éventail devant soi : très différent d'une nova, on doit être orienté.
@@ -603,6 +773,7 @@ func _pousse_ou_attire(slot_index: int, eff: Dictionary, couleur: Color,
 		avatar.repousse(sens * puissance * attenuation)
 		cibles.append(id)
 
+	_deplace_les_objets(rayon, puissance, repousse)
 	_soumet_degats(slot_index, int(eff.get("degats", 5)), cibles)
 	_anneau(rayon, couleur)
 

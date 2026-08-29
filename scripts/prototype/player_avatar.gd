@@ -116,8 +116,19 @@ func _physics_process(delta: float) -> void:
 
 	velocity.y = vitesse_verticale
 	move_and_slide()
+	_bouscule_les_objets()
 
 	_ecoute_les_sorts()
+
+
+## Un CharacterBody3D ne pousse pas les corps rigides tout seul : il faut lui
+## dire. Sans ça, on traverse les caisses comme si elles étaient peintes au sol.
+func _bouscule_les_objets() -> void:
+	for i: int in get_slide_collision_count():
+		var collision := get_slide_collision(i)
+		var corps := collision.get_collider() as RigidBody3D
+		if corps != null:
+			corps.apply_central_impulse(-collision.get_normal() * 4.0)
 
 
 func _ecoute_les_sorts() -> void:
