@@ -90,6 +90,13 @@ func _etiquette(pos: Vector2, taille: int, couleur: Color) -> Label:
 	return label
 
 
+## Ligne de raccourcis de développement, vide en build de release.
+func aide_debug(texte: String) -> void:
+	if texte.is_empty():
+		return
+	_aide.texte.text += "\n\n" + texte
+
+
 func journalise(texte: String) -> void:
 	_journal.text = texte
 

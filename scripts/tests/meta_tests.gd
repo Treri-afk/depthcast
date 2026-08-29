@@ -11,6 +11,7 @@ func execute() -> void:
 	_check_meta()
 	_check_boss()
 	_check_etages()
+	_check_socles_liberes()
 
 
 func _check_meta() -> void:
@@ -88,3 +89,19 @@ func _check_etages() -> void:
 	verifie("l'arène de boss est une salle unique", arene.est_une_arene())
 	verifie("l'arène n'a ni couloir ni marchand",
 		arene.couloirs.is_empty() and not arene.salles[0].marchand)
+
+
+## Régression : à l'étage du boss aucun marchand n'est installé, et la liste de
+## socles gardait des références libérées — un accès à `achete` plantait.
+func _check_socles_liberes() -> void:
+	var tuning: Tuning = Content.tuning
+	var faux_parent := Node3D.new()
+	var marchand := MerchantRoom.new(faux_parent, tuning, FxLibrary.new(faux_parent))
+	marchand.vide()
+	verifie("un marchand vidé n'a plus de socle ni de portail",
+		marchand.socles.is_empty() and marchand.portail == null)
+	verifie("chercher un socle sur un marchand vide ne plante pas",
+		marchand.socle_proche(Vector3.ZERO, 5.0) == null)
+	verifie("la distance au portail absent est infinie",
+		marchand.distance_au_portail(Vector3.ZERO) == INF)
+	faux_parent.free()

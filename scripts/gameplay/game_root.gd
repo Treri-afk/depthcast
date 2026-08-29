@@ -23,6 +23,7 @@ var _etage: FloorDirector
 
 var _socle_vise: ShopPedestal = null
 var _portail_a_portee: bool = false
+var _debug := DebugCommands.new()
 
 
 func _ready() -> void:
@@ -38,6 +39,7 @@ func _ready() -> void:
 	GameState.set_player_schools(0, _definitions_choisies())
 	_contexte.objets = _etage.genere()
 	_hud.journalise("Nettoie l'étage, va voir le marchand au fond, puis prends le portail.")
+	_hud.aide_debug(_debug.aide())
 
 
 func _physics_process(delta: float) -> void:
@@ -57,6 +59,9 @@ func _physics_process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var touche := event as InputEventKey
+	if _debug.traite(touche):
+		get_viewport().set_input_as_handled()
+		return
 	if touche == null or not touche.pressed or touche.echo or not touche.shift_pressed:
 		return
 	var index: int = InputActions.TOUCHES_SLOTS.find(touche.physical_keycode)
@@ -169,6 +174,13 @@ func _branche_les_evenements() -> void:
 	_marchand.achat_effectue.connect(_hud.journalise)
 	_spawner.monstre_veut_tirer.connect(_sur_tir_monstre)
 	_etage.boss_invoque.connect(_sur_boss_invoque)
+	# Sauter un étage passe par la même porte que le portail : le reroll et la
+	# régénération doivent se produire exactement comme en jeu normal, sinon on
+	# ne teste pas la vraie boucle.
+	_debug.saut_d_etage_demande.connect(func() -> void:
+		if GameState.is_in_run():
+			_descend_d_un_etage())
+	_debug.message.connect(_hud.journalise)
 
 	EventBus.monster_damaged.connect(_sur_degat_monstre)
 	EventBus.monster_died.connect(_sur_mort_monstre)
@@ -203,12 +215,16 @@ func _interagit() -> void:
 		if not _etage.peut_descendre():
 			_hud.journalise("Le portail reste scellé tant que l'étage n'est pas nettoyé.")
 			return
-		_contexte.objets = _etage.descend()
-		_hud.journalise("Étage %d. Tes sorts non scellés ont muté." %
-			(GameState.run.floor_index + 1))
+		_descend_d_un_etage()
 		return
 	if _socle_vise != null:
 		_marchand.achete(_socle_vise)
+
+
+func _descend_d_un_etage() -> void:
+	_contexte.objets = _etage.descend()
+	_hud.journalise("Étage %d. Tes sorts non scellés ont muté." %
+		(GameState.run.floor_index + 1))
 
 
 # ── Relais ────────────────────────────────────────────────────────────────
@@ -245,7 +261,9 @@ func _sur_mort_monstre(monster_id: int, _tueur: int, recompense: int) -> void:
 	var avatar: MonsterAvatar = _spawner.avatars.get(monster_id)
 	var etait_le_boss: bool = avatar is BossAvatar
 	if is_instance_valid(avatar):
-		avatar.queue_free()
+		avatar.meurt_en_se_dissolvant()
+	# Retiré du registre immédiatement : la dissolution est un effet visuel,
+	# le monstre ne doit plus compter comme vivant pendant qu'elle joue.
 	_spawner.avatars.erase(monster_id)
 
 	if etait_le_boss:

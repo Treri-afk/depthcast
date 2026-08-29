@@ -19,7 +19,7 @@ func sphere_lumineuse(rayon: float, couleur: Color) -> MeshInstance3D:
 	mesh.radius = rayon
 	mesh.height = rayon * 2.0
 	visuel.mesh = mesh
-	visuel.material_override = _materiau_emissif(couleur, false)
+	visuel.material_override = MaterialLibrary.lumineux(couleur)
 	return visuel
 
 

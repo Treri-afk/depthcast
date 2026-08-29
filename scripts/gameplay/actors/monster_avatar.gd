@@ -26,16 +26,17 @@ var _facteur_vitesse: float = 1.0
 var _ralenti_restant: float = 0.0
 var _teinte_restante: float = 0.0
 var _telegraphe: float = 0.0
-var _materiau: StandardMaterial3D = null
+var _mesh: MeshInstance3D = null
+var _materiau: ShaderMaterial = null
 
 
 func _ready() -> void:
 	floor_snap_length = 0.5
 	floor_max_angle = deg_to_rad(50.0)
 
-	var mesh := get_node_or_null("Mesh") as MeshInstance3D
-	if mesh != null:
-		_materiau = mesh.get_surface_override_material(0) as StandardMaterial3D
+	_mesh = get_node_or_null("Mesh") as MeshInstance3D
+	if _mesh != null:
+		_materiau = _mesh.get_surface_override_material(0) as ShaderMaterial
 
 	_cerveau = _cree_cerveau()
 	_cerveau.veut_frapper.connect(_frappe)
@@ -105,10 +106,7 @@ func _tire(direction: Vector3) -> void:
 ## esquivable, elle est seulement subie.
 func _signale_attaque() -> void:
 	_telegraphe = 0.35
-	if _materiau != null:
-		_materiau.emission_enabled = true
-		_materiau.emission = Color(1.0, 0.85, 0.4)
-		_materiau.emission_energy_multiplier = 1.4
+	_teinte_shader(Color(1.0, 0.85, 0.4), 1.5)
 
 
 # ── Effets subis ──────────────────────────────────────────────────────────
@@ -122,10 +120,7 @@ func repousse(vecteur: Vector3) -> void:
 func ralentis(facteur: float, duree: float) -> void:
 	_facteur_vitesse = minf(_facteur_vitesse, facteur)
 	_ralenti_restant = maxf(_ralenti_restant, duree)
-	if _materiau != null:
-		_materiau.emission_enabled = true
-		_materiau.emission = Color(0.35, 0.7, 1.0)
-		_materiau.emission_energy_multiplier = 0.5
+	_teinte_shader(Color(0.35, 0.7, 1.0), 0.9)
 
 
 func encaisse_visuellement() -> void:
@@ -141,16 +136,45 @@ func _maj_ralentissement(delta: float) -> void:
 	_ralenti_restant -= delta
 	if _ralenti_restant <= 0.0:
 		_facteur_vitesse = 1.0
-		if _materiau != null and _telegraphe <= 0.0:
-			_materiau.emission_enabled = false
+		if _telegraphe <= 0.0:
+			_teinte_shader(Color.BLACK, 0.0)
 
 
 func _maj_teinte(delta: float) -> void:
-	if _materiau != null and _telegraphe <= 0.0 and _ralenti_restant <= 0.0 \
-			and _teinte_restante <= 0.0 and _materiau.emission_enabled:
-		_materiau.emission_enabled = false
 	if _teinte_restante <= 0.0:
 		return
 	_teinte_restante = maxf(0.0, _teinte_restante - delta * 4.0)
 	if _materiau != null:
-		_materiau.albedo_color = stats.couleur.lerp(Color.WHITE, _teinte_restante)
+		_materiau.set_shader_parameter("albedo",
+			stats.couleur.lerp(Color.WHITE, _teinte_restante))
+
+
+func _teinte_shader(couleur: Color, force: float) -> void:
+	if _materiau == null:
+		return
+	_materiau.set_shader_parameter("couleur_lisere", couleur)
+	_materiau.set_shader_parameter("force_lisere", maxf(force, 0.55))
+
+
+## Désagrégation à la mort. Un ennemi qui disparaît d'un coup laisse un doute —
+## l'a-t-on tué, ou est-il sorti du champ ? La dissolution répond sans texte.
+##
+## L'avatar se détache de la scène de jeu le temps de l'effet : il ne doit plus
+## ni bouger, ni bloquer, ni être ciblé.
+func meurt_en_se_dissolvant() -> void:
+	set_physics_process(false)
+	for enfant: Node in get_children():
+		if enfant is CollisionShape3D:
+			(enfant as CollisionShape3D).disabled = true
+
+	if _mesh == null:
+		queue_free()
+		return
+
+	var mat := MaterialLibrary.dissolution(stats.couleur, Color(1.0, 0.7, 0.3))
+	_mesh.set_surface_override_material(0, mat)
+
+	var tween := create_tween()
+	tween.tween_method(func(v: float) -> void:
+		mat.set_shader_parameter("progression", v), 0.0, 1.0, 0.55)
+	tween.tween_callback(queue_free)

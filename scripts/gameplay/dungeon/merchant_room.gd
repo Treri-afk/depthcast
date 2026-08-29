@@ -25,8 +25,15 @@ func _init(parent: Node3D, tuning: Tuning, fx: FxLibrary) -> void:
 	_fx = fx
 
 
-func installe(salle: FloorPlan.Salle) -> void:
+## Oublie l'étage précédent. Indispensable quand aucun marchand n'est installé
+## — une arène de boss — sinon les références des socles libérés survivent.
+func vide() -> void:
 	socles.clear()
+	portail = null
+
+
+func installe(salle: FloorPlan.Salle) -> void:
+	vide()
 	var centre: Vector3 = salle.centre
 	var cote: float = salle.cote
 
@@ -70,7 +77,10 @@ func socle_proche(depuis: Vector3, portee: float) -> ShopPedestal:
 	var meilleure: float = portee
 	var trouve: ShopPedestal = null
 	for socle: ShopPedestal in socles:
-		if socle.achete or not is_instance_valid(socle):
+		# La validité se teste AVANT toute lecture de propriété : à l'étage du
+		# boss la géométrie est libérée sans que installe() soit rappelé, donc
+		# la liste peut contenir des références mortes.
+		if not is_instance_valid(socle) or socle.achete:
 			continue
 		var d: float = depuis.distance_to(socle.global_position)
 		if d < meilleure:

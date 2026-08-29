@@ -16,12 +16,7 @@ static func cree(pos: Vector3) -> Portal:
 	anneau.rotation_degrees = Vector3(90, 0, 0)
 	anneau.position = Vector3(0, 2.0, 0)
 
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.55, 0.75, 1.0)
-	mat.emission_enabled = true
-	mat.emission = Color(0.45, 0.7, 1.0)
-	mat.emission_energy_multiplier = 1.6
-	anneau.material_override = mat
+	anneau.material_override = MaterialLibrary.lumineux(Color(0.5, 0.72, 1.0), 2.0)
 	portail.add_child(anneau)
 	return portail
 

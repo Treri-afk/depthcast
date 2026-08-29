@@ -29,9 +29,8 @@ static func cree(fx: FxLibrary, pos: Vector3, genre_voulu: Genre,
 	mesh.height = 0.9
 	pied.mesh = mesh
 	pied.position = Vector3(0, 0.45, 0)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.34, 0.34, 0.42)
-	pied.material_override = mat
+	pied.material_override = MaterialLibrary.toon(Color(0.34, 0.34, 0.42),
+		MaterialLibrary.Role.INTERACTIF)
 	socle.add_child(pied)
 
 	var objet := fx.sphere_lumineuse(0.32, couleur)

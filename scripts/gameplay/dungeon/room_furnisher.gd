@@ -108,9 +108,7 @@ func _objet(pos: Vector3, taille: Vector3, masse: float, couleur: Color,
 		mesh.size = taille
 		visuel.mesh = mesh
 
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = couleur
-	visuel.material_override = mat
+	visuel.material_override = MaterialLibrary.toon(couleur, MaterialLibrary.Role.OBJET)
 	corps.add_child(forme)
 	corps.add_child(visuel)
 	_parent.add_child(corps)

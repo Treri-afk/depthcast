@@ -100,9 +100,7 @@ func bloc(pos: Vector3, taille: Vector3, couleur: Color,
 	var mesh := BoxMesh.new()
 	mesh.size = taille
 	visuel.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = couleur
-	visuel.material_override = mat
+	visuel.material_override = MaterialLibrary.toon(couleur, MaterialLibrary.Role.DECOR)
 	corps.add_child(visuel)
 
 	_parent.add_child(corps)

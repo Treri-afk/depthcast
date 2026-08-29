@@ -51,7 +51,9 @@ func genere() -> Array[PropDestructible]:
 	_builder.batit(plan)
 	for salle: FloorPlan.Salle in plan.salles:
 		_furnisher.meuble(salle, rng)
-	if not boss:
+	if boss:
+		_marchand.vide()
+	else:
 		_marchand.installe(plan.salle_du_marchand())
 
 	if boss:
