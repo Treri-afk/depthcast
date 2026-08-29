@@ -12,6 +12,7 @@ func execute() -> void:
 	_check_boss()
 	_check_etages()
 	_check_socles_liberes()
+	_check_hub()
 
 
 func _check_meta() -> void:
@@ -105,3 +106,33 @@ func _check_socles_liberes() -> void:
 	verifie("la distance au portail absent est infinie",
 		marchand.distance_au_portail(Vector3.ZERO) == INF)
 	faux_parent.free()
+
+
+## Le hub est un lieu : ses autels doivent refléter l'état réel, et l'équipe
+## ne doit jamais pouvoir dépasser le nombre de slots.
+func _check_hub() -> void:
+	var avant: Array[StringName] = GameState.ecoles_choisies.duplicate()
+	GameState.ecoles_choisies.clear()
+
+	var disponibles: Array[School] = Meta.ecoles_disponibles()
+	verifie("assez d'écoles débloquées pour composer une équipe",
+		disponibles.size() >= PlayerState.SLOT_COUNT)
+
+	for ecole: School in disponibles:
+		if GameState.ecoles_choisies.size() < PlayerState.SLOT_COUNT:
+			GameState.ecoles_choisies.append(ecole.id)
+	verifie("une équipe complète tient exactement dans les slots",
+		GameState.ecoles_choisies.size() == PlayerState.SLOT_COUNT)
+
+	# La sélection traverse le changement de scène par l'état, pas par un
+	# paramètre : c'est GameState qui fait foi, y compris entre deux scènes.
+	verifie("la sélection vit dans l'état, pas dans un écran",
+		"ecoles_choisies" in GameState)
+
+	var altar_ok: bool = true
+	for ecole: School in Content.ecoles:
+		if ecole.taille_pool() < School.POOL_MIN:
+			altar_ok = false
+	verifie("chaque autel a une école présentable", altar_ok)
+
+	GameState.ecoles_choisies = avant

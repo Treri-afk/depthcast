@@ -40,6 +40,7 @@ static func _materiau(palette: Palette) -> ShaderMaterial:
 	mat.set_shader_parameter("contour_epaisseur", palette.contour_epaisseur)
 	mat.set_shader_parameter("contour_seuil", palette.contour_seuil)
 	mat.set_shader_parameter("contour_seuil_profondeur", palette.contour_seuil_profondeur)
+	mat.set_shader_parameter("contour_seuil_normale", palette.contour_seuil_normale)
 	mat.set_shader_parameter("grain_force", palette.grain_force)
 	mat.set_shader_parameter("filtre", palette.filtre)
 	mat.set_shader_parameter("filtre_teinte", palette.filtre_teinte)

@@ -33,7 +33,11 @@ extends Resource
 ## Rupture de profondeur qui déclenche un trait. C'est ce qui souligne les
 ## arêtes de géométrie, invisibles à la luminance quand deux surfaces voisines
 ## sont éclairées pareil.
-@export_range(0.0005, 0.05, 0.0005) var contour_seuil_profondeur: float = 0.0015
+@export_range(0.0005, 0.05, 0.0005) var contour_seuil_profondeur: float = 0.006
+## Écart d'orientation qui déclenche un trait. C'est lui qui distingue une
+## arête d'une surface courbe : sur une sphère les normales tournent doucement,
+## sur un coin elles sautent.
+@export_range(0.02, 0.9, 0.01) var contour_seuil_normale: float = 0.25
 
 ## Bruit fixe posé sur l'image. Il ne bouge jamais : un grain animé fait du
 ## bruit vidéo, un grain fixe fait du papier.

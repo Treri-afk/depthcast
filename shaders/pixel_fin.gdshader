@@ -24,6 +24,7 @@ render_mode unshaded, cull_disabled, depth_draw_never, depth_test_disabled, fog_
 
 uniform sampler2D ecran : hint_screen_texture, filter_nearest, repeat_disable;
 uniform sampler2D profondeur : hint_depth_texture, filter_nearest, repeat_disable;
+uniform sampler2D normales : hint_normal_roughness_texture, filter_nearest, repeat_disable;
 
 group_uniforms Trame;
 // Côté d'un bloc en pixels d'écran. 2 accroche discrètement, 4 est un parti pris.
@@ -40,6 +41,10 @@ uniform float contour_seuil : hint_range(0.01, 0.6) = 0.085;
 // brute n'est pas linéaire : comparer un écart absolu tracerait tout au premier
 // plan et rien au fond. Un rapport reste juste à toute distance.
 uniform float contour_seuil_profondeur : hint_range(0.0005, 0.05) = 0.004;
+// Écart d'orientation entre deux pixels voisins, en cosinus. C'est ce qui
+// distingue une CASSURE d'une COURBURE : sur une sphère les normales tournent
+// doucement, sur une arête elles sautent. 0.25 ≈ 40 degrés.
+uniform float contour_seuil_normale : hint_range(0.02, 0.9) = 0.25;
 
 group_uniforms Grain;
 // GRAIN DE PAPIER.
@@ -81,17 +86,23 @@ vec2 accroche(vec2 uv, vec2 grille) {
 }
 
 
-// Arête géométrique : une VRAIE rupture, pas une surface vue en rasant.
+// Arête géométrique.
 //
-// La première version comparait la profondeur du pixel à celle de ses voisins.
-// Sur un sol vu de biais, cet écart est énorme alors qu'il n'y a aucune arête :
-// d'où les traits qui apparaissaient au milieu de nulle part.
+// Deux mesures complémentaires, et chacune corrige un défaut de l'autre.
 //
-// On compare donc chaque pixel à la MOYENNE de ses deux voisins opposés. Sur
-// une surface plane, même très inclinée, la profondeur varie linéairement et
-// cette moyenne retombe pile sur la valeur du centre : l'écart est nul. Il ne
-// devient grand qu'à une vraie discontinuité — un coin, une silhouette.
-float rupture_profondeur(vec2 uv_centre, vec2 pas, vec2 grille) {
+// La PROFONDEUR attrape les silhouettes — là où un objet se détache de ce qui
+// est derrière. Comparée à la moyenne des voisins opposés, elle ignore les
+// surfaces vues en rasant : sur un plan, même très incliné, la profondeur varie
+// linéairement et la moyenne retombe sur le centre.
+//
+// Mais elle ne distingue pas une COURBURE d'une CASSURE : sur une sphère, la
+// profondeur n'est pas linéaire non plus, et le test s'affolait — d'où les
+// traits parasites sur les objets ronds.
+//
+// Les NORMALES tranchent. Sur une sphère elles tournent doucement d'un pixel à
+// l'autre ; sur une arête elles sautent. Un seuil sur leur écart sépare donc
+// exactement ce que la profondeur confondait.
+float rupture_geometrique(vec2 uv_centre, vec2 pas, vec2 grille) {
 	float d0 = texture(profondeur, uv_centre).r;
 	if (d0 <= 0.0) {
 		return 0.0;
@@ -103,10 +114,29 @@ float rupture_profondeur(vec2 uv_centre, vec2 pas, vec2 grille) {
 	float bas = texture(profondeur, accroche(uv_centre + vec2(0.0, pas.y), grille)).r;
 
 	// Dérivée seconde : la pente s'annule, seule la cassure subsiste.
-	float ecart_x = abs((gauche + droite) * 0.5 - d0);
-	float ecart_y = abs((haut + bas) * 0.5 - d0);
+	float saut = max(abs((gauche + droite) * 0.5 - d0),
+		abs((haut + bas) * 0.5 - d0)) / max(d0, 0.00001);
+	float trace_profondeur = step(contour_seuil_profondeur, saut);
 
-	return max(ecart_x, ecart_y) / max(d0, 0.00001);
+	// Écart d'orientation. Les normales sont stockées en [0,1], on les ramène
+	// dans [-1,1] avant de comparer.
+	vec3 n0 = texture(normales, uv_centre).xyz * 2.0 - 1.0;
+	vec3 ng = texture(normales, accroche(uv_centre - vec2(pas.x, 0.0), grille)).xyz * 2.0 - 1.0;
+	vec3 nd = texture(normales, accroche(uv_centre + vec2(pas.x, 0.0), grille)).xyz * 2.0 - 1.0;
+	vec3 nh = texture(normales, accroche(uv_centre - vec2(0.0, pas.y), grille)).xyz * 2.0 - 1.0;
+	vec3 nb = texture(normales, accroche(uv_centre + vec2(0.0, pas.y), grille)).xyz * 2.0 - 1.0;
+
+	float ecart = 0.0;
+	ecart = max(ecart, 1.0 - dot(n0, ng));
+	ecart = max(ecart, 1.0 - dot(n0, nd));
+	ecart = max(ecart, 1.0 - dot(n0, nh));
+	ecart = max(ecart, 1.0 - dot(n0, nb));
+	float trace_normale = step(contour_seuil_normale, ecart);
+
+	// La silhouette se trace sur la profondeur seule ; les arêtes internes
+	// demandent en plus une vraie cassure d'orientation. Une surface courbe ne
+	// satisfait ni l'une ni l'autre.
+	return max(trace_profondeur, trace_normale);
 }
 
 
@@ -156,9 +186,7 @@ void fragment() {
 
 		float trace_lumiere = smoothstep(contour_seuil, contour_seuil * 2.2, force);
 
-		float rupture = rupture_profondeur(uv, pas, grille);
-		float trace_forme = smoothstep(contour_seuil_profondeur,
-			contour_seuil_profondeur * 2.5, rupture);
+		float trace_forme = rupture_geometrique(uv, pas, grille);
 
 		// Le plus fort des deux : la luminance attrape la limite lumière/ombre
 		// et les changements de matière, la profondeur attrape la géométrie.
