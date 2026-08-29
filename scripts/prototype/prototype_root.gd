@@ -31,6 +31,17 @@ var _conteneur_monstres: Node3D
 var _geometrie: Node3D
 var _salles: Array[Dictionary] = []
 
+## Traînée ardente en cours : elle sème des flaques tant qu'elle dure.
+var _trainee_restante: float = 0.0
+var _trainee_prochaine: float = 0.0
+var _trainee_eff: Dictionary = {}
+var _trainee_slot: int = -1
+var _trainee_couleur: Color = Color.WHITE
+var _derniere_flaque: Vector3 = Vector3.ZERO
+
+## Marqueur d'atterrissage de la téléportation.
+var _apercu: MeshInstance3D
+
 
 func _ready() -> void:
 	_declare_les_touches()
@@ -81,6 +92,9 @@ func _physics_process(_delta: float) -> void:
 	# Un tick de résolution par frame physique. Toutes les intentions soumises
 	# pendant cette frame sont triées puis appliquées ensemble (R4).
 	EffectResolver.resolve_tick()
+
+	_maj_trainee(_delta)
+	_maj_apercu_teleport()
 
 	if Input.is_action_just_pressed("proto_etage_suivant"):
 		_descend()
@@ -293,6 +307,24 @@ func _construit_le_joueur() -> void:
 	_conteneur_monstres.name = "Monstres"
 	add_child(_conteneur_monstres)
 
+	# Aperçu de téléportation. Il n'apparaît QUE si un slot prêt porte un
+	# effet de téléportation déjà découvert : le montrer sur un slot en ???
+	# révélerait le sort avant de l'avoir lancé.
+	_apercu = MeshInstance3D.new()
+	var cylindre := CylinderMesh.new()
+	cylindre.top_radius = 0.75
+	cylindre.bottom_radius = 0.75
+	cylindre.height = 0.12
+	_apercu.mesh = cylindre
+	var mat_apercu := StandardMaterial3D.new()
+	mat_apercu.albedo_color = Color(0.66, 0.44, 0.95, 0.45)
+	mat_apercu.emission_enabled = true
+	mat_apercu.emission = Color(0.66, 0.44, 0.95)
+	mat_apercu.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_apercu.material_override = mat_apercu
+	_apercu.visible = false
+	add_child(_apercu)
+
 
 func _construit_le_hud() -> void:
 	var couche := CanvasLayer.new()
@@ -367,15 +399,41 @@ func _sur_lancer(slot_index: int, direction: Vector3) -> void:
 
 	match int(eff["comportement"]):
 		PrototypeCatalogue.Behaviour.PROJECTILE:
-			_tire_projectile(slot_index, eff, direction, couleur)
+			_tire_projectile(slot_index, eff, direction, couleur, false)
+		PrototypeCatalogue.Behaviour.DRAIN:
+			_tire_projectile(slot_index, eff, direction, couleur, true)
+		PrototypeCatalogue.Behaviour.MUR:
+			_pose_mur(slot_index, eff, direction, couleur)
+		PrototypeCatalogue.Behaviour.TRAINEE:
+			_demarre_trainee(slot_index, eff, couleur)
 		PrototypeCatalogue.Behaviour.NOVA:
 			_declenche_nova(slot_index, eff, couleur)
+		PrototypeCatalogue.Behaviour.CONE:
+			_souffle_conique(slot_index, eff, direction, couleur)
+		PrototypeCatalogue.Behaviour.GEL:
+			_pose_nappe_de_gel(slot_index, eff, couleur)
+		PrototypeCatalogue.Behaviour.REPULSION:
+			_pousse_ou_attire(slot_index, eff, couleur, true)
+		PrototypeCatalogue.Behaviour.ATTRACTION:
+			_pousse_ou_attire(slot_index, eff, couleur, false)
+		PrototypeCatalogue.Behaviour.DASH:
+			_charge(slot_index, eff, direction, couleur)
+		PrototypeCatalogue.Behaviour.TELEPORT:
+			_teleporte(eff, couleur)
 		PrototypeCatalogue.Behaviour.SOIN:
 			_lance_soin(slot_index, eff, couleur)
+		PrototypeCatalogue.Behaviour.TOTEM:
+			_pose_totem(slot_index, eff, couleur)
+		PrototypeCatalogue.Behaviour.VOILE:
+			_active_voile(eff)
+		PrototypeCatalogue.Behaviour.LEURRE:
+			_pose_leurre(eff, direction, couleur)
 
+
+# ── À distance ────────────────────────────────────────────────────────────
 
 func _tire_projectile(slot_index: int, eff: Dictionary, direction: Vector3,
-		couleur: Color) -> void:
+		couleur: Color, draine: bool) -> void:
 	var portee: float = float(eff.get("portee", 20.0))
 	var degats: int = int(eff.get("degats", 10))
 
@@ -386,18 +444,7 @@ func _tire_projectile(slot_index: int, eff: Dictionary, direction: Vector3,
 	sphere.radius = 0.35
 	forme.shape = sphere
 	bille.add_child(forme)
-
-	var visuel := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.35
-	mesh.height = 0.7
-	visuel.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = couleur
-	mat.emission_enabled = true
-	mat.emission = couleur
-	visuel.material_override = mat
-	bille.add_child(visuel)
+	bille.add_child(_sphere_lumineuse(0.35, couleur))
 	add_child(bille)
 
 	var touche: Array[bool] = [false]
@@ -409,42 +456,238 @@ func _tire_projectile(slot_index: int, eff: Dictionary, direction: Vector3,
 			return
 		touche[0] = true
 		_soumet_degats(slot_index, degats, [avatar.monster_id])
+		# Le Siphon rend une part des dégâts en soin : c'est ce qui le
+		# distingue d'un projectile ordinaire.
+		if draine:
+			_soumet_soin(slot_index, int(degats * float(eff.get("ratio_soin", 0.5))))
 		bille.queue_free()
 	)
 
 	var arrivee: Vector3 = bille.position + direction * portee
-	var duree: float = portee / VITESSE_PROJECTILE
 	var tween := create_tween()
-	tween.tween_property(bille, "position", arrivee, duree)
+	tween.tween_property(bille, "position", arrivee, portee / VITESSE_PROJECTILE)
 	tween.tween_callback(bille.queue_free)
 
 
+## Un vrai mur : une nappe posée devant soi, qui reste et brûle qui la traverse.
+func _pose_mur(slot_index: int, eff: Dictionary, direction: Vector3,
+		couleur: Color) -> void:
+	var plat := Vector3(direction.x, 0.0, direction.z).normalized()
+	if plat.length_squared() < 0.01:
+		plat = Vector3.FORWARD
+	var centre: Vector3 = _joueur.global_position + plat * float(eff.get("distance", 4.0))
+	centre.y = 1.4
+
+	var zone := ZoneEffet.cree(
+		ZoneEffet.Forme.BOITE,
+		Vector3(float(eff.get("largeur", 8.0)), 2.8, 0.9),
+		centre,
+		atan2(plat.x, plat.z),
+	)
+	zone.duree = float(eff.get("duree", 5.0))
+	zone.intervalle = float(eff.get("intervalle", 0.4))
+	zone.degats = int(eff.get("degats", 6))
+	zone.source_slot = slot_index
+	zone.couleur = couleur
+	add_child(zone)
+
+
+## Le sol s'embrase sous nos pas pendant un moment : chaque foulée laisse une
+## flaque qui vit sa propre vie.
+func _demarre_trainee(slot_index: int, eff: Dictionary, couleur: Color) -> void:
+	_trainee_restante = float(eff.get("duree", 5.0))
+	_trainee_eff = eff.duplicate()
+	_trainee_slot = slot_index
+	_trainee_couleur = couleur
+	_trainee_prochaine = 0.0
+
+
+func _pose_flaque(slot_index: int, eff: Dictionary, couleur: Color,
+		position_monde: Vector3) -> void:
+	var zone := ZoneEffet.cree(
+		ZoneEffet.Forme.SPHERE,
+		Vector3(float(eff.get("rayon", 1.5)), 0, 0),
+		Vector3(position_monde.x, 0.4, position_monde.z),
+	)
+	zone.duree = float(eff.get("duree_flaque", 3.0))
+	zone.intervalle = float(eff.get("intervalle", 0.4))
+	zone.degats = int(eff.get("degats", 4))
+	zone.source_slot = slot_index
+	zone.couleur = couleur
+	add_child(zone)
+
+
+# ── Autour de soi ─────────────────────────────────────────────────────────
+
 func _declenche_nova(slot_index: int, eff: Dictionary, couleur: Color) -> void:
 	var rayon: float = float(eff.get("rayon", 4.0))
-	var degats: int = int(eff.get("degats", 10))
+	_soumet_degats(slot_index, int(eff.get("degats", 10)),
+		_monstres_dans_rayon(rayon))
+	_anneau(rayon, couleur)
+
+
+## Un éventail devant soi : très différent d'une nova, on doit être orienté.
+func _souffle_conique(slot_index: int, eff: Dictionary, direction: Vector3,
+		couleur: Color) -> void:
+	var portee: float = float(eff.get("portee", 10.0))
+	var demi_angle: float = deg_to_rad(float(eff.get("angle", 45.0)) * 0.5)
+	var plat := Vector3(direction.x, 0.0, direction.z).normalized()
 
 	var cibles: Array = []
 	for id: int in _avatars:
 		var avatar: MonsterAvatar = _avatars[id]
-		if is_instance_valid(avatar) and \
-				avatar.global_position.distance_to(_joueur.global_position) <= rayon:
+		if not is_instance_valid(avatar):
+			continue
+		var vers: Vector3 = avatar.global_position - _joueur.global_position
+		vers.y = 0.0
+		if vers.length() > portee:
+			continue
+		if plat.angle_to(vers.normalized()) <= demi_angle:
 			cibles.append(id)
-	_soumet_degats(slot_index, degats, cibles)
+	_soumet_degats(slot_index, int(eff.get("degats", 15)), cibles)
+	_cone_visuel(plat, portee, couleur)
+
+
+func _pose_nappe_de_gel(slot_index: int, eff: Dictionary, couleur: Color) -> void:
+	var zone := ZoneEffet.cree(
+		ZoneEffet.Forme.SPHERE,
+		Vector3(float(eff.get("rayon", 5.0)), 0, 0),
+		Vector3(_joueur.global_position.x, 0.5, _joueur.global_position.z),
+	)
+	zone.duree = float(eff.get("duree", 6.0))
+	zone.intervalle = float(eff.get("intervalle", 0.5))
+	zone.degats = int(eff.get("degats", 3))
+	zone.ralentissement = float(eff.get("ralentissement", 0.3))
+	zone.source_slot = slot_index
+	zone.couleur = couleur
+	add_child(zone)
+
+
+## Repousser et attirer partagent leur code mais pas leur ressenti : le signe
+## change tout, l'un dégage la place, l'autre rassemble pour frapper ensuite.
+func _pousse_ou_attire(slot_index: int, eff: Dictionary, couleur: Color,
+		repousse: bool) -> void:
+	var rayon: float = float(eff.get("rayon", 7.0))
+	var puissance: float = float(eff.get("puissance", 20.0))
+	var cibles: Array = []
+
+	for id: int in _monstres_dans_rayon(rayon):
+		var avatar: MonsterAvatar = _avatars[id]
+		var vers: Vector3 = avatar.global_position - _joueur.global_position
+		vers.y = 0.0
+		if vers.length_squared() < 0.01:
+			vers = Vector3.FORWARD
+		var sens: Vector3 = vers.normalized() * (1.0 if repousse else -1.0)
+		# L'effet faiblit avec la distance : au bord du rayon, on est à peine bousculé.
+		var attenuation: float = 1.0 - clampf(vers.length() / rayon, 0.0, 0.85)
+		avatar.repousse(sens * puissance * attenuation)
+		cibles.append(id)
+
+	_soumet_degats(slot_index, int(eff.get("degats", 5)), cibles)
 	_anneau(rayon, couleur)
 
 
+# ── Déplacement ───────────────────────────────────────────────────────────
+
+func _charge(slot_index: int, eff: Dictionary, direction: Vector3,
+		couleur: Color) -> void:
+	var plat := Vector3(direction.x, 0.0, direction.z).normalized()
+	_joueur.charge(plat, float(eff.get("distance", 9.0)))
+	# On blesse ce qu'on traverse : la charge est une attaque, pas un sprint.
+	var touches: Array = []
+	for id: int in _avatars:
+		var avatar: MonsterAvatar = _avatars[id]
+		if not is_instance_valid(avatar):
+			continue
+		var vers: Vector3 = avatar.global_position - _joueur.global_position
+		vers.y = 0.0
+		var le_long: float = vers.dot(plat)
+		if le_long < 0.0 or le_long > float(eff.get("distance", 9.0)):
+			continue
+		if (vers - plat * le_long).length() <= float(eff.get("rayon", 2.0)):
+			touches.append(id)
+			avatar.repousse(plat * 12.0)
+	_soumet_degats(slot_index, int(eff.get("degats", 18)), touches)
+	_anneau(2.0, couleur)
+
+
+func _teleporte(eff: Dictionary, couleur: Color) -> void:
+	var but: Vector3 = _joueur.point_vise(float(eff.get("portee", 15.0)))
+	_marque_position(_joueur.global_position, couleur)
+	_joueur.teleporte(but)
+	_marque_position(but, couleur)
+
+
+# ── Soutien ───────────────────────────────────────────────────────────────
+
 func _lance_soin(slot_index: int, eff: Dictionary, couleur: Color) -> void:
-	var intent := EffectIntent.new()
-	intent.source_player_id = 0
-	intent.source_slot = slot_index
-	intent.kind = EffectIntent.Kind.HEAL
-	intent.amount = float(eff.get("soin", 20))
-	intent.target_ids = PackedInt64Array([0])
-	EffectResolver.submit(intent)
+	_soumet_soin(slot_index, int(eff.get("soin", 20)))
 	_anneau(2.2, couleur)
 
 
+## Une balise posée au sol qui soigne tant qu'on reste dedans. Rien à voir avec
+## un soin instantané : elle demande de tenir une position.
+func _pose_totem(slot_index: int, eff: Dictionary, couleur: Color) -> void:
+	var zone := ZoneEffet.cree(
+		ZoneEffet.Forme.SPHERE,
+		Vector3(float(eff.get("rayon", 3.0)), 0, 0),
+		Vector3(_joueur.global_position.x, 0.6, _joueur.global_position.z),
+	)
+	zone.duree = float(eff.get("duree", 8.0))
+	zone.intervalle = float(eff.get("intervalle", 0.8))
+	zone.soin = int(eff.get("soin", 5))
+	zone.source_slot = slot_index
+	zone.couleur = couleur
+	add_child(zone)
+
+
+func _active_voile(eff: Dictionary) -> void:
+	var duree: float = float(eff.get("duree", 4.0))
+	_joueur.voile(duree)
+	for id: int in _avatars:
+		var avatar: MonsterAvatar = _avatars[id]
+		if is_instance_valid(avatar):
+			avatar.aveugle = true
+	_hud.journalise("Voile actif — les monstres ont perdu ta trace (%.0fs)." % duree)
+	get_tree().create_timer(duree).timeout.connect(func() -> void:
+		for id: int in _avatars:
+			var avatar: MonsterAvatar = _avatars[id]
+			if is_instance_valid(avatar):
+				avatar.aveugle = false
+	)
+
+
+## Un mannequin qui vole l'attention : les monstres le poursuivent au lieu de
+## nous, et ne le frappent pas.
+func _pose_leurre(eff: Dictionary, direction: Vector3, couleur: Color) -> void:
+	var plat := Vector3(direction.x, 0.0, direction.z).normalized()
+	var leurre := Node3D.new()
+	leurre.add_to_group("leurre")
+	leurre.position = _joueur.global_position + plat * float(eff.get("distance", 5.0))
+	leurre.add_child(_sphere_lumineuse(0.7, couleur))
+	add_child(leurre)
+
+	for id: int in _avatars:
+		var avatar: MonsterAvatar = _avatars[id]
+		if is_instance_valid(avatar):
+			avatar.cible = leurre
+
+	var duree: float = float(eff.get("duree", 6.0))
+	get_tree().create_timer(duree).timeout.connect(func() -> void:
+		for id: int in _avatars:
+			var avatar: MonsterAvatar = _avatars[id]
+			if is_instance_valid(avatar) and avatar.cible == leurre:
+				avatar.cible = _joueur
+		if is_instance_valid(leurre):
+			leurre.queue_free()
+	)
+
+
+# ── Soumission au resolver ────────────────────────────────────────────────
+
 func _soumet_degats(slot_index: int, degats: int, monstres: Array) -> void:
+	if degats <= 0:
+		return
 	var intent := EffectIntent.new()
 	intent.source_player_id = 0
 	intent.source_slot = slot_index
@@ -454,7 +697,44 @@ func _soumet_degats(slot_index: int, degats: int, monstres: Array) -> void:
 	EffectResolver.submit(intent)
 
 
-## Petit anneau qui s'évase, pour que la nova et le soin se voient.
+func _soumet_soin(slot_index: int, montant: int) -> void:
+	if montant <= 0:
+		return
+	var intent := EffectIntent.new()
+	intent.source_player_id = 0
+	intent.source_slot = slot_index
+	intent.kind = EffectIntent.Kind.HEAL
+	intent.amount = montant
+	intent.target_ids = PackedInt64Array([0])
+	EffectResolver.submit(intent)
+
+
+func _monstres_dans_rayon(rayon: float) -> Array:
+	var out: Array = []
+	for id: int in _avatars:
+		var avatar: MonsterAvatar = _avatars[id]
+		if is_instance_valid(avatar) and \
+				avatar.global_position.distance_to(_joueur.global_position) <= rayon:
+			out.append(id)
+	return out
+
+
+# ── Petits visuels jetables ───────────────────────────────────────────────
+
+func _sphere_lumineuse(rayon: float, couleur: Color) -> MeshInstance3D:
+	var visuel := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = rayon
+	mesh.height = rayon * 2.0
+	visuel.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = couleur
+	mat.emission_enabled = true
+	mat.emission = couleur
+	visuel.material_override = mat
+	return visuel
+
+
 func _anneau(rayon: float, couleur: Color) -> void:
 	var visuel := MeshInstance3D.new()
 	var mesh := TorusMesh.new()
@@ -476,6 +756,74 @@ func _anneau(rayon: float, couleur: Color) -> void:
 	tween.tween_property(visuel, "scale", Vector3.ONE, 0.3)
 	tween.tween_property(mat, "albedo_color:a", 0.0, 0.35)
 	tween.chain().tween_callback(visuel.queue_free)
+
+
+func _cone_visuel(direction: Vector3, portee: float, couleur: Color) -> void:
+	var visuel := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = portee * 0.55
+	mesh.bottom_radius = 0.2
+	mesh.height = portee
+	visuel.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(couleur.r, couleur.g, couleur.b, 0.5)
+	mat.emission_enabled = true
+	mat.emission = couleur
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	visuel.material_override = mat
+	visuel.position = _joueur.global_position + direction * (portee * 0.5)
+	visuel.rotation = Vector3(deg_to_rad(90), atan2(direction.x, direction.z), 0)
+	add_child(visuel)
+
+	var tween := create_tween()
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.28)
+	tween.tween_callback(visuel.queue_free)
+
+
+func _marque_position(pos: Vector3, couleur: Color) -> void:
+	var visuel := _sphere_lumineuse(0.6, couleur)
+	visuel.position = pos
+	add_child(visuel)
+	var mat: StandardMaterial3D = visuel.material_override
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var tween := create_tween()
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.4)
+	tween.tween_callback(visuel.queue_free)
+
+
+## Sème une flaque tous les tant de mètres, pas toutes les tant de secondes :
+## rester immobile ne doit pas empiler dix flaques au même endroit.
+func _maj_trainee(delta: float) -> void:
+	if _trainee_restante <= 0.0:
+		return
+	_trainee_restante -= delta
+	_trainee_prochaine -= delta
+	var assez_loin: bool = _joueur.global_position.distance_to(_derniere_flaque) > 1.6
+	if _trainee_prochaine <= 0.0 and assez_loin:
+		_trainee_prochaine = 0.18
+		_derniere_flaque = _joueur.global_position
+		_pose_flaque(_trainee_slot, _trainee_eff, _trainee_couleur,
+			_joueur.global_position)
+
+
+func _maj_apercu_teleport() -> void:
+	var p: PlayerState = GameState.run.players[0]
+	var etage: int = GameState.run.floor_index
+	var portee: float = 0.0
+
+	for i: int in p.slots.size():
+		var slot: SpellSlot = p.slots[i]
+		if not slot.is_discovered_on(etage) or _joueur.cooldown_restant(i) > 0.0:
+			continue
+		var eff: Dictionary = PrototypeCatalogue.effect(slot.school_id, slot.effect_index)
+		if int(eff.get("comportement", -1)) == PrototypeCatalogue.Behaviour.TELEPORT:
+			portee = float(eff.get("portee", 15.0))
+			break
+
+	_apercu.visible = portee > 0.0
+	if _apercu.visible:
+		_apercu.global_position = _joueur.point_vise(portee) - Vector3(0, 0.9, 0)
 
 
 # ── Réactions aux évènements du moteur ────────────────────────────────────

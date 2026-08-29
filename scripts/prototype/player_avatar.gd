@@ -26,6 +26,12 @@ var player_id: int = 0
 var tete: Node3D
 var camera: Camera3D
 
+## Charge en cours (Ruée). Direction et temps restant.
+var _dash: Vector3 = Vector3.ZERO
+var _dash_restant: float = 0.0
+## Tant que c'est > 0, les monstres ont perdu notre trace (Voile).
+var _voile_restant: float = 0.0
+
 ## Cooldown restant par slot, en secondes.
 var _cooldowns: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
 
@@ -84,9 +90,17 @@ func _physics_process(delta: float) -> void:
 	# Déplacement relatif au regard : avancer, c'est aller où l'on regarde.
 	var voulu: Vector3 = (transform.basis * Vector3(entree.x, 0.0, entree.y)) * VITESSE
 
-	var taux: float = ACCELERATION if entree.length_squared() > 0.01 else FREINAGE
-	velocity.x = move_toward(velocity.x, voulu.x, taux * delta)
-	velocity.z = move_toward(velocity.z, voulu.z, taux * delta)
+	_voile_restant = maxf(0.0, _voile_restant - delta)
+
+	if _dash_restant > 0.0:
+		# Pendant la charge, le contrôle est confisqué : c'est ce qui fait
+		# qu'une Ruée se sent comme une Ruée et pas comme un sprint.
+		_dash_restant -= delta
+		velocity = _dash
+	else:
+		var taux: float = ACCELERATION if entree.length_squared() > 0.01 else FREINAGE
+		velocity.x = move_toward(velocity.x, voulu.x, taux * delta)
+		velocity.z = move_toward(velocity.z, voulu.z, taux * delta)
 	velocity.y = 0.0
 	move_and_slide()
 
@@ -118,6 +132,43 @@ func direction_visee() -> Vector3:
 
 func position_yeux() -> Vector3:
 	return camera.global_position
+
+
+## Point visé, projeté sur le décor. Sert à l'aperçu de téléportation : on veut
+## savoir OÙ l'on atterrira avant d'appuyer, pas après.
+func point_vise(portee: float) -> Vector3:
+	var depart: Vector3 = position_yeux()
+	var direction: Vector3 = direction_visee()
+	var espace := get_world_3d().direct_space_state
+	var requete := PhysicsRayQueryParameters3D.create(depart, depart + direction * portee)
+	requete.exclude = [get_rid()]
+	var touche: Dictionary = espace.intersect_ray(requete)
+
+	var but: Vector3 = touche["position"] if touche.has("position") \
+		else depart + direction * portee
+	# On atterrit au sol, jamais dans un mur ni en l'air.
+	but -= direction * 0.9
+	but.y = global_position.y
+	return but
+
+
+func teleporte(vers: Vector3) -> void:
+	global_position = vers
+	velocity = Vector3.ZERO
+
+
+func charge(direction: Vector3, distance: float, duree: float = 0.18) -> void:
+	_dash = direction.normalized() * (distance / maxf(duree, 0.01))
+	_dash.y = 0.0
+	_dash_restant = duree
+
+
+func voile(duree: float) -> void:
+	_voile_restant = duree
+
+
+func est_voile() -> bool:
+	return _voile_restant > 0.0
 
 
 func demarre_cooldown(slot_index: int, duree: float) -> void:

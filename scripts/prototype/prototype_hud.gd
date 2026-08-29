@@ -212,10 +212,12 @@ func _maj_carte(i: int, slot: SpellSlot, etage: int) -> void:
 
 	if connu:
 		var eff: Dictionary = PrototypeCatalogue.effect(slot.school_id, slot.effect_index)
-		var familles := ["projectile", "nova", "soin"]
-		var famille: String = familles[int(eff.get("comportement", 0))]
-		var puissance: String = ("%d dégâts" % int(eff["degats"])) if eff.has("degats") \
-			else ("%d soin" % int(eff.get("soin", 0)))
+		var famille: String = PrototypeCatalogue.famille(int(eff.get("comportement", 0)))
+		var puissance: String = "utilitaire"
+		if eff.has("degats"):
+			puissance = "%d dégâts" % int(eff["degats"])
+		elif eff.has("soin"):
+			puissance = "%d soin" % int(eff["soin"])
 		lignes += "[b]%s[/b]\n%s · %s\n" % [String(eff.get("nom", "?")), famille, puissance]
 	else:
 		lignes += "[color=#8a8a95][b]???[/b]\nlance-le pour découvrir[/color]\n"

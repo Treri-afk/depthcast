@@ -2,89 +2,123 @@ class_name PrototypeCatalogue
 extends RefCounted
 ## Catalogue de contenu du PROTOTYPE. Volontairement en dur, volontairement jetable.
 ##
-## En C2, tout ceci devient des Resources `.tres` éditables dans l'inspecteur, et
-## ce fichier disparaît. Il n'est là que pour donner de quoi ressentir le reroll
-## avant que le système data-driven existe.
+## En C2, tout ceci devient des Resources `.tres` éditables dans l'inspecteur.
 ##
-## Ce qui compte ici, c'est que les trois effets d'une même école soient
-## MÉCANIQUEMENT DIFFÉRENTS. Si le reroll remplace un projectile par un autre
-## projectile un peu plus fort, le joueur ne sent rien et le jeu n'a plus de sujet.
-## D'où trois familles nettement distinctes : à distance, autour de soi, sur soi.
+## LA règle de conception, celle qui fait ou défait le jeu (GDD §4) : les effets
+## d'une même école doivent être MÉCANIQUEMENT différents, pas des variantes de
+## puissance. Si le reroll remplace un projectile par un autre projectile, le
+## joueur ne sent rien et le jeu perd son sujet.
+##
+## Chaque effet ci-dessous a donc son propre comportement. Aucun n'est un
+## doublon paramétré d'un autre.
 
 enum Behaviour {
-	PROJECTILE,  ## part droit devant, touche le premier monstre
-	NOVA,        ## explose autour du lanceur, touche tout dans un rayon
-	SOIN,        ## se soigne, ne fait aucun dégât
+	PROJECTILE,   ## part droit devant, touche le premier monstre
+	MUR,          ## nappe persistante posée devant soi, brûle qui la traverse
+	TRAINEE,      ## le sol s'embrase sous nos pas pendant un moment
+	NOVA,         ## explose autour de soi, une seule fois
+	CONE,         ## souffle en éventail devant soi
+	GEL,          ## nappe froide au sol : peu de dégâts, gros ralentissement
+	REPULSION,    ## repousse violemment tout ce qui est autour
+	ATTRACTION,   ## aspire les monstres vers soi
+	DASH,         ## charge en avant en traversant et blessant
+	TELEPORT,     ## se transporte au point visé, avec aperçu préalable
+	SOIN,         ## se soigne
+	DRAIN,        ## projectile qui rend une partie des dégâts en soin
+	TOTEM,        ## balise posée au sol qui soigne tant qu'on reste dedans
+	VOILE,        ## les monstres perdent notre trace
+	LEURRE,       ## un mannequin attire les monstres à sa place
 }
 
-## Les 5 écoles du GDD. Noter les tailles de pool différentes (2 à 5) :
-## c'est ce qui vérifie qu'aucun code ne suppose un nombre fixe.
+## Nom lisible par famille, pour le HUD.
+const FAMILLES: Dictionary = {
+	Behaviour.PROJECTILE: "projectile",
+	Behaviour.MUR: "mur persistant",
+	Behaviour.TRAINEE: "traînée au sol",
+	Behaviour.NOVA: "onde de choc",
+	Behaviour.CONE: "souffle conique",
+	Behaviour.GEL: "nappe ralentissante",
+	Behaviour.REPULSION: "répulsion",
+	Behaviour.ATTRACTION: "attraction",
+	Behaviour.DASH: "charge",
+	Behaviour.TELEPORT: "téléportation",
+	Behaviour.SOIN: "soin",
+	Behaviour.DRAIN: "vol de vie",
+	Behaviour.TOTEM: "totem de soin",
+	Behaviour.VOILE: "invisibilité",
+	Behaviour.LEURRE: "leurre",
+}
+
 const SCHOOLS: Array = [
 	{
 		"id": &"braise",
 		"nom": "Braise",
-		"couleur": Color(0.95, 0.35, 0.15),
+		"couleur": Color(0.98, 0.42, 0.14),
 		"effets": [
 			{"nom": "Boule de Feu", "comportement": Behaviour.PROJECTILE,
-				"degats": 12, "portee": 22.0, "cooldown": 0.5},
-			{"nom": "Mur de Flammes", "comportement": Behaviour.NOVA,
-				"degats": 18, "rayon": 4.5, "cooldown": 1.8},
-			{"nom": "Brûlure Vive", "comportement": Behaviour.PROJECTILE,
-				"degats": 5, "portee": 30.0, "cooldown": 0.15},
+				"degats": 14, "portee": 24.0, "cooldown": 0.55},
+			{"nom": "Mur de Flammes", "comportement": Behaviour.MUR,
+				"degats": 7, "largeur": 9.0, "duree": 5.0, "intervalle": 0.4,
+				"distance": 4.5, "cooldown": 5.0},
+			{"nom": "Traînée Ardente", "comportement": Behaviour.TRAINEE,
+				"degats": 5, "duree": 6.0, "duree_flaque": 3.0, "rayon": 1.6,
+				"intervalle": 0.35, "cooldown": 7.0},
 		],
 	},
 	{
 		"id": &"givre",
 		"nom": "Givre",
-		"couleur": Color(0.4, 0.8, 1.0),
+		"couleur": Color(0.42, 0.82, 1.0),
 		"effets": [
-			{"nom": "Gel", "comportement": Behaviour.NOVA,
-				"degats": 10, "rayon": 6.0, "cooldown": 1.4},
-			{"nom": "Bise Glaciale", "comportement": Behaviour.PROJECTILE,
-				"degats": 16, "portee": 18.0, "cooldown": 0.9},
+			{"nom": "Gel", "comportement": Behaviour.GEL,
+				"degats": 3, "rayon": 5.5, "duree": 6.0, "intervalle": 0.5,
+				"ralentissement": 0.28, "cooldown": 6.0},
+			{"nom": "Bise Glaciale", "comportement": Behaviour.CONE,
+				"degats": 20, "portee": 11.0, "angle": 50.0, "cooldown": 1.6},
 			{"nom": "Rempart", "comportement": Behaviour.SOIN,
-				"soin": 20, "cooldown": 3.0},
+				"soin": 26, "cooldown": 4.0},
 		],
 	},
 	{
 		"id": &"force",
 		"nom": "Force",
-		"couleur": Color(0.85, 0.75, 0.25),
-		# Pool de 2 : une école n'est pas obligée d'en avoir trois.
+		"couleur": Color(0.92, 0.78, 0.22),
 		"effets": [
-			{"nom": "Poussée", "comportement": Behaviour.NOVA,
-				"degats": 8, "rayon": 5.5, "cooldown": 0.8},
-			{"nom": "Ruée", "comportement": Behaviour.PROJECTILE,
-				"degats": 22, "portee": 12.0, "cooldown": 1.2},
+			{"nom": "Poussée", "comportement": Behaviour.REPULSION,
+				"degats": 6, "rayon": 7.0, "puissance": 26.0, "cooldown": 2.2},
+			{"nom": "Attraction", "comportement": Behaviour.ATTRACTION,
+				"degats": 4, "rayon": 12.0, "puissance": 20.0, "cooldown": 2.6},
+			{"nom": "Ruée", "comportement": Behaviour.DASH,
+				"degats": 18, "distance": 9.0, "rayon": 2.2, "cooldown": 2.0},
 		],
 	},
 	{
 		"id": &"vie",
 		"nom": "Vie",
-		"couleur": Color(0.4, 0.9, 0.45),
+		"couleur": Color(0.42, 0.92, 0.48),
 		"effets": [
 			{"nom": "Soin", "comportement": Behaviour.SOIN,
-				"soin": 30, "cooldown": 4.0},
-			{"nom": "Siphon", "comportement": Behaviour.PROJECTILE,
-				"degats": 9, "portee": 20.0, "cooldown": 0.7},
-			{"nom": "Invocation", "comportement": Behaviour.NOVA,
-				"degats": 14, "rayon": 3.5, "cooldown": 2.0},
+				"soin": 34, "cooldown": 5.0},
+			{"nom": "Siphon", "comportement": Behaviour.DRAIN,
+				"degats": 11, "portee": 20.0, "ratio_soin": 0.8, "cooldown": 0.9},
+			{"nom": "Invocation", "comportement": Behaviour.TOTEM,
+				"soin": 6, "rayon": 3.2, "duree": 8.0, "intervalle": 0.8,
+				"cooldown": 9.0},
 		],
 	},
 	{
 		"id": &"ombre",
 		"nom": "Ombre",
-		"couleur": Color(0.6, 0.4, 0.85),
-		# Pool de 4 : l'autre borne à vérifier.
+		"couleur": Color(0.66, 0.44, 0.95),
 		"effets": [
-			{"nom": "Pas d'Ombre", "comportement": Behaviour.PROJECTILE,
-				"degats": 14, "portee": 25.0, "cooldown": 0.6},
-			{"nom": "Voile", "comportement": Behaviour.SOIN,
-				"soin": 12, "cooldown": 2.2},
-			{"nom": "Leurre", "comportement": Behaviour.NOVA,
-				"degats": 11, "rayon": 7.0, "cooldown": 1.6},
+			{"nom": "Pas d'Ombre", "comportement": Behaviour.TELEPORT,
+				"portee": 16.0, "cooldown": 2.4},
+			{"nom": "Voile", "comportement": Behaviour.VOILE,
+				"duree": 4.0, "cooldown": 8.0},
+			{"nom": "Leurre", "comportement": Behaviour.LEURRE,
+				"duree": 6.0, "distance": 5.0, "cooldown": 7.0},
 			{"nom": "Éclat Nocturne", "comportement": Behaviour.PROJECTILE,
-				"degats": 25, "portee": 14.0, "cooldown": 1.5},
+				"degats": 28, "portee": 15.0, "cooldown": 1.6},
 		],
 	},
 ]
@@ -114,3 +148,7 @@ static func effect(school_id: StringName, effect_index: int) -> Dictionary:
 	if effect_index < 0 or effect_index >= effets.size():
 		return {}
 	return effets[effect_index]
+
+
+static func famille(comportement: int) -> String:
+	return String(FAMILLES.get(comportement, "?"))
