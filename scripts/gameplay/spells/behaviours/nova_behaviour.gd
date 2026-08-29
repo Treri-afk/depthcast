@@ -10,3 +10,4 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 	ctx.degats(slot_index, effet.degats, ctx.monstres_dans_rayon(centre, effet.rayon))
 	ctx.souffle_sur_objets(centre, effet.rayon, 14.0, true, effet.degats)
 	ctx.fx.anneau(centre, effet.rayon, couleur)
+	ctx.fx.eclair(centre + Vector3(0, 1.0, 0), couleur, 0.25, 6.0, effet.rayon * 2.2)

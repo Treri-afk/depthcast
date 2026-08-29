@@ -26,6 +26,7 @@ static func cree(fx: FxLibrary, depuis: Vector3, vers: Vector3,
 	forme.shape = sphere
 	tir.add_child(forme)
 	tir.add_child(fx.sphere_lumineuse(RAYON, Color(0.85, 0.4, 0.9)))
+	tir.add_child(fx.lampe(Color(0.85, 0.4, 0.9), 2.0, 6.0))
 	return tir
 
 

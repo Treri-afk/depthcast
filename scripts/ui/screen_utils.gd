@@ -11,7 +11,7 @@ const CHEMIN_JEU := "res://scenes/jeu.tscn"
 static func fond(parent: Control) -> void:
 	var rect := ColorRect.new()
 	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	rect.color = Color(0.06, 0.06, 0.09)
+	rect.color = Content.palette.fond
 	parent.add_child(rect)
 
 
@@ -38,6 +38,8 @@ static func bouton(texte: String, actif: bool = true) -> Button:
 	b.text = texte
 	b.custom_minimum_size = Vector2(340, 46)
 	b.disabled = not actif
+	# Même vocabulaire que le HUD : menus et jeu appartiennent à la même image.
+	HudStyle.habille_bouton(b)
 	return b
 
 

@@ -1,5 +1,12 @@
-shader_type canvas_item;
-render_mode unshaded;
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, depth_test_disabled, fog_disabled;
+
+// Shader SPATIAL et non canvas_item : Godot refuse hint_depth_texture dans un
+// shader d'interface, et sans la profondeur on ne peut pas souligner les arêtes
+// géométriques. Le quad est donc dessiné dans la passe 3D, en dernier, et
+// couvre l'écran en écrivant POSITION directement.
+//
+// Le HUD, lui, vit sur un CanvasLayer dessiné après la 3D : il reste net.
 
 // Post-traitement de la ligne claire : trame pixel, contour, filtre de couleur.
 //
@@ -16,6 +23,7 @@ render_mode unshaded;
 // contours de formes ET sur la limite lumière/ombre.
 
 uniform sampler2D ecran : hint_screen_texture, filter_nearest, repeat_disable;
+uniform sampler2D profondeur : hint_depth_texture, filter_nearest, repeat_disable;
 
 group_uniforms Trame;
 // Côté d'un bloc en pixels d'écran. 2 accroche discrètement, 4 est un parti pris.
@@ -28,6 +36,10 @@ uniform float contour_epaisseur : hint_range(0.0, 6.0) = 2.0;
 // Écart de luminance à partir duquel on trace. Bas = trait partout, y compris
 // dans le bruit ; haut = seules les vraies ruptures sont soulignées.
 uniform float contour_seuil : hint_range(0.01, 0.6) = 0.085;
+// Rupture de profondeur RELATIVE à partir de laquelle on trace. La profondeur
+// brute n'est pas linéaire : comparer un écart absolu tracerait tout au premier
+// plan et rien au fond. Un rapport reste juste à toute distance.
+uniform float contour_seuil_profondeur : hint_range(0.0005, 0.05) = 0.004;
 
 group_uniforms Grain;
 // GRAIN DE PAPIER.
@@ -45,6 +57,13 @@ uniform vec4 filtre_ombre : source_color = vec4(0.06, 0.05, 0.12, 1.0);
 uniform float filtre_force : hint_range(0.0, 1.0) = 1.0;
 
 
+void vertex() {
+	// Le quad mesure 2 unités : VERTEX.xy couvre donc exactement [-1, 1], soit
+	// tout l'écran en coordonnées normalisées.
+	POSITION = vec4(VERTEX.xy, 1.0, 1.0);
+}
+
+
 float bruit_fixe(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
@@ -59,6 +78,27 @@ float luminance(vec3 c) {
 // d'un demi-bloc et le contour se décale d'autant.
 vec2 accroche(vec2 uv, vec2 grille) {
 	return (floor(uv * grille) + 0.5) / grille;
+}
+
+
+// Arête géométrique : deux surfaces adjacentes dont la distance saute.
+//
+// C'est ce qui manquait. La luminance seule ne voit pas la jonction d'un mur et
+// d'un sol quand tous deux sont éclairés de la même façon : il n'y a aucun
+// écart de couleur à détecter, alors que l'arête est bien là.
+float rupture_profondeur(vec2 uv_centre, vec2 pas, vec2 grille) {
+	float d0 = texture(profondeur, uv_centre).r;
+	if (d0 <= 0.0) {
+		return 0.0;
+	}
+
+	float ecart = 0.0;
+	ecart = max(ecart, abs(texture(profondeur, accroche(uv_centre + vec2(pas.x, 0.0), grille)).r - d0));
+	ecart = max(ecart, abs(texture(profondeur, accroche(uv_centre - vec2(pas.x, 0.0), grille)).r - d0));
+	ecart = max(ecart, abs(texture(profondeur, accroche(uv_centre + vec2(0.0, pas.y), grille)).r - d0));
+	ecart = max(ecart, abs(texture(profondeur, accroche(uv_centre - vec2(0.0, pas.y), grille)).r - d0));
+
+	return ecart / max(d0, 0.00001);
 }
 
 
@@ -82,14 +122,14 @@ vec3 applique_filtre(vec3 couleur) {
 
 
 void fragment() {
-	vec2 taille_ecran = 1.0 / SCREEN_PIXEL_SIZE;
+	vec2 taille_ecran = VIEWPORT_SIZE;
 	vec2 grille = taille_ecran / max(taille_bloc, 1.0);
 	vec2 uv = accroche(SCREEN_UV, grille);
 
 	vec3 couleur = texture(ecran, uv).rgb;
 
 	if (contour_epaisseur > 0.0) {
-		vec2 pas = SCREEN_PIXEL_SIZE * taille_bloc * contour_epaisseur;
+		vec2 pas = (1.0 / taille_ecran) * taille_bloc * contour_epaisseur;
 
 		// Sobel sur la luminance. Huit voisins : un contour continu même sur
 		// des diagonales, là où quatre voisins laissent des escaliers.
@@ -106,7 +146,15 @@ void fragment() {
 		float gy = (bg + 2.0 * b + bd) - (hg + 2.0 * h + hd);
 		float force = sqrt(gx * gx + gy * gy);
 
-		float trace = smoothstep(contour_seuil, contour_seuil * 2.2, force);
+		float trace_lumiere = smoothstep(contour_seuil, contour_seuil * 2.2, force);
+
+		float rupture = rupture_profondeur(uv, pas, grille);
+		float trace_forme = smoothstep(contour_seuil_profondeur,
+			contour_seuil_profondeur * 2.5, rupture);
+
+		// Le plus fort des deux : la luminance attrape la limite lumière/ombre
+		// et les changements de matière, la profondeur attrape la géométrie.
+		float trace = max(trace_lumiere, trace_forme);
 		couleur = mix(couleur, contour_couleur.rgb, trace * contour_couleur.a);
 	}
 
@@ -116,5 +164,5 @@ void fragment() {
 		couleur += vec3(g * grain_force);
 	}
 
-	COLOR = vec4(applique_filtre(couleur), 1.0);
+	ALBEDO = applique_filtre(couleur);
 }

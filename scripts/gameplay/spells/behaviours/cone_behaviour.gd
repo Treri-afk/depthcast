@@ -16,3 +16,5 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 		ctx.monstres_dans_cone(origine, plat, effet.portee, demi_angle))
 	ctx.frappe_objets_devant(origine, plat, effet.portee, demi_angle, effet.degats)
 	ctx.fx.cone(origine, plat, effet.portee, couleur)
+	ctx.fx.eclair(origine + plat * (effet.portee * 0.4) + Vector3(0, 1.0, 0),
+		couleur, 0.25, 5.0, effet.portee)

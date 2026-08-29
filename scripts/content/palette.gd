@@ -17,10 +17,10 @@ extends Resource
 @export var lisere_blanc: Color = Color(0.96, 0.96, 0.98)
 ## L'ombre. IDENTIQUE sur toute surface, jamais un albédo assombri : c'est la
 ## règle qui unifie l'image, et celle qu'on remarque sans savoir la nommer.
-@export var ombre: Color = Color(0.20, 0.19, 0.34)
+@export var ombre: Color = Color(0.38, 0.37, 0.52)
 ## Part d'albédo laissée passer dans l'ombre. À zéro la règle est pure, mais
 ## deux objets voisins deviennent indiscernables dans le noir d'un donjon.
-@export_range(0.0, 0.5, 0.01) var melange_ombre: float = 0.18
+@export_range(0.0, 0.5, 0.01) var melange_ombre: float = 0.34
 
 @export_group("Post-traitement")
 ## Côté d'un bloc en pixels d'écran. 2 accroche discrètement, 4 est un parti pris.
@@ -30,10 +30,21 @@ extends Resource
 ## Écart de luminance à partir duquel on trace. Bas = trait partout, y compris
 ## dans le bruit ; haut = seules les vraies ruptures sont soulignées.
 @export_range(0.01, 0.6, 0.005) var contour_seuil: float = 0.10
+## Rupture de profondeur qui déclenche un trait. C'est ce qui souligne les
+## arêtes de géométrie, invisibles à la luminance quand deux surfaces voisines
+## sont éclairées pareil.
+@export_range(0.0005, 0.05, 0.0005) var contour_seuil_profondeur: float = 0.004
 
 ## Bruit fixe posé sur l'image. Il ne bouge jamais : un grain animé fait du
 ## bruit vidéo, un grain fixe fait du papier.
 @export_range(0.0, 0.2, 0.005) var grain_force: float = 0.045
+
+@export_group("Lumière des sorts")
+## Les sorts éclairent le décor. Une boule de feu qui traverse une salle sans
+## la faire réagir n'a pas de poids ; c'est aussi ce qui rend un couloir sombre
+## lisible au moment où on en a besoin.
+@export_range(0.0, 8.0, 0.25) var lumiere_sort_energie: float = 3.0
+@export_range(1.0, 30.0, 0.5) var lumiere_sort_portee: float = 9.0
 
 @export_group("Brume")
 ## La brume de distance est le plus gros indice de rendu réaliste. Quantifiée

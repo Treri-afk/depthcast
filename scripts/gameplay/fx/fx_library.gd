@@ -13,6 +13,33 @@ func _init(p_monde: Node3D) -> void:
 	monde = p_monde
 
 
+## Lampe portée par un sort. Un projectile qui traverse une salle sans la faire
+## réagir n'a aucun poids — et dans un couloir sombre, c'est aussi ce qui rend
+## la scène lisible au moment précis où on en a besoin.
+func lampe(couleur: Color, energie: float = -1.0, portee: float = -1.0) -> OmniLight3D:
+	var p: Palette = Content.palette
+	var lampe_node := OmniLight3D.new()
+	lampe_node.light_color = couleur
+	lampe_node.light_energy = energie if energie > 0.0 else p.lumiere_sort_energie
+	lampe_node.omni_range = portee if portee > 0.0 else p.lumiere_sort_portee
+	# Pas d'ombres portées par les sorts : quatre projectiles en vol feraient
+	# quatre jeux d'ombres contradictoires, et le coût est disproportionné.
+	lampe_node.shadow_enabled = false
+	return lampe_node
+
+
+## Éclair bref à un endroit donné : nova, cône, impact.
+func eclair(position: Vector3, couleur: Color, duree: float = 0.22,
+		energie: float = 5.0, portee: float = 12.0) -> void:
+	var lampe_node := lampe(couleur, energie, portee)
+	lampe_node.position = position
+	monde.add_child(lampe_node)
+
+	var tween := monde.create_tween()
+	tween.tween_property(lampe_node, "light_energy", 0.0, duree)
+	tween.tween_callback(lampe_node.queue_free)
+
+
 func sphere_lumineuse(rayon: float, couleur: Color) -> MeshInstance3D:
 	var visuel := MeshInstance3D.new()
 	var mesh := SphereMesh.new()

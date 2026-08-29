@@ -14,3 +14,5 @@ func lance(ctx: SpellContext, _slot_index: int, effet: SpellEffect,
 	ctx.fx.marqueur(depart, couleur)
 	ctx.joueur.teleporte(but)
 	ctx.fx.marqueur(but, couleur)
+	ctx.fx.eclair(depart + Vector3(0, 1.0, 0), couleur, 0.3, 4.0, 7.0)
+	ctx.fx.eclair(but + Vector3(0, 1.0, 0), couleur, 0.3, 4.0, 7.0)

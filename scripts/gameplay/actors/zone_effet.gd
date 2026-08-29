@@ -23,6 +23,7 @@ var couleur: Color = Color.WHITE
 var _restant: float = 0.0
 var _prochain_battement: float = 0.0
 var _visuel: MeshInstance3D
+var _lampe: OmniLight3D
 var _materiau: StandardMaterial3D
 
 
@@ -63,6 +64,16 @@ func _ready() -> void:
 	_prochain_battement = 0.0
 	monitoring = true
 
+	# Une nappe de flammes doit éclairer la salle, pas seulement s'y voir.
+	var lampe := OmniLight3D.new()
+	lampe.light_color = couleur
+	lampe.light_energy = Content.palette.lumiere_sort_energie
+	lampe.omni_range = Content.palette.lumiere_sort_portee * 1.4
+	lampe.shadow_enabled = false
+	lampe.position = Vector3(0, 0.8, 0)
+	add_child(lampe)
+	_lampe = lampe
+
 	_materiau = StandardMaterial3D.new()
 	# Non éclairée : une nappe est de la lumière, pas une surface.
 	_materiau.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -83,9 +94,11 @@ func _physics_process(delta: float) -> void:
 		return
 
 	# La zone s'estompe en fin de vie : on voit qu'elle va disparaître.
+	var reste: float = clampf(_restant / maxf(duree, 0.01), 0.0, 1.0)
 	if _materiau != null:
-		var reste: float = clampf(_restant / maxf(duree, 0.01), 0.0, 1.0)
 		_materiau.albedo_color.a = 0.10 + 0.26 * reste
+	if _lampe != null:
+		_lampe.light_energy = Content.palette.lumiere_sort_energie * reste
 
 	_prochain_battement -= delta
 	if _prochain_battement > 0.0:

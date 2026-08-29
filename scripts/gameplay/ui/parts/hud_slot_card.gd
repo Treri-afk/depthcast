@@ -18,13 +18,7 @@ static func cree(index: int) -> HudSlotCard:
 	carte.slot_index = index
 	carte.custom_minimum_size = Vector2(238, 156)
 
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.06, 0.09, 0.84)
-	style.set_corner_radius_all(8)
-	style.set_content_margin_all(10)
-	style.border_width_bottom = 3
-	style.border_color = Color(0.4, 0.4, 0.45)
-	carte.add_theme_stylebox_override("panel", style)
+	carte.add_theme_stylebox_override("panel", HudStyle.panneau(Content.palette.encre))
 
 	var colonne := VBoxContainer.new()
 	colonne.add_theme_constant_override("separation", 4)
@@ -62,6 +56,7 @@ func _fleche(libelle: String, pas: int) -> Button:
 	bouton.custom_minimum_size = Vector2(32, 28)
 	bouton.tooltip_text = "École précédente" if pas < 0 else "École suivante"
 	bouton.pressed.connect(func() -> void: ecole_demandee.emit(slot_index, pas))
+	HudStyle.habille_bouton(bouton)
 	return bouton
 
 
@@ -94,3 +89,6 @@ func rafraichit(slot: SpellSlot, etage: int, cooldown: float) -> void:
 		lignes += "[color=#8fd694]prêt[/color]"
 
 	_texte.text = lignes
+	# Le pied de carte prend la couleur de l'école : c'est le seul endroit vif
+	# de l'interface, et il dit d'un coup d'oeil à quoi on a affaire.
+	add_theme_stylebox_override("panel", HudStyle.panneau(couleur))

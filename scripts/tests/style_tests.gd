@@ -16,6 +16,7 @@ func execute() -> void:
 	_check_traits()
 	_check_palette()
 	_check_trame()
+	_check_interface()
 
 
 ## Règle 2 : l'ombre est la même pour toute surface, jamais un albédo assombri.
@@ -117,9 +118,39 @@ func _check_trame() -> void:
 		p.brume_couleur == p.fond)
 
 	var post := PostProcess.cree(p)
-	verifie("la trame est dessinée avant le HUD", post.layer < 0,
-		"calque %d" % post.layer)
-	var voile := post.get_child(0) as ColorRect
-	verifie("elle couvre tout l'écran et ne capte pas la souris",
-		voile != null and voile.mouse_filter == Control.MOUSE_FILTER_IGNORE)
+	verifie("le post-traitement est un quad de la passe 3D", post is MeshInstance3D)
+	verifie("il porte un matériau de shader",
+		post.material_override is ShaderMaterial)
+	# Sans volume englobant démesuré, il disparaît dès que la caméra tourne.
+	verifie("il échappe à l'élimination par le frustum",
+		post.custom_aabb.size.x > 1000.0)
+	verifie("il ne projette pas d'ombre",
+		post.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	post.free()
+
+
+## L'interface obéit aux mêmes règles que le monde. Sans ça elle flotte
+## au-dessus de l'image au lieu de lui appartenir.
+func _check_interface() -> void:
+	var p: Palette = Content.palette
+	var panneau := HudStyle.panneau()
+
+	verifie("les panneaux ont des coins francs — un arrondi est un dégradé de forme",
+		panneau.corner_radius_top_left == 0)
+	verifie("ils sont cernés d'encre",
+		panneau.border_color == p.encre and panneau.border_width_top > 0)
+	verifie("leur fond vient de la palette",
+		Color(panneau.bg_color.r, panneau.bg_color.g, panneau.bg_color.b) == p.fond)
+
+	# L'accent d'école est la seule couleur vive tolérée dans l'interface.
+	var accent := HudStyle.panneau(Color(1, 0, 0))
+	verifie("un accent épaissit le pied de carte",
+		accent.border_width_bottom > accent.border_width_top)
+
+	var b := Button.new()
+	HudStyle.habille_bouton(b)
+	verifie("les boutons portent les trois états qui comptent",
+		b.has_theme_stylebox_override("normal")
+			and b.has_theme_stylebox_override("hover")
+			and b.has_theme_stylebox_override("pressed"))
+	b.free()

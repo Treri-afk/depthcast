@@ -20,6 +20,7 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 	forme.shape = sphere
 	bille.add_child(forme)
 	bille.add_child(ctx.fx.sphere_lumineuse(RAYON, couleur))
+	bille.add_child(ctx.fx.lampe(couleur))
 	ctx.monde.add_child(bille)
 
 	var consomme: Array[bool] = [false]

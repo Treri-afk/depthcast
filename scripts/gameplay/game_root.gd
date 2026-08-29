@@ -29,7 +29,6 @@ var _debug := DebugCommands.new()
 func _ready() -> void:
 	InputActions.declare()
 	WorldLighting.installe(self)
-	add_child(PostProcess.cree(Content.palette))
 	_construit_les_conteneurs()
 	_construit_le_joueur()
 	_construit_le_hud()
@@ -96,6 +95,8 @@ func _construit_le_joueur() -> void:
 	_joueur.add_child(forme)
 	# Aucun mesh : en vue subjective, on ne se voit pas soi-même.
 	add_child(_joueur)
+	# Le post-traitement s'accroche à la caméra : c'est un quad de la passe 3D.
+	_joueur.camera.add_child(PostProcess.cree(Content.palette))
 
 
 func _construit_le_hud() -> void:
