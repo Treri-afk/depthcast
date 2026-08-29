@@ -21,6 +21,10 @@ var _marchand: MerchantRoom
 var _spawner: MonsterSpawner
 var _etage: FloorDirector
 
+## Slots ayant muté à la dernière descente. Rempli par les signaux, consommé
+## par la séquence de reroll.
+var _mutations: Array[bool] = []
+var _sequence_en_cours: bool = false
 var _socle_vise: ShopPedestal = null
 var _portail_a_portee: bool = false
 var _debug := DebugCommands.new()
@@ -46,6 +50,9 @@ func _physics_process(delta: float) -> void:
 	# Un tick de résolution par frame physique : toutes les intentions soumises
 	# pendant cette frame sont triées puis appliquées ensemble (R4).
 	EffectResolver.resolve_tick()
+
+	if _sequence_en_cours:
+		return
 
 	_seme_la_trainee(delta)
 	_maj_interaction()
@@ -108,6 +115,10 @@ func _construit_le_hud() -> void:
 	_hud.joueur = _joueur
 	_hud.ecole_changee.connect(_change_ecole)
 	couche.add_child(_hud)
+
+	var degats := DamageIndicator.new()
+	degats.joueur = _joueur
+	couche.add_child(degats)
 
 
 func _assemble_les_services() -> void:
@@ -189,9 +200,9 @@ func _branche_les_evenements() -> void:
 	EventBus.monster_damaged.connect(_sur_degat_monstre)
 	EventBus.monster_died.connect(_sur_mort_monstre)
 	EventBus.slot_rerolled.connect(func(_j: int, slot: int, _e: int) -> void:
-		_hud.journalise("Le slot %d a muté. Lance-le pour découvrir ce qu'il fait." % (slot + 1)))
+		_note_mutation(slot, true))
 	EventBus.slot_kept.connect(func(_j: int, slot: int) -> void:
-		_hud.journalise("Le slot %d a résisté au reroll — le sceau a tenu." % (slot + 1)))
+		_note_mutation(slot, false))
 	EventBus.resonance_spend_rejected.connect(func(_id: int, raison: String) -> void:
 		_hud.journalise("Achat refusé : " + raison))
 
@@ -225,8 +236,41 @@ func _interagit() -> void:
 		_marchand.achete(_socle_vise)
 
 
+func _note_mutation(slot: int, mute: bool) -> void:
+	while _mutations.size() <= slot:
+		_mutations.append(false)
+	_mutations[slot] = mute
+
+
 func _descend_d_un_etage() -> void:
+	_mutations.clear()
 	_contexte.objets = _etage.descend()
+	_montre_le_reroll()
+
+
+## Arrête le jeu et présente ce que le grimoire a réécrit.
+##
+## Le contrôle est confisqué pendant la séquence : un évènement qu'on peut
+## ignorer en courant n'est pas un évènement.
+func _montre_le_reroll() -> void:
+	_sequence_en_cours = true
+	MouseLook.capture(false)
+	_joueur.set_physics_process(false)
+
+	var sequence := RerollSequence.new()
+	sequence.mutations = _mutations.duplicate()
+	sequence.etage = GameState.run.floor_index
+
+	var couche := CanvasLayer.new()
+	couche.layer = 5
+	couche.add_child(sequence)
+	add_child(couche)
+
+	sequence.terminee.connect(func() -> void:
+		_sequence_en_cours = false
+		_joueur.set_physics_process(true)
+		MouseLook.capture(true)
+		couche.queue_free())
 	_hud.journalise("Étage %d. Tes sorts non scellés ont muté." %
 		(GameState.run.floor_index + 1))
 

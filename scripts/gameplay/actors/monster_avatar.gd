@@ -94,6 +94,7 @@ func _frappe() -> void:
 	intent.source_slot = -1
 	intent.kind = EffectIntent.Kind.DAMAGE
 	intent.amount = stats.degats
+	intent.origine = global_position
 	intent.target_ids = PackedInt64Array([0])
 	EffectResolver.submit(intent)
 

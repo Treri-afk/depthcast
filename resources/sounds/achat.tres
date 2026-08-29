@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="SoundDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/sound_def.gd" id="1_rgdv2"]
+
+[resource]
+script = ExtResource("1_rgdv2")
+id = &"achat"
+frequence_fin = 660.0
+duree = 0.16
+volume = 0.5
+gain_db = -4.0

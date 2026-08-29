@@ -97,6 +97,7 @@ func _apply_damage(intent: EffectIntent) -> void:
 		var target: PlayerState = GameState.run.get_player(target_id)
 		if target != null:
 			target.hp = maxi(0, target.hp - int(intent.amount))
+			EventBus.player_damaged.emit(target_id, int(intent.amount), intent.origine)
 
 	# Cibles monstres. La récompense de Résonance part au pot COMMUN (D3),
 	# quel que soit le joueur qui a porté le coup fatal.

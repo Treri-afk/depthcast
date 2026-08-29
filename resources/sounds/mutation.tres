@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SoundDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/sound_def.gd" id="1_bshmj"]
+
+[resource]
+script = ExtResource("1_bshmj")
+id = &"mutation"
+frequence_debut = 330.0
+frequence_fin = 880.0
+duree = 0.3
+attaque = 0.05
+volume = 0.55
+gain_db = -2.0

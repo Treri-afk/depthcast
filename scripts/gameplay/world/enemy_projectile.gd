@@ -47,6 +47,7 @@ func _sur_contact(corps: Node3D) -> void:
 		intent.source_slot = -1
 		intent.kind = EffectIntent.Kind.DAMAGE
 		intent.amount = degats
+		intent.origine = global_position
 		intent.target_ids = PackedInt64Array([0])
 		EffectResolver.submit(intent)
 	queue_free()

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SoundDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/sound_def.gd" id="1_41vwp"]
+
+[resource]
+script = ExtResource("1_41vwp")
+id = &"refus"
+forme = 1
+frequence_debut = 180.0
+frequence_fin = 110.0
+duree = 0.16
+attaque = 0.01
+volume = 0.4
+gain_db = -6.0

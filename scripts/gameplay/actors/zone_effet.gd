@@ -142,5 +142,6 @@ func _bat() -> void:
 		intent.source_slot = source_slot
 		intent.kind = EffectIntent.Kind.HEAL
 		intent.amount = soin
+		intent.origine = global_position
 		intent.target_ids = PackedInt64Array([source_player_id])
 		EffectResolver.submit(intent)

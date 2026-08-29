@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SoundDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/sound_def.gd" id="1_l77rk"]
+
+[resource]
+script = ExtResource("1_l77rk")
+id = &"blessure"
+forme = 2
+frequence_debut = 240.0
+frequence_fin = 70.0
+duree = 0.26
+attaque = 0.01
+volume = 0.7

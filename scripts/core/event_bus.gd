@@ -33,6 +33,11 @@ signal slot_kept(player_id: int, slot_index: int)
 ## L'effet vient d'être lancé pour la première fois de l'étage : il sort de l'état `???`.
 signal slot_discovered(player_id: int, slot_index: int)
 
+## Le joueur vient d'encaisser. `origine` est le point d'où vient le coup, ce
+## qui permet à l'interface de dire OÙ regarder — en vue subjective, prendre
+## des dégâts hors champ sans indication est illisible.
+signal player_damaged(player_id: int, degats: int, origine: Vector3)
+
 # ── Monstres ──────────────────────────────────────────────────────────────
 signal monster_spawned(monster_id: int)
 signal monster_damaged(monster_id: int, hp_restant: int)

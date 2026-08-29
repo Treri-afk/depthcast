@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SoundDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/sound_def.gd" id="1_n7w67"]
+
+[resource]
+script = ExtResource("1_n7w67")
+id = &"sort"
+frequence_debut = 600.0
+frequence_fin = 900.0
+duree = 0.11
+attaque = 0.01
+volume = 0.35
+gain_db = -9.0

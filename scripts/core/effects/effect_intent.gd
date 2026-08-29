@@ -34,6 +34,9 @@ var target_ids: PackedInt64Array = PackedInt64Array()
 ## d'identifiants partagé : un id de joueur et un id de monstre ne se
 ## confondront jamais par accident, et le resolver n'a rien à deviner.
 var target_monsters: PackedInt64Array = PackedInt64Array()
+## D'où part l'effet. Sert à l'interface pour indiquer la provenance d'un coup ;
+## n'entre jamais dans le calcul des dégâts.
+var origine: Vector3 = Vector3.ZERO
 ## Charge utile libre pour les effets qui en ont besoin (direction, rayon…).
 var payload: Dictionary = {}
 
@@ -70,6 +73,7 @@ func to_dict() -> Dictionary:
 		"amount": amount,
 		"target_ids": Array(target_ids),
 		"target_monsters": Array(target_monsters),
+		"origine": [origine.x, origine.y, origine.z],
 		"payload": payload,
 		"tick": tick,
 		"sequence": sequence,

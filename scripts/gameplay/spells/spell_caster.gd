@@ -56,5 +56,6 @@ func lance(slot_index: int, direction: Vector3) -> bool:
 	var couleur: Color = ecole.couleur if ecole != null else Color.WHITE
 
 	joueur.demarre_cooldown(slot_index, effet.cooldown)
+	Audio.joue(&"sort")
 	comportement.lance(_contexte, slot_index, effet, couleur, direction)
 	return true
