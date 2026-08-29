@@ -120,10 +120,25 @@ func _process(_delta: float) -> void:
 	_statut.texte.text = ("[b]Étage %d[/b]   ·   %d monstre(s) restant(s)\n"
 		+ "PV [b]%d[/b] / %d\n"
 		+ "Résonance (pot commun) : [b]%d[/b]\n"
-		+ "seed %d   ·   curseur %s") % [
+		+ "seed %d   ·   curseur %s%s") % [
 			etage + 1, GameState.run.alive_monsters().size(), p.hp, p.max_hp,
-			GameState.run.resonance_pool, GameState.run.run_seed, curseur]
+			GameState.run.resonance_pool, GameState.run.run_seed, curseur,
+			_ligne_de_session()]
 
 	for carte: HudSlotCard in _cartes:
 		carte.rafraichit(p.slots[carte.slot_index], etage,
 			joueur.cooldown_restant(carte.slot_index) if joueur != null else 0.0)
+
+
+## L'état réseau, affiché en jeu et pas seulement au salon.
+##
+## Sans lui, deux fenêtres qui jouent chacune leur partie sont indiscernables de
+## deux fenêtres qui jouent ensemble tant qu'on ne s'est pas cherché du regard.
+## Une ligne lève le doute, et elle disparaît en solo.
+func _ligne_de_session() -> String:
+	if not Net.en_ligne():
+		return ""
+	return "\n[color=#7fd0ff]co-op · %d joueur(s) · tu es %s (joueur %d)[/color]" % [
+		Net.nombre_de_joueurs(),
+		"l'hôte" if multiplayer.is_server() else "invité",
+		GameState.local_player_id + 1]

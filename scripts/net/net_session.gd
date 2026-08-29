@@ -16,6 +16,18 @@ extends Node
 ## du multijoueur — ce serait le meilleur moyen de le casser sans s'en rendre
 ## compte.
 
+## Où en est la connexion.
+##
+## `est_host()` répond vrai hors ligne, à dessein : le gameplay ne doit jamais
+## demander s'il y a un réseau avant d'agir. Mais le SALON, lui, doit faire la
+## différence entre « je suis seul » et « je suis l'hôte d'une vraie partie ».
+##
+## Sans cet état, une connexion ratée laissait le salon se comporter comme un
+## host solo : on appuyait sur Descendre et chacun jouait sa partie sans que
+## rien ne le signale. C'est exactement le genre de panne qui se lit comme
+## « le multijoueur ne marche pas ».
+enum Etat { HORS_LIGNE, CONNEXION, CONNECTE }
+
 const PORT_PAR_DEFAUT: int = 27015
 ## Repris du transport, qui est celui qui ouvre les connexions : deux plafonds
 ## différents laisseraient entrer un joueur que le jeu ne saurait pas placer.
@@ -28,6 +40,7 @@ signal partie_lancee(graine: int)
 signal connexion_perdue()
 signal echec(message: String)
 
+var etat: Etat = Etat.HORS_LIGNE
 var transport: NetTransport = null
 ## Graine de la run en cours. Choisie par le host, diffusée à tous.
 var graine: int = 0
@@ -104,6 +117,7 @@ func heberge(port: int = PORT_PAR_DEFAUT, mon_nom: String = "Host") -> bool:
 		return false
 
 	multiplayer.multiplayer_peer = pair
+	etat = Etat.CONNECTE
 	# Le host est le joueur 0, toujours. Ça n'a rien d'arbitraire : c'est lui
 	# qui fait autorité, et l'autorité doit avoir un identifiant stable.
 	_joueurs = {1: 0}
@@ -123,6 +137,10 @@ func rejoint(adresse: String, port: int = PORT_PAR_DEFAUT,
 		return false
 
 	multiplayer.multiplayer_peer = pair
+	# CONNEXION et pas CONNECTE : créer un client réussit TOUJOURS, même face à
+	# une adresse où personne n'écoute. La vérité arrive plus tard, par
+	# `connected_to_server` ou par `connection_failed`.
+	etat = Etat.CONNEXION
 	_noms[0] = mon_nom
 	return true
 
@@ -134,13 +152,35 @@ func quitte() -> void:
 	_joueurs.clear()
 	_noms.clear()
 	transport = null
+	etat = Etat.HORS_LIGNE
 	GameState.local_player_id = 0
 
 
 ## Le host lance la descente. La graine part avec l'ordre : sans elle, chacun
 ## générerait son propre donjon et personne ne jouerait dans le même.
+## Vrai pour l'hôte d'une VRAIE partie en ligne, ou pour un solo assumé. Un
+## client, ou un salon dont la connexion a échoué, ne lance rien.
+func peut_lancer() -> bool:
+	match etat:
+		Etat.HORS_LIGNE:
+			return true
+		Etat.CONNECTE:
+			return multiplayer.is_server()
+	return false
+
+
+## Description lisible de l'état, pour l'AFFICHER plutôt que le deviner.
+func description() -> String:
+	match etat:
+		Etat.CONNEXION:
+			return "connexion en cours…"
+		Etat.CONNECTE:
+			return "connecté — %s" % ("hôte" if multiplayer.is_server() else "invité")
+	return "hors ligne"
+
+
 func lance_la_partie() -> void:
-	if not est_host():
+	if not peut_lancer():
 		return
 	var tirage: int = randi()
 	if en_ligne():
@@ -170,7 +210,9 @@ func _sur_depart(peer: int) -> void:
 
 
 func _sur_connexion_reussie() -> void:
+	etat = Etat.CONNECTE
 	_declare_mon_nom.rpc_id(1, String(_noms.get(0, "Invité")))
+	roster_change.emit()
 
 
 func _sur_connexion_ratee() -> void:

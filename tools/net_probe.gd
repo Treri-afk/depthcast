@@ -32,11 +32,35 @@ func _ready() -> void:
 		print("[sonde] %s départ avec graine %d" % ["HOST" if _host else "CLIENT", g]))
 
 
+var _battement: float = 0.0
+## Le meilleur état observé. L'hôte se termine avant le client, et son départ
+## ferait conclure à un échec alors que la session a parfaitement fonctionné.
+var _meilleur: int = 1
+
+
 func _process(delta: float) -> void:
 	_t += delta
-	if _host and _t > 2.0 and _t < 2.1:
-		_t = 2.2
-		print("[sonde] le host lance")
-		Net.lance_la_partie()
-	if _t > 4.0:
-		get_tree().quit()
+
+	# Un battement par seconde : sans lui, une sonde qui attend en silence
+	# ressemble exactement à une sonde qui a planté.
+	_battement -= delta
+	if _battement <= 0.0:
+		_battement = 1.0
+		_meilleur = maxi(_meilleur, Net.nombre_de_joueurs())
+		print("[sonde] %.0fs — %s, %d joueur(s)" % [
+			_t, Net.description(), Net.nombre_de_joueurs()])
+
+	if _host and _t > 4.0 and _t < 4.2:
+		_t = 4.3
+		if Net.nombre_de_joueurs() < 2:
+			print("[sonde] ÉCHEC — personne n'a rejoint. Lance le second terminal.")
+		else:
+			print("[sonde] le host lance la partie")
+			Net.lance_la_partie()
+
+	if _t > 7.0:
+		var seul: bool = _meilleur < 2
+		print("[sonde] VERDICT : %s" % ("ÉCHEC — resté seul, personne n'a rejoint"
+			if seul else "SUCCÈS — session à %d joueurs, graine %d" % [
+				_meilleur, Net.graine]))
+		get_tree().quit(1 if seul else 0)

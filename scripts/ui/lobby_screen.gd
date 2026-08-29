@@ -12,6 +12,7 @@ extends Control
 var _liste: Label
 var _descendre: Button
 var _statut: Label
+var _connexion: Label
 
 
 func _ready() -> void:
@@ -24,7 +25,11 @@ func _ready() -> void:
 	var ou: String = Net.transport.adresse_affichable() if Net.transport != null else ""
 	col.add_child(ScreenUtils.sous_titre(
 		"%s   ·   les autres joueurs saisissent %s" % [quoi, ou]))
-	col.add_child(_espace(20))
+
+	_connexion = ScreenUtils.sous_titre("")
+	_connexion.add_theme_font_size_override("font_size", 17)
+	col.add_child(_connexion)
+	col.add_child(_espace(16))
 
 	_liste = ScreenUtils.sous_titre("", Color(1, 1, 1, 0.9))
 	_liste.add_theme_font_size_override("font_size", 18)
@@ -47,9 +52,20 @@ func _ready() -> void:
 	Net.roster_change.connect(_rafraichit)
 	Net.partie_lancee.connect(_descend)
 	Net.connexion_perdue.connect(func() -> void:
-		_statut.text = "Le host a quitté la partie.")
-	Net.echec.connect(func(message: String) -> void: _statut.text = message)
+		_statut.text = "L'hôte a quitté la partie."
+		_rafraichit())
+	Net.echec.connect(func(message: String) -> void:
+		_statut.text = message
+		_rafraichit())
 	_rafraichit()
+
+
+## Redessiné tant que la connexion n'a pas abouti. Un échec arrive par signal,
+## mais une tentative qui traîne ne dit rien du tout — et un salon figé sur
+## « connexion en cours » n'apprend pas grand-chose non plus.
+func _process(_delta: float) -> void:
+	if Net.etat == Net.Etat.CONNEXION:
+		_rafraichit()
 
 
 func _rafraichit() -> void:
@@ -60,11 +76,25 @@ func _rafraichit() -> void:
 		lignes.append("%d.  %s%s%s" % [id + 1, Net.nom_du_joueur(id), marque, moi])
 	_liste.text = "\n".join(lignes)
 
-	# Seul le host lance. Un client qui aurait le bouton croirait qu'il ne
-	# marche pas, ce qui est pire que de ne pas l'avoir.
-	_descendre.disabled = not Net.est_host()
-	if not Net.est_host():
-		_descendre.text = "En attente du host…"
+	_connexion.text = Net.description()
+	_connexion.add_theme_color_override("font_color",
+		Color(0.55, 0.92, 0.6) if Net.etat == Net.Etat.CONNECTE
+		else Color(1, 0.72, 0.4))
+
+	# Seul l'hôte d'une VRAIE partie lance. Un salon dont la connexion a échoué
+	# se croyait host solo et laissait descendre : chacun jouait alors sa partie
+	# de son côté sans que rien ne le signale.
+	_descendre.disabled = not Net.peut_lancer()
+	if Net.etat == Net.Etat.CONNEXION:
+		_descendre.text = "Connexion…"
+	elif Net.etat == Net.Etat.HORS_LIGNE:
+		_descendre.text = "Hors ligne — reviens au menu"
+		_descendre.disabled = true
+	elif not multiplayer.is_server():
+		_descendre.text = "En attente de l'hôte…"
+	else:
+		_descendre.text = "Descendre"
+
 
 
 func _descend(_graine: int) -> void:

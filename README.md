@@ -37,14 +37,22 @@ Lancer deux instances sur la même machine :
 deux fois, dans deux terminaux. Depuis l'éditeur, `Débogage → Exécuter plusieurs
 instances → 2`.
 
-Pour vérifier la session sans ouvrir de fenêtre, la sonde réseau :
+Le salon affiche l'état de la connexion. **`connecté — hôte` ou `connecté —
+invité` en vert**, sinon vous n'êtes pas ensemble : une tentative de connexion
+vers une adresse où personne n'écoute réussit toujours côté client, et la vérité
+n'arrive qu'ensuite. En jeu, une ligne bleue du HUD rappelle combien vous êtes.
+
+Pour vérifier la session sans ouvrir de fenêtre, la sonde réseau. Elle a besoin
+des **deux** terminaux — lancée seule, elle attend puis conclut à l'échec :
 
 ```
 Godot --headless --path . res://tools/sonde.tscn -- host   # terminal 1
-Godot --headless --path . res://tools/sonde.tscn           # terminal 2
+Godot --headless --path . res://tools/sonde.tscn           # terminal 2, dans la seconde
 ```
 
-Les deux doivent afficher le même salon et la même graine.
+Chacune bat une fois par seconde et se termine sur `VERDICT : SUCCÈS` ou
+`VERDICT : ÉCHEC`. Ce n'est pas le jeu : c'est un banc d'essai qui se referme
+tout seul au bout de sept secondes.
 
 ### Le terrain d'essai
 
