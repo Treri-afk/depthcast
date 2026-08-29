@@ -11,6 +11,8 @@ extends Control
 
 signal verrou_demande(slot_index: int)
 signal etage_suivant_demande()
+## Demande de changer l'école d'un slot. `pas` vaut -1 ou +1.
+signal ecole_changee(slot_index: int, pas: int)
 
 var joueur: PlayerAvatar = null
 
@@ -45,6 +47,23 @@ func _ready() -> void:
 	for i: int in 4:
 		var colonne := VBoxContainer.new()
 		colonne.custom_minimum_size = Vector2(155, 0)
+
+		# Flèches de changement d'école : comparer deux écoles sans relancer.
+		var choix := HBoxContainer.new()
+		var gauche := Button.new()
+		gauche.text = "<"
+		gauche.custom_minimum_size = Vector2(30, 0)
+		gauche.pressed.connect(func() -> void: ecole_changee.emit(i, -1))
+		var droite := Button.new()
+		droite.text = ">"
+		droite.custom_minimum_size = Vector2(30, 0)
+		droite.pressed.connect(func() -> void: ecole_changee.emit(i, 1))
+		var espace := Control.new()
+		espace.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		choix.add_child(gauche)
+		choix.add_child(espace)
+		choix.add_child(droite)
+		colonne.add_child(choix)
 
 		var panneau := Panel.new()
 		panneau.custom_minimum_size = Vector2(155, 62)

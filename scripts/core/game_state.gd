@@ -100,6 +100,24 @@ func set_player_schools(player_id: int, schools: Array) -> void:
 		slot.discovered_on_floor = SpellSlot.NOT_SET
 
 
+## Change l'école d'un seul slot, en cours de run.
+##
+## N'existe que pour le prototype : en jeu, les écoles se choisissent avant la
+## descente et ne bougent plus. Ici c'est l'outil qui permet de comparer les
+## écoles entre elles sans relancer.
+func set_slot_school(player_id: int, slot_index: int, school_id: StringName,
+		pool_size: int) -> void:
+	var p: PlayerState = run.get_player(player_id) if run != null else null
+	if p == null or slot_index < 0 or slot_index >= p.slots.size():
+		return
+	var slot: SpellSlot = p.slots[slot_index]
+	slot.school_id = school_id
+	slot.pool_size = clampi(pool_size, 2, 5)
+	slot.effect_index = mini(slot.effect_index, slot.pool_size - 1)
+	slot.discovered_on_floor = SpellSlot.NOT_SET
+	EventBus.slot_rerolled.emit(player_id, slot_index, slot.effect_index)
+
+
 # ── Monstres ──────────────────────────────────────────────────────────────
 
 ## Enregistre un monstre dans l'état de la run et retourne son identifiant.

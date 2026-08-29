@@ -26,6 +26,8 @@ EffectResolver="*res://scripts/core/effect_resolver.gd"
 
 window/size/viewport_width=1600
 window/size/viewport_height=900
+; 2 = maximisée. En fenêtre détachée, le jeu occupe tout l'écran au lancement.
+window/size/mode=2
 ; Le HUD suit la taille de la fenêtre au lieu de rester en pixels fixes.
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"

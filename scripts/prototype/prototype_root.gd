@@ -11,11 +11,16 @@ extends Node3D
 ##   - aucun dégât appliqué à la main (R4) — tout passe par l'EffectResolver
 
 # ── Réglages du prototype. Trituré librement. ─────────────────────────────
-const MONSTRES_PAR_ETAGE: int = 4
+const MONSTRES_PAR_SALLE: int = 3
 const PV_MONSTRE: int = 34
 const RESONANCE_PAR_MONSTRE: int = 12
 const COUT_VERROU: int = 20
-const TAILLE_SALLE: float = 22.0
+const SALLES_PAR_ETAGE: int = 3
+const TAILLE_SALLE_MIN: float = 13.0
+const TAILLE_SALLE_MAX: float = 19.0
+const LONGUEUR_COULOIR: float = 7.0
+const LARGEUR_COULOIR: float = 4.0
+const HAUTEUR_MUR: float = 4.0
 const VITESSE_PROJECTILE: float = 34.0
 
 var _joueur: PlayerAvatar
@@ -23,11 +28,13 @@ var _camera: Camera3D
 var _hud: PrototypeHud
 var _avatars: Dictionary[int, MonsterAvatar] = {}
 var _conteneur_monstres: Node3D
+var _geometrie: Node3D
+var _salles: Array[Dictionary] = []
 
 
 func _ready() -> void:
 	_declare_les_touches()
-	_construit_la_salle()
+	_construit_l_eclairage()
 	_construit_le_joueur()
 	_construit_le_hud()
 
@@ -45,6 +52,7 @@ func _ready() -> void:
 		func(_id: int, raison: String) -> void: _hud.journalise("Achat refusé : " + raison)
 	)
 
+	_assemble_l_etage()
 	_peuple_l_etage()
 	_hud.journalise("ZQSD pour bouger · souris pour viser · clic ou 1-4 pour lancer · F pour descendre · Échap pour le curseur")
 
@@ -94,7 +102,7 @@ func _declare_les_touches() -> void:
 	InputMap.action_add_event("proto_tir", clic)
 
 
-func _construit_la_salle() -> void:
+func _construit_l_eclairage() -> void:
 	var lumiere := DirectionalLight3D.new()
 	lumiere.rotation_degrees = Vector3(-58, -42, 0)
 	lumiere.light_energy = 1.15
@@ -107,18 +115,118 @@ func _construit_la_salle() -> void:
 	env.background_color = Color(0.09, 0.09, 0.12)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.35, 0.36, 0.42)
-	env.ambient_light_energy = 0.8
+	env.ambient_light_energy = 0.85
 	ambiance.environment = env
 	add_child(ambiance)
 
-	_ajoute_bloc(Vector3(0, -0.5, 0), Vector3(TAILLE_SALLE, 1, TAILLE_SALLE),
-		Color(0.28, 0.29, 0.33))
-	var demi: float = TAILLE_SALLE * 0.5
-	for cote: Array in [[Vector3(demi, 1.5, 0), Vector3(1, 4, TAILLE_SALLE)],
-			[Vector3(-demi, 1.5, 0), Vector3(1, 4, TAILLE_SALLE)],
-			[Vector3(0, 1.5, demi), Vector3(TAILLE_SALLE, 4, 1)],
-			[Vector3(0, 1.5, -demi), Vector3(TAILLE_SALLE, 4, 1)]]:
-		_ajoute_bloc(cote[0], cote[1], Color(0.2, 0.21, 0.26))
+	_geometrie = Node3D.new()
+	_geometrie.name = "Geometrie"
+	add_child(_geometrie)
+
+
+## Assemble l'étage : une chaîne de salles reliées par des couloirs.
+##
+## C'est une version minuscule du principe posé au GDD §5 — des salles
+## pré-conçues assemblées selon une seed, jamais de géométrie inventée à la
+## volée. Ici les salles sont de simples boîtes, mais le générateur ne connaît
+## déjà que des connecteurs et une seed : c'est la structure qui compte.
+func _assemble_l_etage() -> void:
+	for enfant: Node in _geometrie.get_children():
+		enfant.queue_free()
+	_salles.clear()
+
+	var rng: RandomNumberGenerator = RngService.stream(RngService.STREAM_DUNGEON)
+	var centre := Vector3.ZERO
+	var direction := Vector3.RIGHT
+
+	for i: int in SALLES_PAR_ETAGE:
+		var cote: float = rng.randf_range(TAILLE_SALLE_MIN, TAILLE_SALLE_MAX)
+		var salle := {"centre": centre, "taille": cote}
+		_salles.append(salle)
+
+		var ouverture_entree: bool = i > 0
+		var ouverture_sortie: bool = i < SALLES_PAR_ETAGE - 1
+		_batit_salle(centre, cote, direction, ouverture_entree, ouverture_sortie)
+
+		if not ouverture_sortie:
+			break
+
+		# La direction alterne pour que l'étage ne soit pas une ligne droite.
+		var suivante: Vector3 = Vector3.FORWARD if direction == Vector3.RIGHT else Vector3.RIGHT
+		var cote_suivant: float = rng.randf_range(TAILLE_SALLE_MIN, TAILLE_SALLE_MAX)
+		var depart: Vector3 = centre + direction * (cote * 0.5)
+		_batit_couloir(depart, direction)
+		centre = centre + direction * (cote * 0.5 + LONGUEUR_COULOIR + cote_suivant * 0.5)
+		direction = suivante
+
+
+func _batit_salle(centre: Vector3, cote: float, direction_sortie: Vector3,
+		ouverture_entree: bool, ouverture_sortie: bool) -> void:
+	_ajoute_bloc(centre + Vector3(0, -0.5, 0), Vector3(cote, 1, cote),
+		Color(0.30, 0.31, 0.36))
+
+	var demi: float = cote * 0.5
+	# Les quatre murs. Celui qui porte la sortie — et celui d'où l'on vient —
+	# reçoivent une ouverture de la largeur du couloir.
+	var murs := [
+		{"pos": Vector3(demi, 0, 0), "axe_z": true, "dir": Vector3.RIGHT},
+		{"pos": Vector3(-demi, 0, 0), "axe_z": true, "dir": Vector3.LEFT},
+		{"pos": Vector3(0, 0, demi), "axe_z": false, "dir": Vector3.BACK},
+		{"pos": Vector3(0, 0, -demi), "axe_z": false, "dir": Vector3.FORWARD},
+	]
+	# L'entrée vient forcément du côté opposé à la sortie précédente.
+	var entree_dir: Vector3 = -direction_sortie if not ouverture_sortie else Vector3.LEFT
+	if ouverture_entree and ouverture_sortie:
+		entree_dir = Vector3.LEFT if direction_sortie == Vector3.FORWARD else Vector3.FORWARD
+
+	for mur: Dictionary in murs:
+		var perce: bool = (ouverture_sortie and mur["dir"] == direction_sortie) \
+			or (ouverture_entree and mur["dir"] == entree_dir)
+		_batit_mur(centre + mur["pos"], cote, mur["axe_z"], perce)
+
+
+func _batit_mur(centre: Vector3, longueur: float, le_long_de_z: bool, perce: bool) -> void:
+	var hauteur := Vector3(0, HAUTEUR_MUR * 0.5, 0)
+	var couleur := Color(0.20, 0.21, 0.26)
+	if not perce:
+		var taille: Vector3 = Vector3(1, HAUTEUR_MUR, longueur) if le_long_de_z \
+			else Vector3(longueur, HAUTEUR_MUR, 1)
+		_ajoute_bloc(centre + hauteur, taille, couleur)
+		return
+
+	# Deux segments de part et d'autre de l'ouverture.
+	var segment: float = (longueur - LARGEUR_COULOIR) * 0.5
+	if segment <= 0.2:
+		return
+	var decalage: float = (LARGEUR_COULOIR + segment) * 0.5
+	for signe: float in [-1.0, 1.0]:
+		var pos: Vector3 = centre + hauteur
+		var taille: Vector3
+		if le_long_de_z:
+			pos.z += signe * decalage
+			taille = Vector3(1, HAUTEUR_MUR, segment)
+		else:
+			pos.x += signe * decalage
+			taille = Vector3(segment, HAUTEUR_MUR, 1)
+		_ajoute_bloc(pos, taille, couleur)
+
+
+func _batit_couloir(depart: Vector3, direction: Vector3) -> void:
+	var milieu: Vector3 = depart + direction * (LONGUEUR_COULOIR * 0.5)
+	var le_long_de_x: bool = absf(direction.x) > 0.5
+	var sol: Vector3 = Vector3(LONGUEUR_COULOIR, 1, LARGEUR_COULOIR) if le_long_de_x \
+		else Vector3(LARGEUR_COULOIR, 1, LONGUEUR_COULOIR)
+	_ajoute_bloc(milieu + Vector3(0, -0.5, 0), sol, Color(0.26, 0.27, 0.32))
+
+	var hauteur := Vector3(0, HAUTEUR_MUR * 0.5, 0)
+	var demi_large: float = LARGEUR_COULOIR * 0.5
+	for signe: float in [-1.0, 1.0]:
+		if le_long_de_x:
+			_ajoute_bloc(milieu + hauteur + Vector3(0, 0, signe * demi_large),
+				Vector3(LONGUEUR_COULOIR, HAUTEUR_MUR, 1), Color(0.18, 0.19, 0.24))
+		else:
+			_ajoute_bloc(milieu + hauteur + Vector3(signe * demi_large, 0, 0),
+				Vector3(1, HAUTEUR_MUR, LONGUEUR_COULOIR), Color(0.18, 0.19, 0.24))
 
 
 func _ajoute_bloc(pos: Vector3, taille: Vector3, couleur: Color) -> void:
@@ -140,7 +248,7 @@ func _ajoute_bloc(pos: Vector3, taille: Vector3, couleur: Color) -> void:
 	visuel.material_override = mat
 	corps.add_child(visuel)
 
-	add_child(corps)
+	_geometrie.add_child(corps)
 
 
 func _construit_le_joueur() -> void:
@@ -173,6 +281,7 @@ func _construit_le_hud() -> void:
 	_hud.joueur = _joueur
 	_hud.verrou_demande.connect(_sur_verrou_demande)
 	_hud.etage_suivant_demande.connect(_descend)
+	_hud.ecole_changee.connect(_sur_ecole_changee)
 	couche.add_child(_hud)
 
 
@@ -183,39 +292,44 @@ func _peuple_l_etage() -> void:
 		enfant.queue_free()
 	_avatars.clear()
 
-	# Placement seedé : le même étage de la même seed replace les monstres au
-	# même endroit (R3). Aucun appel direct à randf().
+	# Placement seedé : la même seed rejoue le même étage (R3).
 	var rng: RandomNumberGenerator = RngService.stream(RngService.STREAM_DUNGEON)
 	var pv: int = PV_MONSTRE + GameState.run.floor_index * 8
 
-	for i: int in MONSTRES_PAR_ETAGE:
-		var id: int = GameState.spawn_monster(pv, RESONANCE_PAR_MONSTRE)
-		var avatar := MonsterAvatar.new()
-		avatar.monster_id = id
-		avatar.cible = _joueur
+	for index_salle: int in _salles.size():
+		var salle: Dictionary = _salles[index_salle]
+		var centre: Vector3 = salle["centre"]
+		var bord: float = float(salle["taille"]) * 0.5 - 2.5
+		# La première salle en contient moins : on y arrive sans être encerclé.
+		var combien: int = MONSTRES_PAR_SALLE - (1 if index_salle == 0 else 0)
 
-		var forme := CollisionShape3D.new()
-		var boite := BoxShape3D.new()
-		boite.size = Vector3(1.2, 1.6, 1.2)
-		forme.shape = boite
-		avatar.add_child(forme)
+		for i: int in combien:
+			var id: int = GameState.spawn_monster(pv, RESONANCE_PAR_MONSTRE)
+			var avatar := MonsterAvatar.new()
+			avatar.monster_id = id
+			avatar.cible = _joueur
 
-		var visuel := MeshInstance3D.new()
-		visuel.name = "Mesh"
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(1.2, 1.6, 1.2)
-		visuel.mesh = mesh
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.75, 0.3, 0.35)
-		visuel.set_surface_override_material(0, mat)
-		avatar.add_child(visuel)
+			var forme := CollisionShape3D.new()
+			var boite := BoxShape3D.new()
+			boite.size = Vector3(1.2, 1.6, 1.2)
+			forme.shape = boite
+			avatar.add_child(forme)
 
-		var bord: float = TAILLE_SALLE * 0.5 - 3.0
-		avatar.position = Vector3(
-			rng.randf_range(-bord, bord), 0.9, rng.randf_range(-bord, bord)
-		)
-		_conteneur_monstres.add_child(avatar)
-		_avatars[id] = avatar
+			var visuel := MeshInstance3D.new()
+			visuel.name = "Mesh"
+			var mesh := BoxMesh.new()
+			mesh.size = Vector3(1.2, 1.6, 1.2)
+			visuel.mesh = mesh
+			var mat := StandardMaterial3D.new()
+			mat.albedo_color = Color(0.75, 0.3, 0.35)
+			visuel.set_surface_override_material(0, mat)
+			avatar.add_child(visuel)
+
+			avatar.position = centre + Vector3(
+				rng.randf_range(-bord, bord), 0.9, rng.randf_range(-bord, bord)
+			)
+			_conteneur_monstres.add_child(avatar)
+			_avatars[id] = avatar
 
 
 # ── Lancer de sorts ───────────────────────────────────────────────────────
@@ -372,6 +486,24 @@ func _sur_slot_garde(_joueur_id: int, slot_index: int) -> void:
 
 # ── Boucle d'étage ────────────────────────────────────────────────────────
 
+## Fait défiler les 5 écoles sur un slot. Purement un outil de comparaison :
+## en jeu, les écoles se choisissent avant la descente et ne bougent plus.
+func _sur_ecole_changee(slot_index: int, pas: int) -> void:
+	var slot: SpellSlot = GameState.run.players[0].slots[slot_index]
+	var actuelle: int = 0
+	for i: int in PrototypeCatalogue.SCHOOLS.size():
+		if PrototypeCatalogue.SCHOOLS[i]["id"] == slot.school_id:
+			actuelle = i
+			break
+	var total: int = PrototypeCatalogue.SCHOOLS.size()
+	var suivante: Dictionary = PrototypeCatalogue.SCHOOLS[(actuelle + pas + total) % total]
+	GameState.set_slot_school(0, slot_index, suivante["id"],
+		(suivante["effets"] as Array).size())
+	_hud.journalise("Slot %d passe à %s — %d effets possibles." % [
+		slot_index + 1, suivante["nom"], (suivante["effets"] as Array).size(),
+	])
+
+
 func _sur_verrou_demande(slot_index: int) -> void:
 	if GameState.try_lock_slot(0, slot_index, COUT_VERROU):
 		_hud.journalise("Slot %d verrouillé pour %d de Résonance." % [slot_index + 1, COUT_VERROU])
@@ -382,6 +514,7 @@ func _descend() -> void:
 		return
 	GameState.complete_floor()
 	GameState.advance_floor()
+	_assemble_l_etage()
 	_joueur.position = Vector3(0, 1.0, 0)
 	_peuple_l_etage()
 
@@ -389,5 +522,6 @@ func _descend() -> void:
 func _redemarre() -> void:
 	GameState.start_run(0, 1)
 	GameState.set_player_schools(0, PrototypeCatalogue.school_defs([0, 1, 2, 4]))
+	_assemble_l_etage()
 	_joueur.position = Vector3(0, 1.0, 0)
 	_peuple_l_etage()
