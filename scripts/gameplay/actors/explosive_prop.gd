@@ -86,10 +86,38 @@ func _explose() -> void:
 		fx.eclair(centre + Vector3(0, 0.8, 0), Content.palette.tonneau_explosif,
 			0.32, 9.0, rayon * 2.4)
 
+	_allume_la_braise(centre, parent)
 	EventBus.explosion_triggered.emit(centre, puissance)
 	_projette_des_debris()
 	detruit.emit()
 	queue_free()
+
+
+## La flaque de braise laissée par l'explosion.
+##
+## C'est la même classe que le sol ardent d'un sort — mêmes battements, même
+## passage par le resolver — à une différence près : elle ne demande pas qui a
+## allumé le feu. On peut se brûler à son propre tonneau, et c'est le prix de
+## l'avoir fait sauter à ses pieds.
+##
+## Elle transforme aussi le baril en outil d'interdiction : après l'explosion,
+## le passage reste coupé quelques secondes.
+func _allume_la_braise(centre: Vector3, parent: Node) -> void:
+	var t: Tuning = Content.tuning
+	if parent == null or t.tonneau_braise_duree <= 0.0:
+		return
+
+	var braise := ZoneEffet.cree(ZoneEffet.Forme.SPHERE,
+		Vector3(rayon * t.tonneau_braise_part_du_rayon, 0, 0),
+		Vector3(centre.x, 0.4, centre.z))
+	braise.duree = t.tonneau_braise_duree
+	braise.intervalle = t.tonneau_braise_intervalle
+	braise.degats = t.tonneau_braise_degats
+	braise.couleur = Content.palette.tonneau_explosif
+	# Personne n'est crédité de ce qu'une braise de tonneau tue.
+	braise.source_player_id = -1
+	braise.blesse_le_joueur = true
+	parent.add_child(braise)
 
 
 ## Le tonneau ne retire pas un point de vie lui-même : il décrit ce qu'il

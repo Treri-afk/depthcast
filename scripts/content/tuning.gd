@@ -75,6 +75,15 @@ extends Resource
 ## a le temps de courir.
 @export_range(0.05, 2.0, 0.05) var tonneau_meche: float = 0.4
 
+## La braise laissée au sol après l'explosion. Ce n'est pas une décoration :
+## elle brûle, comme un sol ardent, et elle ne demande pas qui a allumé le feu.
+## C'est ce qui empêche de faire sauter un tonneau à ses pieds sans y penser, et
+## ce qui transforme un baril en outil d'interdiction de zone.
+@export_range(0.0, 1.0, 0.05) var tonneau_braise_part_du_rayon: float = 0.45
+@export_range(0.0, 15.0, 0.5) var tonneau_braise_duree: float = 4.0
+@export_range(0.1, 3.0, 0.1) var tonneau_braise_intervalle: float = 0.6
+@export var tonneau_braise_degats: int = 5
+
 @export_group("Souffle et projection")
 ## Part de la puissance d'un souffle qui s'applique au joueur. À zéro, les
 ## explosions ne bousculent que le décor et les monstres.
@@ -83,6 +92,15 @@ extends Resource
 ## et le frottement absorbe tout en deux mètres — or la projection ne dure que
 ## tant qu'on est en l'air, donc c'est aussi ce réglage qui décide de sa durée.
 @export_range(0.0, 1.5, 0.05) var souffle_elevation: float = 0.9
+## Élévation appliquée aux MONSTRES, volontairement plus basse que celle du
+## joueur. Les voir décoller est la moitié du plaisir d'une explosion ; les voir
+## rester en l'air trois secondes en ferait une immobilisation, donc une
+## mécanique de contrôle — ce qu'une explosion ne doit pas devenir.
+@export_range(0.0, 1.5, 0.05) var souffle_elevation_monstres: float = 0.35
+## Hauteur maximale d'un monstre projeté. Bien plus basse que celle du joueur :
+## un rôdeur qui part à quinze mètres n'est plus une réaction, c'est un gag, et
+## il retombe hors du décor.
+@export_range(0.0, 12.0, 0.5) var souffle_hauteur_max_monstres: float = 2.5
 ## Vitesse en dessous de laquelle on ne projette pas du tout. Un souffle
 ## lointain qui décolle le joueur d'un demi-mètre se lit comme un bug de
 ## collision, pas comme une explosion.

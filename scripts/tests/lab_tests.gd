@@ -161,13 +161,18 @@ func _check_reglages() -> void:
 
 	# La verticale est bornée, l'horizontale ne l'est pas : on part loin, pas
 	# haut. Au-dessus des murs, on quitte le décor.
-	var sommet: float = PlayerAvatar.vitesse_pour_culminer_a(
+	var sommet: float = Souffle.vitesse_pour_culminer_a(
 		t.projection_hauteur_max, t.gravite)
 	verifie("la projection ne dépasse pas la hauteur des murs",
 		t.projection_hauteur_max < t.hauteur_mur,
 		"%.1f m contre %.1f m" % [t.projection_hauteur_max, t.hauteur_mur])
 	verifie("et elle décolle quand même franchement", sommet > t.impulsion_saut,
 		"%.1f m/s contre un saut à %.1f" % [sommet, t.impulsion_saut])
+	# Un rôdeur qui part à quinze mètres n'est plus une réaction, c'est un gag.
+	verifie("un monstre décolle bien moins haut que le joueur",
+		t.souffle_hauteur_max_monstres < t.projection_hauteur_max,
+		"%.1f m contre %.1f m" % [t.souffle_hauteur_max_monstres,
+			t.projection_hauteur_max])
 
 func _genres_de_l_etal() -> Array:
 	var vus: Array = []

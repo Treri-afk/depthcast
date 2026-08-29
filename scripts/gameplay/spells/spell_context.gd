@@ -73,14 +73,23 @@ func monstres_dans_cone(origine: Vector3, direction: Vector3, portee: float,
 ## Sans ce nettoyage la liste enfle indéfiniment sur un terrain qui réarme son
 ## mobilier en boucle.
 func enregistre_objet(corps: PropDestructible) -> void:
-	objets = objets.filter(func(c: PropDestructible) -> bool:
-		return is_instance_valid(c))
-	objets.append(corps)
+	var vivants: Array[PropDestructible] = []
+	# Boucle NON typée, et c'est délibéré : un objet libéré ne se convertit plus
+	# en PropDestructible, donc une variable de boucle typée — ou un `filter`
+	# dont la lambda est typée — échoue précisément sur les entrées qu'on est en
+	# train de venir nettoyer.
+	for c in objets:
+		if is_instance_valid(c):
+			vivants.append(c)
+	vivants.append(corps)
+	objets = vivants
 
 
 func objets_valides() -> Array:
 	var out: Array = []
-	for corps: PropDestructible in objets:
+	# Non typée pour la même raison qu'au-dessus : la liste contient justement
+	# des entrées libérées, et c'est ce qu'on vient y chercher.
+	for corps in objets:
 		if is_instance_valid(corps):
 			out.append(corps)
 	return out
@@ -101,7 +110,7 @@ func souffle(centre: Vector3, rayon: float, puissance: float, repousse: bool,
 	onde.epargne_le_lanceur = epargne_le_lanceur
 	onde.sur_objets(objets_valides(), degats_decor)
 	onde.sur_joueur(joueur, tuning)
-	return onde.sur_monstres(monstres)
+	return onde.sur_monstres(monstres, tuning)
 
 
 func frappe_objets_devant(origine: Vector3, direction: Vector3, portee: float,

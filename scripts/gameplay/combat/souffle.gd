@@ -33,6 +33,15 @@ func _init(p_centre: Vector3 = Vector3.ZERO, p_rayon: float = 5.0,
 	aspire = p_aspire
 
 
+## Vitesse verticale nécessaire pour culminer à une hauteur donnée.
+##
+## Ici et pas dans l'un des deux corps qui s'en servent : le joueur et les
+## monstres plafonnent leur envol par la même règle, et deux copies de la même
+## racine carrée finiraient par se contredire.
+static func vitesse_pour_culminer_a(hauteur: float, gravite: float) -> float:
+	return sqrt(2.0 * maxf(gravite, 0.001) * maxf(hauteur, 0.0))
+
+
 ## Part de la puissance reçue à une position donnée, entre 0 et 1.
 ##
 ## Elle ne tombe pas tout à fait à zéro au bord : une explosion qui s'annule
@@ -77,18 +86,34 @@ func sur_objets(objets: Array, degats_decor: int = 0) -> void:
 
 ## Repousse les monstres. Retourne les identifiants touchés, que l'appelant
 ## passe ensuite au resolver s'il veut aussi leur infliger des dégâts.
-func sur_monstres(monstres: Dictionary) -> Array:
+func sur_monstres(monstres: Dictionary, tuning: Tuning) -> Array:
 	var touches: Array = []
 	for id: int in monstres:
 		var avatar: MonsterAvatar = monstres[id]
-		if not is_instance_valid(avatar):
-			continue
-		var part: float = attenuation(avatar.global_position)
-		if part <= 0.0:
-			continue
-		avatar.repousse(sens_vers(avatar.global_position) * puissance * part)
-		touches.append(id)
+		if is_instance_valid(avatar) and pousse(avatar, tuning):
+			touches.append(id)
 	return touches
+
+
+## Repousse un monstre. Retourne false s'il était hors de portée.
+##
+## L'élévation est plus basse que celle du joueur : les voir décoller est la
+## moitié du plaisir d'une explosion, les voir rester en l'air trois secondes en
+## ferait une immobilisation.
+func pousse(avatar: MonsterAvatar, tuning: Tuning) -> bool:
+	var part: float = attenuation(avatar.global_position)
+	if part <= 0.0:
+		return false
+	var sens: Vector3 = (sens_vers(avatar.global_position)
+		+ Vector3.UP * tuning.souffle_elevation_monstres).normalized()
+	var vecteur: Vector3 = sens * puissance * part
+	# La verticale est plafonnée, l'horizontale non — même règle que pour le
+	# joueur. Sans ça, un monstre pris au centre exact reçoit toute la puissance
+	# à la verticale et part à quinze mètres, très au-dessus des murs.
+	vecteur.y = minf(vecteur.y, vitesse_pour_culminer_a(
+		tuning.souffle_hauteur_max_monstres, tuning.gravite))
+	avatar.repousse(vecteur)
+	return true
 
 
 ## Applique le souffle à tout ce que la PHYSIQUE trouve dans le rayon.
@@ -130,9 +155,7 @@ func sur_les_corps_autour(depuis: Node3D, tuning: Tuning,
 
 		var monstre := corps as MonsterAvatar
 		if monstre != null:
-			var part: float = attenuation(monstre.global_position)
-			if part > 0.0:
-				monstre.repousse(sens_vers(monstre.global_position) * puissance * part)
+			if pousse(monstre, tuning):
 				(touches["monstres"] as Array).append(monstre.monster_id)
 			continue
 
@@ -164,5 +187,9 @@ func sur_joueur(joueur: PlayerAvatar, tuning: Tuning) -> void:
 	# vous décolle d'un demi-mètre ne se lit pas comme une explosion, il se lit
 	# comme un bug de collision.
 	if vitesse < tuning.souffle_seuil_projection:
+		# Trop loin pour décoller, assez près pour la sentir passer. Sans cette
+		# secousse il existe une distance à laquelle une explosion ne fait
+		# absolument RIEN — et c'est là que le joueur cesse de la craindre.
+		joueur.secoue(vitesse)
 		return
 	joueur.projete(sens * vitesse, centre)

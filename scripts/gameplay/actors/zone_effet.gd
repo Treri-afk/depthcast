@@ -18,6 +18,14 @@ var soin: int = 0
 var ralentissement: float = 1.0
 var source_player_id: int = 0
 var source_slot: int = -1
+## La zone brûle aussi le joueur.
+##
+## Faux pour tout ce qu'il lance lui-même : un mur de flammes qui brûle son
+## lanceur ferait de chaque sort de zone un piège. Vrai pour ce que le décor
+## déclenche — une flaque de braise laissée par un tonneau ne demande pas qui a
+## allumé le feu, et c'est ce qui empêche de faire sauter un baril à ses pieds
+## sans y penser.
+var blesse_le_joueur: bool = false
 var couleur: Color = Color.WHITE
 
 var _restant: float = 0.0
@@ -109,6 +117,7 @@ func _physics_process(delta: float) -> void:
 
 func _bat() -> void:
 	var cibles: Array = []
+	var joueurs: Array = []
 	var touche_le_joueur: bool = false
 
 	for corps: Node3D in get_overlapping_bodies():
@@ -118,22 +127,31 @@ func _bat() -> void:
 			if ralentissement < 1.0:
 				monstre.ralentis(ralentissement, intervalle * 1.6)
 			continue
-		# Une caisse posée dans un mur de flammes finit par brûler.
+		# Une caisse posée dans un mur de flammes finit par brûler. Et un
+		# tonneau explosif posé dedans finit par sauter, ce qui n'a jamais été
+		# écrit nulle part : c'est la conséquence de deux règles simples.
 		var objet := corps as PropDestructible
 		if objet != null:
 			if degats > 0:
 				objet.encaisse(degats, global_position)
 			continue
-		if corps is PlayerAvatar:
+		var joueur := corps as PlayerAvatar
+		if joueur != null:
 			touche_le_joueur = true
+			if blesse_le_joueur:
+				joueurs.append(joueur.player_id)
 
-	if degats > 0 and not cibles.is_empty():
+	if degats > 0 and not (cibles.is_empty() and joueurs.is_empty()):
 		var intent := EffectIntent.new()
 		intent.source_player_id = source_player_id
 		intent.source_slot = source_slot
 		intent.kind = EffectIntent.Kind.DAMAGE
 		intent.amount = degats
+		# L'interface a besoin de savoir OÙ ça brûle pour l'indiquer : en vue
+		# subjective, encaisser sans savoir d'où ça vient est illisible.
+		intent.origine = global_position
 		intent.target_monsters = PackedInt64Array(cibles)
+		intent.target_ids = PackedInt64Array(joueurs)
 		EffectResolver.submit(intent)
 
 	if soin > 0 and touche_le_joueur:

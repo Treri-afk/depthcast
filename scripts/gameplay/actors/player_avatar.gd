@@ -96,6 +96,12 @@ func _ready() -> void:
 
 	_regard = MouseLook.new(self, tete, _tuning.sensibilite_souris)
 
+	# Encaisser secoue la vue. Le voile rouge dit COMBIEN, la secousse dit QUE —
+	# et elle le dit avant qu'on ait eu le temps de lire quoi que ce soit.
+	EventBus.player_damaged.connect(func(id: int, degats: int, _o: Vector3) -> void:
+		if id == player_id:
+			secoue(float(degats) * 0.4))
+
 	# Sans accrochage au sol, on décolle en haut d'une rampe et on redescend en
 	# sautillant. 50° laisse de la marge au-dessus de la pente de 22° des rampes.
 	floor_snap_length = 0.5
@@ -300,8 +306,8 @@ func projete(impulsion: Vector3, origine: Vector3 = Vector3.ZERO) -> void:
 		lancee = lancee.normalized() * _tuning.projection_vitesse_max
 	# La verticale seule est bornée : on part loin, pas haut. Un souffle qui
 	# envoie à vingt mètres sort d'une salle qui en fait cinq et demi.
-	lancee.y = minf(lancee.y, vitesse_pour_culminer_a(_tuning.projection_hauteur_max,
-		_tuning.gravite))
+	lancee.y = minf(lancee.y, Souffle.vitesse_pour_culminer_a(
+		_tuning.projection_hauteur_max, _tuning.gravite))
 	velocity = lancee
 
 	# L'accrochage au sol est coupé le temps du vol : sinon un souffle rasant
@@ -315,12 +321,6 @@ func projete(impulsion: Vector3, origine: Vector3 = Vector3.ZERO) -> void:
 
 	_arme_la_culbute(impulsion)
 	EventBus.player_blasted.emit(player_id, impulsion.length(), origine)
-
-
-## Vitesse verticale nécessaire pour culminer à une hauteur donnée.
-## Fonctions pures et à part : vérifiables sans moteur.
-static func vitesse_pour_culminer_a(hauteur: float, gravite: float) -> float:
-	return sqrt(2.0 * maxf(gravite, 0.001) * maxf(hauteur, 0.0))
 
 
 ## Temps passé à terre après l'impact, pour une vitesse reçue donnée.
@@ -371,6 +371,23 @@ func _atterrit() -> void:
 	_culbute_vitesse.y += minf(choc * 0.14, 4.0)
 	_culbute_vitesse = _culbute_vitesse.limit_length(9.0)
 	EventBus.player_slammed.emit(player_id, choc)
+
+
+## Une secousse de la vue, SANS perte de contrôle.
+##
+## C'est ce qui reste d'une explosion trop lointaine pour projeter, et d'un coup
+## encaissé. Sans elle il existe une distance à laquelle une explosion ne fait
+## absolument rien — et c'est exactement là que le joueur cesse de la craindre.
+##
+## Le sens est tiré au hasard sans passer par RngService : c'est de la caméra,
+## pas du jeu. Deux joueurs qui la verraient partir dans des sens opposés
+## verraient quand même la même partie.
+func secoue(force: float) -> void:
+	if _tuning == null or force <= 0.0:
+		return
+	var ampleur: float = minf(force, 14.0) * 0.05 * _tuning.projection_culbute
+	_culbute_vitesse += Vector2(randf_range(-1.0, 1.0), randf_range(-0.6, 1.0)) * ampleur
+	_culbute_vitesse = _culbute_vitesse.limit_length(9.0)
 
 
 ## La vue part dans le sens du souffle : projeté vers la droite, l'horizon

@@ -26,6 +26,14 @@ var _facteur_vitesse: float = 1.0
 var _ralenti_restant: float = 0.0
 var _teinte_restante: float = 0.0
 var _telegraphe: float = 0.0
+## Temps restant en vol balistique après un souffle. Pendant ce temps la gravité
+## seule décide : le sol ne remet pas la vitesse verticale à zéro, et le volant
+## cesse de tenir son altitude — c'est ce qui permet de le décrocher du ciel.
+var _envol_restant: float = 0.0
+## Rotation propre du maillage pendant la culbute. Portée par le MESH et non par
+## le corps : faire tourner le corps ferait tourner sa boîte de collision, et un
+## monstre qui se coince dans un mur en vrillant n'est drôle qu'une fois.
+var _vrille: Vector3 = Vector3.ZERO
 var _mesh: MeshInstance3D = null
 var _materiau: ShaderMaterial = null
 
@@ -51,6 +59,8 @@ func _cree_cerveau() -> MonsterBrain:
 
 func _physics_process(delta: float) -> void:
 	_telegraphe = maxf(0.0, _telegraphe - delta)
+	_envol_restant = maxf(0.0, _envol_restant - delta)
+	_maj_vrille(delta)
 	_maj_ralentissement(delta)
 	_maj_teinte(delta)
 	_impulsion = _impulsion.move_toward(Vector3.ZERO, AMORTISSEMENT * delta)
@@ -67,6 +77,12 @@ func _physics_process(delta: float) -> void:
 
 
 func _maj_vertical(delta: float) -> void:
+	if _envol_restant > 0.0:
+		# En vol balistique, volant compris. Le sol ne reprend pas la main :
+		# sinon l'impulsion verticale serait annulée dès la première frame,
+		# alors qu'on touche encore le sol d'où l'on décolle.
+		velocity.y -= GRAVITE * delta
+		return
 	if not stats.vole:
 		velocity.y = 0.0 if is_on_floor() else velocity.y - GRAVITE * delta
 		return
@@ -112,10 +128,44 @@ func _signale_attaque() -> void:
 
 # ── Effets subis ──────────────────────────────────────────────────────────
 
+## Repoussé par un souffle. La composante verticale le décolle — y compris un
+## volant, qui perd alors son altitude et retombe.
+##
+## L'envol dure le temps d'une balistique et pas une seconde de plus : voir un
+## rôdeur partir en l'air est la moitié du plaisir d'une explosion, l'y voir
+## rester en ferait une immobilisation, donc une mécanique de contrôle.
 func repousse(vecteur: Vector3) -> void:
 	_impulsion += Vector3(vecteur.x, 0.0, vecteur.z)
+	if vecteur.y > 0.0:
+		velocity.y = maxf(velocity.y, vecteur.y)
+		_envol_restant = maxf(_envol_restant, vecteur.y / GRAVITE * 2.1)
+		_arme_la_vrille(vecteur)
 	if _cerveau != null:
 		_cerveau.interrompt_l_assaut()
+
+
+## La vrille suit le sens du souffle. Purement visuelle, donc tirée au hasard
+## sans passer par RngService : deux clients qui la verraient tourner dans des
+## sens opposés verraient quand même le même monstre au même endroit.
+func _arme_la_vrille(vecteur: Vector3) -> void:
+	var force: float = clampf(vecteur.length() * 0.4, 1.5, 10.0)
+	var axe := Vector3(vecteur.z, randf_range(-1.0, 1.0) * vecteur.length(), -vecteur.x)
+	if axe.length_squared() < 0.001:
+		axe = Vector3.UP
+	_vrille = axe.normalized() * force
+
+
+func _maj_vrille(delta: float) -> void:
+	if _mesh == null:
+		return
+	if _envol_restant > 0.0:
+		_mesh.rotation += _vrille * delta
+		return
+	if _mesh.rotation.length_squared() < 0.0001:
+		return
+	# Retombé : il se remet d'aplomb. Vite, mais pas instantanément — un
+	# redressement sec annulerait la culbute qu'on vient de regarder.
+	_mesh.rotation = _mesh.rotation.lerp(Vector3.ZERO, minf(delta * 7.0, 1.0))
 
 
 func ralentis(facteur: float, duree: float) -> void:
