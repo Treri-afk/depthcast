@@ -17,6 +17,35 @@
 
 Le suivi des tâches est dans Plane, projet `DEPTH`.
 
+### Jouer à plusieurs
+
+Le menu propose **Héberger une partie** et **Rejoindre**. Le transport par
+défaut est le réseau local (ENet) : deux instances du jeu sur la même machine se
+parlent en `127.0.0.1`, sans compte, sans client tiers, sans connexion Internet.
+
+**Steam n'est pas nécessaire pour développer ni pour essayer le co-op.** Il
+viendra remplacer le tuyau pour la distribution — traverser les box des joueurs,
+inviter des amis — et rien d'autre. C'est tout l'objet de
+[R9](docs/ARCHITECTURE.md) : le jeu ne connaît jamais son transport.
+
+Lancer deux instances sur la même machine :
+
+```
+/Applications/Godot.app/Contents/MacOS/Godot --path .
+```
+
+deux fois, dans deux terminaux. Depuis l'éditeur, `Débogage → Exécuter plusieurs
+instances → 2`.
+
+Pour vérifier la session sans ouvrir de fenêtre, la sonde réseau :
+
+```
+Godot --headless --path . res://tools/sonde.tscn -- host   # terminal 1
+Godot --headless --path . res://tools/sonde.tscn           # terminal 2
+```
+
+Les deux doivent afficher le même salon et la même graine.
+
 ### Le terrain d'essai
 
 Le menu principal propose **Terrain d'essai** : une salle sans enjeu où l'on ne

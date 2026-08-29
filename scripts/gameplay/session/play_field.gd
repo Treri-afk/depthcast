@@ -107,6 +107,13 @@ func _cree_avatar(player_id: int) -> PlayerAvatar:
 	# la passe 3D, et il n'y a qu'un écran.
 	if avatar.local:
 		avatar.camera.add_child(PostProcess.cree(Content.palette))
+
+	# La réplication est posée même hors ligne : elle ne fait alors rien, et
+	# l'arbre reste identique dans les deux modes. Un arbre qui change selon
+	# qu'on est connecté est un arbre dont les chemins d'appel distant ne
+	# correspondent plus d'une machine à l'autre.
+	var peer: int = Net.peer_de(player_id)
+	avatar.add_child(AvatarSync.cree(avatar, peer if peer > 0 else 1))
 	return avatar
 
 

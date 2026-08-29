@@ -16,6 +16,7 @@ func execute() -> void:
 	_check_joueur_local()
 	_check_etat_partage()
 	_check_flux_independants()
+	_check_session_hors_ligne()
 
 
 ## Le joueur local est une notion de CLIENT, pas de partie. Deux machines qui
@@ -101,3 +102,32 @@ func _check_flux_independants() -> void:
 		rejoue.append(RngService.player_stream(RngService.STREAM_REROLL, 0).randi_range(0, 99))
 	verifie("mais la même seed redonne la même suite", rejoue == tirages_0,
 		"%s vs %s" % [str(rejoue), str(tirages_0)])
+
+
+## Le solo ne doit JAMAIS être un cas particulier du multijoueur.
+##
+## Hors ligne, la session répond comme une partie à un joueur dont on est le
+## host : le code de gameplay n'a donc jamais à demander « y a-t-il un réseau ? »
+## avant de décider s'il a le droit d'agir. Le jour où cette propriété se
+## casse, c'est le mode solo qui se casse — sans que rien ne le signale.
+func _check_session_hors_ligne() -> void:
+	print("Hors ligne, la session répond en solo")
+
+	verifie("aucune partie en ligne au démarrage", not Net.en_ligne())
+	verifie("on est son propre host", Net.est_host())
+	verifie("un seul joueur", Net.nombre_de_joueurs() == 1)
+	var ids: Array[int] = Net.joueurs()
+	verifie("qui porte l'identifiant 0", ids.size() == 1 and ids[0] == 0, str(ids))
+	verifie("la graine vaut zéro — la run en tirera une",
+		Net.graine == 0)
+	# Le plafond vient du transport, qui ouvre les connexions : deux plafonds
+	# différents laisseraient entrer un joueur que le jeu ne saurait pas placer.
+	verifie("le plafond de joueurs est celui du transport",
+		Net.JOUEURS_MAX == NetTransport.JOUEURS_MAX and Net.JOUEURS_MAX == 4)
+
+	# Le transport est interchangeable (R9) : c'est ce qui permet de jouer en
+	# local aujourd'hui et de passer par Steam à la sortie, sans toucher au jeu.
+	var enet := EnetTransport.new()
+	verifie("le transport local s'annonce", enet.nom() != "aucun")
+	verifie("et il sait dire où le joindre", enet.adresse_affichable() != "")
+	verifie("il dérive bien de l'abstraction", enet is NetTransport)

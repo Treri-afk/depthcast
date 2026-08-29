@@ -360,6 +360,54 @@ regarder le combat.
 
 ---
 
+## D15 — Le réseau local d'abord, Steam en dernier
+*Décidé le 29 août 2026*
+
+Le transport par défaut est **ENet**, en local et en LAN. Steam reste prévu pour
+la distribution (D8, D9), mais il arrive en dernier et ne change rien au jeu.
+
+Ce n'est pas une préférence technique, c'est une question de boucle de travail.
+Steam impose Windows et un client lancé, alors que le co-op se conçoit et se
+calibre **en jouant** : il faut pouvoir ouvrir deux fenêtres côte à côte,
+essayer, refermer, recommencer. Un projet qui ne peut essayer son multijoueur
+qu'en conditions de production ne l'essaie jamais — et découvre ses problèmes de
+ressenti trois mois trop tard.
+
+`NetTransport` est l'abstraction de R9. Le jeu demande à héberger ou à
+rejoindre, il reçoit un pair, il s'en sert. Il ne sait pas lequel il utilise.
+
+### Ce que l'étape 2 réplique, et ce qu'elle ne réplique pas
+
+**Répliqué** : la session (qui joue, sous quel identifiant, qui fait autorité),
+la graine de la run, et la position et le regard de chaque avatar.
+
+**Pas encore répliqué** : les monstres, les dégâts, la Résonance, le mobilier.
+Les deux machines partent du même donjon parce qu'elles partagent la graine,
+puis **simulent chacune de leur côté et divergent**. C'est attendu, et c'est
+l'objet de l'étape suivante : passer les intentions par le host, qui seul
+résout, et diffuser le résultat.
+
+Dire lesquels des deux on a fait est ce qui évite de croire le multijoueur
+terminé parce que deux personnages se voient courir.
+
+### Le corps distant ne calcule pas sa physique
+
+Sa trajectoire est calculée chez son propriétaire. La recalculer localement
+produirait deux vérités qui divergent — précisément ce que l'architecture
+host-autoritaire existe pour empêcher. Chacun n'annonce que sa propre position :
+personne ne peut déplacer le personnage d'un autre, et ce n'est pas une
+politesse, c'est ce qui empêche un client bricolé de téléporter l'équipe.
+
+### Hors ligne, la session répond en solo
+
+`est_host()` vaut vrai, `nombre_de_joueurs()` vaut 1. Le code de gameplay ne
+demande donc jamais « y a-t-il un réseau ? » avant de décider s'il a le droit
+d'agir. **C'est la condition pour que le solo ne devienne pas un cas particulier
+du multijoueur** — ce serait le meilleur moyen de le casser sans s'en apercevoir.
+Un test le garde.
+
+---
+
 ## Q1 — Le multiplicateur cumulatif de verrous : par joueur ou par équipe ?
 *Ouverte depuis le 27 août 2026 — conséquence directe de D3*
 

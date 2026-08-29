@@ -30,7 +30,10 @@ var _debug := DebugCommands.new()
 
 func _ready() -> void:
 	_terrain = PlayField.new(self)
-	_terrain.monte()
+	# La graine et le nombre de joueurs viennent de la session : en solo elle
+	# répond 0 et 1, donc rien ne change et le solo n'est pas un cas
+	# particulier du multijoueur.
+	_terrain.monte(Net.graine, Net.nombre_de_joueurs())
 	_joueur = _terrain.joueur
 	_hud = _terrain.hud
 	_fx = _terrain.fx

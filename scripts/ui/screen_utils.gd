@@ -7,6 +7,7 @@ const CHEMIN_MENU := "res://scenes/menu.tscn"
 const CHEMIN_HUB := "res://scenes/hub.tscn"
 const CHEMIN_JEU := "res://scenes/jeu.tscn"
 const CHEMIN_LABO := "res://scenes/labo.tscn"
+const CHEMIN_SALON := "res://scenes/salon.tscn"
 
 
 static func fond(parent: Control) -> void:
@@ -42,6 +43,15 @@ static func bouton(texte: String, actif: bool = true) -> Button:
 	# Même vocabulaire que le HUD : menus et jeu appartiennent à la même image.
 	HudStyle.habille_bouton(b)
 	return b
+
+
+static func champ(texte: String, indication: String = "") -> LineEdit:
+	var ligne := LineEdit.new()
+	ligne.text = texte
+	ligne.placeholder_text = indication
+	ligne.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ligne.custom_minimum_size = Vector2(340, 40)
+	return ligne
 
 
 static func colonne(parent: Control, separation: int = 14) -> VBoxContainer:

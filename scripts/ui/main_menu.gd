@@ -6,8 +6,16 @@ extends Control
 ## montrer inerte donne une carte du chemin restant.
 
 
+var _adresse: LineEdit
+var _statut: Label
+
+
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# Revenir au menu ferme la partie en cours : une session laissée ouverte
+	# derrière soi bloquerait le port au prochain hébergement.
+	Net.quitte()
+	Net.echec.connect(func(message: String) -> void: _statut.text = message)
 	ScreenUtils.fond(self)
 	var col := ScreenUtils.colonne(self, 16)
 
@@ -34,17 +42,35 @@ func _ready() -> void:
 		Color(0.55, 0.85, 1.0, 0.75)))
 	col.add_child(_espace(12))
 
-	col.add_child(ScreenUtils.bouton("Jouer en coopération", false))
-	col.add_child(ScreenUtils.sous_titre(
-		"Le réseau n'est pas encore implémenté. L'architecture est prête — état\n"
-		+ "centralisé, joueurs indexés, RNG par joueur, résolution déterministe —\n"
-		+ "mais aucun transport n'est branché. Prévu au cycle C7.",
-		Color(1, 0.82, 0.45, 0.8)))
-	col.add_child(_espace(20))
+	col.add_child(_espace(8))
+	var heberger := ScreenUtils.bouton("Héberger une partie")
+	heberger.pressed.connect(func() -> void: _ouvre(Net.heberge()))
+	col.add_child(heberger)
+
+	# L'adresse est pré-remplie sur la machine locale : le cas le plus fréquent
+	# pendant le développement est deux fenêtres côte à côte, et il ne doit rien
+	# demander de plus qu'un clic.
+	_adresse = ScreenUtils.champ("127.0.0.1", "adresse du host")
+	col.add_child(_adresse)
+
+	var rejoindre := ScreenUtils.bouton("Rejoindre")
+	rejoindre.pressed.connect(func() -> void: _ouvre(Net.rejoint(_adresse.text)))
+	col.add_child(rejoindre)
+
+	_statut = ScreenUtils.sous_titre("", Color(1, 0.6, 0.5, 0.9))
+	col.add_child(_statut)
+	col.add_child(_espace(14))
 
 	var quitter := ScreenUtils.bouton("Quitter")
 	quitter.pressed.connect(func() -> void: get_tree().quit())
 	col.add_child(quitter)
+
+
+## Le salon ne s'ouvre que si la connexion a démarré. Sinon on reste ici, avec
+## la raison affichée sous les boutons.
+func _ouvre(ouverte: bool) -> void:
+	if ouverte:
+		get_tree().change_scene_to_file(ScreenUtils.CHEMIN_SALON)
 
 
 func _espace(hauteur: int) -> Control:
