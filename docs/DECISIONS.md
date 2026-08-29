@@ -149,6 +149,43 @@ faudrait un second compte et une seconde machine — à chaque test.
 
 ---
 
+## D9 — Intégration Steam : GodotSteam en GDExtension
+**29 août 2026** · résout le spike ouvert par [D2](#d2--topologie-réseau--p2p-host-autoritatif-via-steam)
+
+**Décision.** GodotSteam en version **GDExtension**, et non en module compilé.
+
+**Ce qui a été vérifié.**
+- La GDExtension couvre **Godot 4.4 à 4.8**, donc notre 4.6.3. Version courante :
+  GodotSteam 4.22, Steamworks SDK 1.65.
+- Plateformes : Windows, Linux et **macOS** — la machine de développement est un Mac.
+- Installation par l'AssetLib de l'éditeur ou en déposant l'archive dans le projet.
+  Aucun build custom du moteur.
+
+**Écarté : le module compilé.** Il impose un binaire Godot custom à *tout* le monde.
+Un artiste devrait installer une version spéciale du moteur avant même d'ouvrir le
+projet — ce qui contredit frontalement la promesse du GDD qu'un non-développeur
+contribue sans friction. Les deux versions sont mutuellement incompatibles : le choix
+se fait une fois.
+
+**Pièges relevés, à ne pas découvrir en production.**
+- **Exporter avec les templates Godot standards**, surtout pas ceux de GodotSteam.
+  L'inverse provoque, selon la documentation du projet, « beaucoup de problèmes ».
+- **L'overlay Steam ne fonctionne pas depuis l'éditeur**, uniquement dans un export.
+  Toute validation d'invitation ou de lobby demande donc un build — ce qui renforce
+  [R9](ARCHITECTURE.md#r9--le-transport-réseau-est-interchangeable) : le
+  développement quotidien se fait en ENet, pas en tapant sur Steam.
+
+**Non vérifié à ce stade.** L'initialisation réelle de l'API n'a pas été exécutée :
+cela demande d'installer un binaire tiers dans le dépôt et un client Steam connecté.
+À faire au moment de brancher le transport Steam (C7), pas avant — rien ne l'exige
+tant que la logique réseau se développe en ENet.
+
+**Rappel de [D8](#d8--développement-steam-sur-lapp-id-public-480-transport-interchangeable) :**
+développement sur l'App ID public 480, les 100 $ de Steam Direct ne sont dus qu'à la
+publication.
+
+---
+
 # Questions ouvertes
 
 ## Q1 — Le multiplicateur cumulatif de verrous : par joueur ou par équipe ?

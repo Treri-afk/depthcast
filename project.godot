@@ -11,9 +11,16 @@ config_version=5
 [application]
 
 config/name="DepthCast"
+run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
-run/main_scene="res://scenes/main.tscn"
+
+[autoload]
+
+EventBus="*res://scripts/core/event_bus.gd"
+RngService="*res://scripts/core/rng_service.gd"
+GameState="*res://scripts/core/game_state.gd"
+EffectResolver="*res://scripts/core/effect_resolver.gd"
 
 [physics]
 
@@ -22,12 +29,3 @@ run/main_scene="res://scenes/main.tscn"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
-
-[autoload]
-
-; L'ordre compte : EventBus n'a aucune dépendance, RngService non plus,
-; GameState les utilise tous les deux, EffectResolver dépend de GameState.
-EventBus="*res://scripts/core/event_bus.gd"
-RngService="*res://scripts/core/rng_service.gd"
-GameState="*res://scripts/core/game_state.gd"
-EffectResolver="*res://scripts/core/effect_resolver.gd"

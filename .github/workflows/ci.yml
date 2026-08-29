@@ -63,5 +63,8 @@ jobs:
 
       # scenes/main.tscn exécute les tests d'ARCHITECTURE.md et sort en code 1
       # si l'un d'eux échoue. C'est ce code de sortie qui fait échouer le job.
+      # La scène est passée EXPLICITEMENT plutôt que de compter sur le
+      # main_scene du projet : celui-ci deviendra le prototype jouable, qui ne
+      # se termine pas tout seul. La CI resterait bloquée jusqu'au timeout.
       - name: Lancer les vérifications
-        run: ~/godot/godot --headless --path . --quit-after 3
+        run: ~/godot/godot --headless --path . res://scenes/main.tscn --quit-after 3
