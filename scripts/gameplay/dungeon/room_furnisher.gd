@@ -22,6 +22,16 @@ func _init(builder: FloorBuilder, parent: Node3D, tuning: Tuning) -> void:
 func meuble(salle: FloorPlan.Salle, rng: RandomNumberGenerator) -> void:
 	var demi: float = salle.cote * 0.5
 
+	# Une arène reste dégagée : on doit voir arriver ce qui nous tombe dessus.
+	# Quelques piliers seulement, pour donner de quoi se couvrir.
+	if salle.arene:
+		for i: int in 4:
+			var angle: float = TAU * float(i) / 4.0 + PI * 0.25
+			_builder.bloc(salle.centre + Vector3(cos(angle), 0, sin(angle)) * (demi * 0.55)
+				+ Vector3(0, _tuning.hauteur_pilier * 0.5, 0),
+				Vector3(2.0, _tuning.hauteur_pilier, 2.0), Color(0.24, 0.25, 0.30))
+		return
+
 	# Piliers en retrait des murs : ils créent des angles morts.
 	var recul: float = demi * 0.52
 	for signe_x: float in [-1.0, 1.0]:

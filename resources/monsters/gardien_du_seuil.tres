@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="BossStats" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/boss_stats.gd" id="1_h3ael"]
+
+[resource]
+script = ExtResource("1_h3ael")
+titre = "Gardien du Seuil"
+degats_special = 26
+rayon_special = 9.0
+id = &"gardien_du_seuil"
+nom = "Gardien du Seuil"
+couleur = Color(0.85, 0.28, 0.42, 1)
+taille = Vector3(3.2, 4, 3.2)
+pv = 420
+degats = 22
+resonance = 120
+portee_frappe = 4.0
+vitesse = 3.0
+distance_garde = 8.0
+delai_assaut = 2.2
+duree_assaut = 0.55
+duree_repli = 0.5

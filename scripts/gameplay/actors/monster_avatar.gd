@@ -37,10 +37,15 @@ func _ready() -> void:
 	if mesh != null:
 		_materiau = mesh.get_surface_override_material(0) as StandardMaterial3D
 
-	_cerveau = MonsterBrain.new(stats, 1.0 if (monster_id % 2 == 0) else -1.0)
+	_cerveau = _cree_cerveau()
 	_cerveau.veut_frapper.connect(_frappe)
 	_cerveau.veut_tirer.connect(_tire)
 	_cerveau.engage_l_attaque.connect(_signale_attaque)
+
+
+## Point d'extension : un boss redéfinit cette méthode pour installer le sien.
+func _cree_cerveau() -> MonsterBrain:
+	return MonsterBrain.new(stats, 1.0 if (monster_id % 2 == 0) else -1.0)
 
 
 func _physics_process(delta: float) -> void:

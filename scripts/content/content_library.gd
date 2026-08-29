@@ -36,6 +36,16 @@ func ecole(id: StringName) -> School:
 	return null
 
 
+## Monstres ordinaires, boss exclus : la composition d'un étage ne doit pas
+## tirer un boss au hasard.
+func monstres_ordinaires() -> Array[MonsterStats]:
+	var out: Array[MonsterStats] = []
+	for m: MonsterStats in monstres:
+		if not (m is BossStats):
+			out.append(m)
+	return out
+
+
 func monstre(id: StringName) -> MonsterStats:
 	for m: MonsterStats in monstres:
 		if m.id == id:

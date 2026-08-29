@@ -14,6 +14,11 @@ extends Node
 ## L'état de la run en cours. `null` hors run (menu, hub).
 var run: RunState = null
 
+## Écoles composées au hub, en attente de la descente. Elles traversent le
+## changement de scène par l'état plutôt que par un paramètre : GameState fait
+## foi, y compris entre deux scènes (R1).
+var ecoles_choisies: Array[StringName] = []
+
 
 func is_in_run() -> bool:
 	return run != null and not run.is_over

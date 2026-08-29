@@ -7,6 +7,7 @@ extends RefCounted
 ## descente. L'inverse rendrait les sceaux inutiles.
 
 signal etage_pret(index: int)
+signal boss_invoque(avatar: BossAvatar)
 
 var plan: FloorPlan
 
@@ -40,13 +41,25 @@ func genere() -> Array[PropDestructible]:
 		enfant.queue_free()
 	_furnisher.objets.clear()
 
-	plan = FloorPlan.genere(rng, _tuning)
+	var etage: int = GameState.run.floor_index
+	var boss: bool = etage >= _tuning.etage_du_boss
+
+	# L'arène du boss n'a ni couloir, ni marchand : on y descend pour combattre,
+	# pas pour préparer. Les décisions se sont prises à l'étage d'avant.
+	plan = FloorPlan.genere_arene(rng, _tuning) if boss \
+		else FloorPlan.genere(rng, _tuning)
 	_builder.batit(plan)
 	for salle: FloorPlan.Salle in plan.salles:
 		_furnisher.meuble(salle, rng)
-	_marchand.installe(plan.salle_du_marchand())
+	if not boss:
+		_marchand.installe(plan.salle_du_marchand())
 
-	_spawner.peuple(plan, _joueur, GameState.run.floor_index, rng)
+	if boss:
+		var avatar: BossAvatar = _spawner.invoque_le_boss(plan, _joueur, etage)
+		if avatar != null:
+			boss_invoque.emit(avatar)
+	else:
+		_spawner.peuple(plan, _joueur, etage, rng)
 	_joueur.global_position = plan.salle_de_depart().centre + Vector3(0, 1.2, 0)
 
 	etage_pret.emit(GameState.run.floor_index)
@@ -65,7 +78,5 @@ func descend() -> Array[PropDestructible]:
 	return genere()
 
 
-func redemarre(ecoles: Array) -> Array[PropDestructible]:
-	GameState.start_run(0, 1)
-	GameState.set_player_schools(0, ecoles)
-	return genere()
+func est_etage_de_boss() -> bool:
+	return GameState.run.floor_index >= _tuning.etage_du_boss

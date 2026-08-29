@@ -8,8 +8,6 @@ extends Node3D
 ## d'être extraite.
 
 const PORTEE_INTERACTION: float = 3.2
-## Les quatre écoles emmenées en descente. Passera par un écran de sélection.
-const ECOLES_DE_DEPART: Array[int] = [0, 1, 2, 4]
 
 var _joueur: PlayerAvatar
 var _hud: GameHud
@@ -37,7 +35,7 @@ func _ready() -> void:
 	_branche_les_evenements()
 
 	GameState.start_run(0, 1)
-	GameState.set_player_schools(0, Content.definitions_ecoles(ECOLES_DE_DEPART))
+	GameState.set_player_schools(0, _definitions_choisies())
 	_contexte.objets = _etage.genere()
 	_hud.journalise("Nettoie l'étage, va voir le marchand au fond, puis prends le portail.")
 
@@ -54,10 +52,7 @@ func _physics_process(delta: float) -> void:
 		_interagit()
 
 	if GameState.is_in_run() and GameState.run.players[0].hp <= 0:
-		_hud.journalise("Mort à l'étage %d. La run redémarre." %
-			(GameState.run.floor_index + 1))
-		_contexte.objets = _etage.redemarre(
-			Content.definitions_ecoles(ECOLES_DE_DEPART))
+		_termine_la_run(false)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -133,10 +128,47 @@ func _assemble_les_services() -> void:
 	add_child(apercu)
 
 
+## Les écoles composées au hub. En leur absence — lancement direct de la scène
+## de jeu pendant le développement — on retombe sur les quatre premières
+## débloquées plutôt que de planter.
+func _definitions_choisies() -> Array:
+	var ids: Array[StringName] = GameState.ecoles_choisies
+	if ids.is_empty():
+		for ecole: School in Meta.ecoles_disponibles():
+			if ids.size() < PlayerState.SLOT_COUNT:
+				ids.append(ecole.id)
+	var out: Array = []
+	for id: StringName in ids:
+		var ecole: School = Content.ecole(id)
+		if ecole != null:
+			out.append({"id": ecole.id, "pool_size": ecole.taille_pool()})
+	return out
+
+
+## Fin de run : par la mort, ou par la chute du boss.
+func _termine_la_run(victoire: bool) -> void:
+	if not GameState.is_in_run():
+		return
+	var etage: int = GameState.run.floor_index
+	var graine: int = GameState.run.run_seed
+	GameState.end_run(victoire)
+	MouseLook.capture(false)
+
+	var ecran := RunEndScreen.new()
+	ecran.victoire = victoire
+	ecran.etage_atteint = etage
+	ecran.seed_run = graine
+	var couche := CanvasLayer.new()
+	couche.layer = 10
+	couche.add_child(ecran)
+	add_child(couche)
+
+
 func _branche_les_evenements() -> void:
 	_joueur.a_lance.connect(func(slot: int, dir: Vector3) -> void: _caster.lance(slot, dir))
 	_marchand.achat_effectue.connect(_hud.journalise)
 	_spawner.monstre_veut_tirer.connect(_sur_tir_monstre)
+	_etage.boss_invoque.connect(_sur_boss_invoque)
 
 	EventBus.monster_damaged.connect(_sur_degat_monstre)
 	EventBus.monster_died.connect(_sur_mort_monstre)
@@ -155,7 +187,8 @@ func _maj_interaction() -> void:
 	var distance_portail: float = _marchand.distance_au_portail(_joueur.global_position)
 	_portail_a_portee = distance_portail < PORTEE_INTERACTION and _socle_vise == null
 
-	if _portail_a_portee:
+	# Pas de portail dans l'arène : la seule sortie est la victoire.
+	if _portail_a_portee and not _etage.est_etage_de_boss():
 		var restants: int = GameState.run.alive_monsters().size()
 		_hud.invite("[E] Descendre à l'étage suivant" if restants == 0
 			else "[E] Portail scellé — %d monstre(s) à éliminer" % restants)
@@ -210,11 +243,25 @@ func _sur_degat_monstre(monster_id: int, _pv: int) -> void:
 
 func _sur_mort_monstre(monster_id: int, _tueur: int, recompense: int) -> void:
 	var avatar: MonsterAvatar = _spawner.avatars.get(monster_id)
+	var etait_le_boss: bool = avatar is BossAvatar
 	if is_instance_valid(avatar):
 		avatar.queue_free()
 	_spawner.avatars.erase(monster_id)
+
+	if etait_le_boss:
+		_termine_la_run(true)
+		return
+
 	_hud.journalise("+%d Résonance   ·   %d monstre(s) restant(s)" % [
 		recompense, GameState.run.alive_monsters().size()])
+
+
+func _sur_boss_invoque(avatar: BossAvatar) -> void:
+	var titre: String = (avatar.stats as BossStats).titre
+	_hud.journalise("%s — %d phases. Aucun marchand ici." % [
+		titre, (avatar.stats as BossStats).nombre_de_phases()])
+	avatar.phase_changee.connect(func(phase: int, total: int) -> void:
+		_hud.journalise("%s entre en phase %d sur %d." % [titre, phase + 1, total]))
 
 
 ## Fait défiler les écoles sur un slot. Outil de comparaison : en jeu, les

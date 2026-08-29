@@ -45,6 +45,17 @@ func vide() -> void:
 	avatars.clear()
 
 
+## Fait apparaître le boss au centre de l'arène.
+func invoque_le_boss(plan: FloorPlan, cible: Node3D, etage: int) -> BossAvatar:
+	vide()
+	var stats: BossStats = Content.monstre(&"gardien_du_seuil") as BossStats
+	if stats == null:
+		push_error("Boss introuvable dans le contenu.")
+		return null
+	var centre: Vector3 = plan.salles[0].centre
+	return fait_apparaitre(stats, centre + Vector3(0, 0, -8.0), cible, etage) as BossAvatar
+
+
 func peuple(plan: FloorPlan, cible: Node3D, etage: int,
 		rng: RandomNumberGenerator) -> void:
 	vide()
@@ -69,7 +80,9 @@ func fait_apparaitre(stats: MonsterStats, pos: Vector3, cible: Node3D,
 	var pv: int = stats.pv + etage * _tuning.pv_monstre_par_etage
 	var id: int = GameState.spawn_monster(pv, stats.resonance, stats.id)
 
-	var avatar := MonsterAvatar.new()
+	# Un boss a son propre corps, mais entre dans l'état par le même chemin.
+	var avatar: MonsterAvatar = BossAvatar.new() if stats is BossStats \
+		else MonsterAvatar.new()
 	avatar.monster_id = id
 	avatar.cible = cible
 	avatar.stats = stats

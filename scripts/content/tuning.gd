@@ -26,13 +26,24 @@ extends Resource
 @export var valeur_eclat_vigueur: int = 15
 
 @export_group("Donjon")
-@export var salles_par_etage: int = 3
 @export var taille_salle_min: float = 22.0
 @export var taille_salle_max: float = 30.0
 @export var longueur_couloir: float = 7.0
 @export var largeur_couloir: float = 4.0
 @export var hauteur_mur: float = 5.5
 @export var hauteur_pilier: float = 4.0
+
+@export_group("Méta-progression")
+## Éclats gagnés par étage atteint. Doublés en cas de victoire.
+@export var eclats_par_etage: int = 12
+## Base du coût de déblocage d'une école. Renchérit à chaque école acquise.
+@export var cout_deblocage_ecole: int = 60
+
+@export_group("Structure de la run")
+## Étage du boss. Avant lui, les étages sont des donjons ordinaires.
+@export var etage_du_boss: int = 3
+@export var salles_min: int = 3
+@export var salles_max: int = 5
 
 @export_group("Difficulté")
 ## Points de vie ajoutés aux monstres à chaque étage descendu.

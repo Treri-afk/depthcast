@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="DepthCast"
-run/main_scene="res://scenes/jeu.tscn"
+run/main_scene="res://scenes/menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 EventBus="*res://scripts/core/event_bus.gd"
 Content="*res://scripts/content/content_library.gd"
+Meta="*res://scripts/meta/meta_progress.gd"
 RngService="*res://scripts/core/rng_service.gd"
 GameState="*res://scripts/core/game_state.gd"
 EffectResolver="*res://scripts/core/effect_resolver.gd"
@@ -27,9 +28,7 @@ EffectResolver="*res://scripts/core/effect_resolver.gd"
 
 window/size/viewport_width=1600
 window/size/viewport_height=900
-; 2 = maximisée. En fenêtre détachée, le jeu occupe tout l'écran au lancement.
 window/size/mode=2
-; Le HUD suit la taille de la fenêtre au lieu de rester en pixels fixes.
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 

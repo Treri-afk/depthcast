@@ -10,6 +10,7 @@ func _suites() -> Array[TestSuite]:
 		RulesTests.new(),
 		CombatTests.new(),
 		ContentTests.new(),
+		MetaTests.new(),
 	]
 
 
