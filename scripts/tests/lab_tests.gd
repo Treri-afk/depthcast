@@ -16,6 +16,7 @@ func execute() -> void:
 	_check_mobilier()
 	_check_tonneaux()
 	_check_vigilance()
+	_check_portage()
 	_check_postes()
 	_check_reglages()
 
@@ -173,6 +174,75 @@ func _check_vigilance() -> void:
 	peureux.avance(t.vigilance_duree_de_fuite + 0.1, pos)
 	verifie("et se calme une fois le danger passé",
 		peureux.etat == ThreatSense.Etat.CALME)
+
+
+func _check_portage() -> void:
+	print("Portage, balise et permutation")
+
+	var t: Tuning = Content.tuning
+
+	# Ce qui se porte doit tenir dans les bras : une table qu'on transporte
+	# ferait mentir la silhouette du joueur sur ce qu'il a en main.
+	var portables: Dictionary = {
+		PropFactory.Genre.CAISSE: true,
+		PropFactory.Genre.TONNEAU: true,
+		PropFactory.Genre.TONNEAU_EXPLOSIF: true,
+		PropFactory.Genre.BALISE_LEURRE: true,
+		PropFactory.Genre.TABLE: false,
+	}
+	for genre: int in portables:
+		var corps := PropFactory.cree(genre, Vector3.ZERO)
+		verifie("%s : portable = %s" % [PropFactory.nom(genre), portables[genre]],
+			corps.portable == portables[genre])
+		corps.free()
+
+	# Porter DOIT coûter. Sans coût, porter est gratuit et il n'y a aucune
+	# décision entre traverser vite et traverser armé.
+	verifie("porter ralentit", t.portage_ralentissement < 1.0)
+	verifie("et lancer envoie quelque part", t.portage_force_de_lancer > 0.0)
+
+	var balise := PropFactory.cree(PropFactory.Genre.BALISE_LEURRE, Vector3.ZERO)
+	verifie("la balise de leurre est bien une LureBeacon", balise is LureBeacon)
+	var caisse := PropFactory.cree(PropFactory.Genre.CAISSE, Vector3.ZERO)
+	# Légère, donc elle part loin : une balise qu'on ne peut poser qu'à ses
+	# pieds ne détourne rien de dangereux.
+	verifie("elle est plus légère qu'une caisse, donc elle vole plus loin",
+		balise.mass < caisse.mass, "%.1f contre %.1f" % [balise.mass, caisse.mass])
+	verifie("son rayon d'appel vient du Tuning",
+		is_equal_approx((balise as LureBeacon).rayon, t.leurre_rayon))
+	balise.free()
+	caisse.free()
+
+	# La diversion et son retour sont tenus par le monstre : le sort de leurre
+	# et la balise en objet obtiennent le même comportement sans partager une
+	# seule ligne.
+	var faux_defaut := Node3D.new()
+	var faux_leurre := Node3D.new()
+	var bestiole := MonsterAvatar.new()
+	bestiole.stats = Content.monstre(&"rodeur")
+	bestiole.cible_par_defaut = faux_defaut
+	bestiole.cible = faux_defaut
+	bestiole.distrait_par(faux_leurre, 3.0)
+	verifie("une balise détourne l'attention", bestiole.cible == faux_leurre)
+	bestiole.distrait_par(null, 3.0)
+	verifie("mais pas vers rien du tout", bestiole.cible == faux_leurre)
+	bestiole.free()
+	faux_defaut.free()
+	faux_leurre.free()
+
+	# Permutation : une Resource, une ligne de registre, et le pool d'Ombre
+	# reste dans les bornes du GDD.
+	var ombre: School = Content.ecole(&"ombre")
+	var noms: Array = []
+	for effet: SpellEffect in ombre.effets:
+		noms.append(effet.nom)
+	verifie("Permutation est entrée dans le pool d'Ombre", noms.has("Permutation"),
+		str(noms))
+	verifie("et le pool reste dans les bornes du GDD",
+		ombre.taille_pool() >= School.POOL_MIN and ombre.taille_pool() <= School.POOL_MAX,
+		"%d effets" % ombre.taille_pool())
+
+	verifie("les souffles poussent les alliés", t.souffle_pousse_les_allies)
 
 
 func _check_postes() -> void:

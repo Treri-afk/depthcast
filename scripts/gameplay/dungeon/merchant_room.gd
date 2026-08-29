@@ -63,6 +63,13 @@ func installe(salle: FloorPlan.Salle) -> void:
 	vigueur.valeur = _tuning.valeur_eclat_vigueur
 	_ajoute(vigueur)
 
+	# La balise n'est pas un consommable comme les autres : on n'achète pas un
+	# effet, on achète un OBJET, qui tombe au sol et qu'il faut ramasser.
+	var balise := ShopPedestal.cree(_fx, centre + Vector3(0, 0, cote * 0.34),
+		ShopPedestal.Genre.LEURRE, Content.palette.balise_leurre)
+	balise.cout = _tuning.leurre_cout
+	_ajoute(balise)
+
 	portail = Portal.cree(centre + Vector3(0, 0, -cote * 0.42))
 	_parent.add_child(portail)
 
@@ -107,6 +114,8 @@ func libelle(socle: ShopPedestal) -> String:
 		ShopPedestal.Genre.VIGUEUR:
 			return "[E] Éclat de vigueur (+%d PV max) — %d Résonance" % [
 				socle.valeur, socle.cout]
+		ShopPedestal.Genre.LEURRE:
+			return "[E] Balise de leurre — %d Résonance" % socle.cout
 	return ""
 
 
@@ -116,6 +125,8 @@ func achete(socle: ShopPedestal) -> bool:
 			return _achete_sceau(socle)
 		ShopPedestal.Genre.SOIN, ShopPedestal.Genre.VIGUEUR:
 			return _achete_consommable(socle)
+		ShopPedestal.Genre.LEURRE:
+			return _achete_balise(socle)
 	return false
 
 
@@ -141,6 +152,19 @@ func _achete_consommable(socle: ShopPedestal) -> bool:
 		p.hp = mini(p.max_hp, p.hp + socle.valeur)
 		achat_effectue.emit("Fiole bue.")
 	socle.consomme()
+	return true
+
+
+## La balise achetée tombe au pied du socle : c'est un objet du monde, pas une
+## ligne d'inventaire. Il faut se baisser pour la prendre, et on peut l'oublier.
+func _achete_balise(socle: ShopPedestal) -> bool:
+	if not GameState.try_spend_resonance(0, socle.cout):
+		return false
+	var balise := PropFactory.cree(PropFactory.Genre.BALISE_LEURRE,
+		socle.global_position + Vector3(0, 0, 1.4))
+	_parent.add_child(balise)
+	socle.consomme()
+	achat_effectue.emit("Balise de leurre posée devant le socle. [F] pour la prendre.")
 	return true
 
 

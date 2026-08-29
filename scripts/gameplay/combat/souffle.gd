@@ -171,7 +171,31 @@ func sur_les_corps_autour(depuis: Node3D, tuning: Tuning,
 ## perdre le contrôle une demi-seconde est la seule chose qui fasse ressentir
 ## une explosion de l'intérieur.
 func sur_joueur(joueur: PlayerAvatar, tuning: Tuning) -> void:
-	if epargne_le_lanceur or joueur == null or not is_instance_valid(joueur):
+	if epargne_le_lanceur:
+		return
+	_projette(joueur, tuning)
+
+
+## Projette TOUS les joueurs à portée, lanceur compris ou non.
+##
+## `epargne_le_lanceur` n'épargne que le lanceur, jamais ses alliés : c'est le
+## sens même du drapeau. Une Répulsion fait de celui qui la lance un point
+## d'ancrage — pas de toute l'équipe, qui n'a rien demandé.
+func sur_les_joueurs(joueurs: Array, tuning: Tuning,
+		lanceur: PlayerAvatar = null) -> void:
+	for avatar in joueurs:
+		if not is_instance_valid(avatar):
+			continue
+		var est_le_lanceur: bool = avatar == lanceur
+		if est_le_lanceur and epargne_le_lanceur:
+			continue
+		if not est_le_lanceur and not tuning.souffle_pousse_les_allies:
+			continue
+		_projette(avatar, tuning)
+
+
+func _projette(joueur: PlayerAvatar, tuning: Tuning) -> void:
+	if joueur == null or not is_instance_valid(joueur):
 		return
 	var part: float = attenuation(joueur.global_position)
 	if part <= 0.0:

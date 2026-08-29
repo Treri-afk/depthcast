@@ -99,12 +99,18 @@ var filtre: int = 0
 @export var marchand: Color = Color(0.96, 0.83, 0.42)
 @export var chapeau_marchand: Color = Color(0.42, 0.33, 0.62)
 @export var portail: Color = Color(0.45, 0.72, 1.0)
+## La balise de leurre. Vive : c'est un objet qu'on doit repérer au sol au
+## milieu du mobilier, et retrouver après l'avoir lancée.
+@export var balise_leurre: Color = Color(0.72, 0.48, 0.98)
 
 @export_group("Émotes")
 ## Le signe de surprise au-dessus d'une créature qui vient de comprendre.
 ## Volontairement hors de toute autre gamme du jeu : une émote doit se lire
 ## avant d'être regardée.
 @export var emote_surprise: Color = Color(0.98, 0.83, 0.25)
+## Le signe d'interrogation d'une créature qui a perdu sa trace. Froid là où la
+## surprise est chaude : on lit l'état avant de lire le signe.
+@export var emote_interrogation: Color = Color(0.62, 0.82, 0.98)
 
 @export_group("Créatures")
 @export var creature_commune: Color = Color(0.84, 0.36, 0.40)

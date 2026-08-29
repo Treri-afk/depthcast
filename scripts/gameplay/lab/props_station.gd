@@ -23,6 +23,9 @@ const ETAL: Array[Dictionary] = [
 	# se propage. Collés, ils n'auraient rien appris.
 	{"genre": PropFactory.Genre.TONNEAU_EXPLOSIF, "pos": Vector3(-2.25, 0, -1.0)},
 	{"genre": PropFactory.Genre.TONNEAU_EXPLOSIF, "pos": Vector3(2.25, 0, -1.0)},
+	# Une balise, pour essayer le verbe porter/lancer sur autre chose qu'un
+	# tonneau — et pour vérifier qu'elle détourne bien les mannequins d'à côté.
+	{"genre": PropFactory.Genre.BALISE_LEURRE, "pos": Vector3(0.0, 0, 2.8)},
 ]
 
 

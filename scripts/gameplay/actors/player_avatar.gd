@@ -44,6 +44,13 @@ var _trainee: TrailEmitter
 ## Porte la culbute de la vue. Nœud distinct de `tete` pour que la projection
 ## et le regard à la souris se composent au lieu de se disputer la rotation.
 var _secousse: Node3D
+## Le point où l'on tient ce qu'on porte. Sous le nœud de secousse, donc ce
+## qu'on transporte culbute avec la vue quand on est projeté.
+var _mains: Node3D
+## L'objet dans les mains, ou null.
+var _porte: PropDestructible = null
+## Ses couches de collision d'origine, à rendre au moment de le lâcher.
+var _couches_portees: Array[int] = [0, 0]
 
 ## Cooldown restant par slot, en secondes.
 var _cooldowns: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
@@ -93,6 +100,11 @@ func _ready() -> void:
 	camera.fov = 78.0
 	camera.current = true
 	_secousse.add_child(camera)
+
+	_mains = Node3D.new()
+	_mains.name = "Mains"
+	_mains.position = Vector3(0.5, -0.5, -1.25)
+	_secousse.add_child(_mains)
 
 	_regard = MouseLook.new(self, tete, _tuning.sensibilite_souris)
 
@@ -151,6 +163,8 @@ func _physics_process(delta: float) -> void:
 	_releve_restant = maxf(0.0, _releve_restant - delta)
 
 	_deplace(delta)
+	_ecoute_le_portage()
+	_suit_l_objet_porte()
 	_ecoute_les_sorts()
 
 
@@ -158,8 +172,12 @@ func _deplace(delta: float) -> void:
 	var entree := Input.get_vector(InputActions.GAUCHE, InputActions.DROITE,
 		InputActions.AVANT, InputActions.ARRIERE)
 	# Déplacement relatif au regard : avancer, c'est aller où l'on regarde.
-	var voulu: Vector3 = (transform.basis * Vector3(entree.x, 0.0, entree.y)) \
-		* _tuning.vitesse_joueur
+	# Porter coûte de la vitesse. Sans coût, porter serait gratuit et il n'y
+	# aurait aucune décision à prendre entre traverser vite et traverser armé.
+	var allure: float = _tuning.vitesse_joueur
+	if _porte != null:
+		allure *= _tuning.portage_ralentissement
+	var voulu: Vector3 = (transform.basis * Vector3(entree.x, 0.0, entree.y)) * allure
 	var vitesse_verticale: float = velocity.y
 
 	var au_sol: bool = is_on_floor()
@@ -227,6 +245,10 @@ func _ecoute_les_sorts() -> void:
 	# sans ça on est déplacé mais on continue de jouer, et le ragdoll n'est plus
 	# qu'un effet de caméra. Réglage assumé, désactivable dans le Tuning.
 	if _tuning.projection_bloque_les_sorts and est_projete():
+		return
+	# Les mains pleines, on ne lance pas. C'est ce qui fait de « porter un
+	# tonneau amorcé jusqu'au groupe » un pari plutôt qu'un geste gratuit.
+	if _tuning.portage_bloque_les_sorts and _porte != null:
 		return
 	# Maj et Ctrl sont réservés aux raccourcis d'interface : sans ce garde,
 	# Maj+1 lancerait aussi le sort du slot 1.
@@ -319,6 +341,12 @@ func projete(impulsion: Vector3, origine: Vector3 = Vector3.ZERO) -> void:
 	_releve_restant = 0.0
 	_releve_du = maxf(_releve_du, duree_de_releve(impulsion.length(), _tuning))
 
+	# On lâche ce qu'on tenait : un corps qui part en vrille ne garde pas un
+	# tonneau dans les bras, et le voir s'envoler de son côté vaut tous les
+	# retours du monde.
+	if _porte != null:
+		lache(velocity * 0.6 + Vector3.UP * 2.0)
+
 	_arme_la_culbute(impulsion)
 	EventBus.player_blasted.emit(player_id, impulsion.length(), origine)
 
@@ -398,6 +426,132 @@ func _arme_la_culbute(impulsion: Vector3) -> void:
 	var ampleur: float = _tuning.projection_culbute * 0.055
 	_culbute_vitesse += Vector2(-locale.x, locale.z) * ampleur
 	_culbute_vitesse = _culbute_vitesse.limit_length(9.0)
+
+
+# ── Porter, poser, lancer ─────────────────────────────────────────────────
+
+func porte_quelque_chose() -> bool:
+	return _porte != null and is_instance_valid(_porte)
+
+
+## Ce que le HUD affiche. Vide quand il n'y a rien à faire des mains.
+func invite_portage() -> String:
+	if porte_quelque_chose():
+		return "[F] poser   ·   [G] lancer"
+	var vise: PropDestructible = objet_a_portee()
+	return "[F] ramasser" if vise != null else ""
+
+
+## L'objet portable le plus proche devant soi.
+##
+## Une sphère lancée devant les yeux plutôt qu'un rayon : viser au pixel un
+## tonneau qui roule serait pénible, et attraper est un geste large.
+func objet_a_portee() -> PropDestructible:
+	if porte_quelque_chose():
+		return null
+	var espace: PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
+	if espace == null:
+		return null
+
+	var centre: Vector3 = position_yeux() + direction_visee() * (_tuning.portage_portee * 0.6)
+	var boule := SphereShape3D.new()
+	boule.radius = _tuning.portage_portee * 0.6
+	var requete := PhysicsShapeQueryParameters3D.new()
+	requete.shape = boule
+	requete.transform = Transform3D(Basis(), centre)
+	requete.exclude = [get_rid()]
+
+	var meilleur: PropDestructible = null
+	var meilleure: float = INF
+	for resultat: Dictionary in espace.intersect_shape(requete, 16):
+		var corps := resultat.get("collider") as PropDestructible
+		if corps == null or not is_instance_valid(corps) or not corps.portable:
+			continue
+		var d: float = corps.global_position.distance_to(centre)
+		if d < meilleure:
+			meilleure = d
+			meilleur = corps
+	return meilleur
+
+
+func _ecoute_le_portage() -> void:
+	if not MouseLook.est_capture() or est_projete():
+		return
+
+	if Input.is_action_just_pressed(InputActions.PORTER):
+		if porte_quelque_chose():
+			pose()
+		else:
+			var vise: PropDestructible = objet_a_portee()
+			if vise != null:
+				ramasse(vise)
+
+	if Input.is_action_just_pressed(InputActions.LANCER) and porte_quelque_chose():
+		lance_l_objet()
+
+
+## L'objet suit les mains sans être reparenté.
+##
+## Le reparenter dans l'arbre au milieu d'une frame physique demande des
+## précautions à chaque étape ; le déplacer gelé n'en demande aucune, et le
+## résultat à l'écran est identique.
+func _suit_l_objet_porte() -> void:
+	if _porte == null:
+		return
+	if not is_instance_valid(_porte):
+		_porte = null
+		return
+	_porte.global_transform = _mains.global_transform
+
+
+func ramasse(corps: PropDestructible) -> void:
+	if corps == null or not corps.portable or porte_quelque_chose():
+		return
+	_porte = corps
+	# Gelé en mode cinématique : il se déplace parce qu'on le déplace, et il
+	# continue de pousser ce qu'il touche au lieu de le traverser.
+	corps.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	corps.freeze = true
+	# Sorti des collisions le temps du transport : sinon il pousse son porteur,
+	# qui pousse l'objet, et les deux partent en vibration.
+	_couches_portees = [corps.collision_layer, corps.collision_mask]
+	corps.set_deferred(&"collision_layer", 0)
+	corps.set_deferred(&"collision_mask", 0)
+
+
+## Repose l'objet devant soi, sans force.
+func pose() -> void:
+	lache(velocity * 0.2)
+
+
+## L'envoie devant soi. L'impulsion est divisée par la masse : une caisse part
+## loin, un tonneau tombe presque à ses pieds. C'est ce qui fait qu'on choisit
+## ce qu'on ramasse.
+func lance_l_objet() -> void:
+	if not porte_quelque_chose():
+		return
+	var force: float = _tuning.portage_force_de_lancer / maxf(_porte.mass, 0.5)
+	var sens: Vector3 = (direction_visee() + Vector3.UP * _tuning.portage_arc).normalized()
+	lache(velocity + sens * force)
+
+
+## Rend l'objet au monde, avec la vitesse voulue.
+func lache(elan: Vector3) -> void:
+	if not porte_quelque_chose():
+		_porte = null
+		return
+	var corps: PropDestructible = _porte
+	_porte = null
+
+	corps.set_deferred(&"collision_layer", _couches_portees[0])
+	corps.set_deferred(&"collision_mask", _couches_portees[1])
+	corps.freeze = false
+	# Une impulsion plutôt qu'une vitesse écrite à la main : le serveur physique
+	# l'applique au pas suivant, donc APRÈS le dégel. Écrite directement, la
+	# vitesse était en partie avalée par le dégel et le lancer retombait mou.
+	corps.linear_velocity = Vector3.ZERO
+	corps.apply_central_impulse(elan * corps.mass)
+	corps.lache_par_le_joueur(self)
 
 
 func voile(duree: float) -> void:

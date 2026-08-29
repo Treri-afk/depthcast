@@ -93,6 +93,7 @@ func _services() -> void:
 	contexte = SpellContext.new()
 	contexte.monde = racine
 	contexte.joueur = joueur
+	contexte.joueurs = [joueur]
 	contexte.fx = fx
 	contexte.tuning = Content.tuning
 	caster = SpellCaster.new(contexte)

@@ -24,6 +24,7 @@ enum Comportement {
 	TOTEM,        ## balise au sol qui soigne tant qu'on reste dedans
 	VOILE,        ## les monstres perdent notre trace
 	LEURRE,       ## un mannequin attire les monstres à sa place
+	PERMUTATION,  ## on échange sa place avec la créature visée
 }
 
 @export var nom: String = "Nouvel effet"

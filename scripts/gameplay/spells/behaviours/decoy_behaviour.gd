@@ -15,18 +15,16 @@ func lance(ctx: SpellContext, _slot_index: int, effet: SpellEffect,
 	leurre.add_child(ctx.fx.sphere_lumineuse(0.7, couleur))
 	ctx.monde.add_child(leurre)
 
+	# La diversion et son retour sont tenus par le monstre lui-même : le sort
+	# n'a pas à mémoriser qui poursuivait qui, et la balise en objet obtient le
+	# même comportement sans une ligne en commun avec ce fichier.
 	for id: int in ctx.monstres:
 		var avatar: MonsterAvatar = ctx.monstres[id]
 		if is_instance_valid(avatar):
-			avatar.cible = leurre
+			avatar.distrait_par(leurre, effet.duree)
 
-	var joueur: PlayerAvatar = ctx.joueur
 	ctx.monde.get_tree().create_timer(effet.duree).timeout.connect(
 		func() -> void:
-			for id: int in ctx.monstres:
-				var avatar: MonsterAvatar = ctx.monstres[id]
-				if is_instance_valid(avatar) and avatar.cible == leurre:
-					avatar.cible = joueur
 			if is_instance_valid(leurre):
 				leurre.queue_free()
 	)

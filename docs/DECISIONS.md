@@ -246,6 +246,62 @@ bug de collision.
 
 ---
 
+## D11 — Entre joueurs : la poussée oui, les dégâts non
+*Décidé le 29 août 2026*
+
+Un souffle de sort projette **tous** les joueurs à portée, pas seulement son
+lanceur. Une Répulsion catapulte le coéquipier qui passait par là.
+
+Le dosage est toute la décision, et il est tranché dans un sens : **des dégâts
+entre alliés font des disputes, une poussée seule fait de la comédie.** Personne
+ne meurt de la main d'un ami, tout le monde le déteste trente secondes. Les
+dégâts de sort continuent donc de ne viser que les monstres.
+
+Une seule chose blesse sans regarder qui : la **braise laissée par un tonneau**.
+Elle ne demande pas qui a allumé le feu, et c'est ce qui empêche de faire sauter
+un baril à ses pieds sans y penser.
+
+`epargne_le_lanceur` n'épargne que le lanceur, jamais ses alliés — c'est le sens
+même du drapeau. Sur une Répulsion, celui qui lance est le point d'ancrage ; pas
+toute l'équipe, qui n'a rien demandé.
+
+**Non vérifiable pour l'instant** : le `PlayField` ne construit qu'une
+`PlayerAvatar`. La logique passe par une liste (`SpellContext.joueurs`) plutôt
+que par un avatar unique, donc brancher des coéquipiers ne demandera de toucher
+à aucun sort. Mais le calibrage attend le cycle du netcode, ou un mannequin
+coéquipier au terrain d'essai.
+
+---
+
+## D12 — Un seul verbe pour les mains : porter, poser, lancer
+*Décidé le 29 août 2026*
+
+Ramasser une caisse, un tonneau explosif ou une balise de leurre est **le même
+geste**. Aucune mécanique d'inventaire séparée n'a été inventée pour les objets :
+un objet du jeu est un corps du monde, et on le prend dans ses mains.
+
+C'est ce qui rend le verbe évident et ce qui fait que le prochain objet — mine,
+lanterne, fiole de poix — ne coûtera qu'une Resource et une classe.
+
+**Porter coûte.** Vitesse réduite, sorts bloqués. Sans coût, porter serait
+gratuit et il n'y aurait aucune décision entre traverser vite et traverser armé.
+Porter un tonneau amorcé jusqu'à un groupe devient alors un vrai pari.
+
+Une projection par souffle fait lâcher ce qu'on tient. Un corps qui part en
+vrille ne garde pas un tonneau dans les bras.
+
+Deux détails trouvés en mesurant plutôt qu'en calculant :
+
+- Écrire `linear_velocity` juste après avoir dégelé un corps en fait perdre une
+  partie. Une impulsion, elle, est appliquée au pas de simulation suivant, donc
+  après le dégel. Depuis, la distance mesurée colle exactement à la balistique.
+- À plat, la gravité du jeu — volontairement forte — plaque l'objet au sol en
+  trois dixièmes de seconde. D'où `portage_arc` : un lancer sans arc ne sert à
+  rien. Viser vers le haut reste le vrai levier, et c'est celui qui récompense
+  le joueur.
+
+---
+
 ## Q1 — Le multiplicateur cumulatif de verrous : par joueur ou par équipe ?
 *Ouverte depuis le 27 août 2026 — conséquence directe de D3*
 

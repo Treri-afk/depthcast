@@ -6,7 +6,7 @@ extends RefCounted
 ## définitions d'un tonneau, et la masse qu'on calibre dans le donjon ne serait
 ## pas celle qu'on mesure au banc — le banc mentirait sans prévenir.
 
-enum Genre { CAISSE, TONNEAU, TABLE, TONNEAU_EXPLOSIF }
+enum Genre { CAISSE, TONNEAU, TABLE, TONNEAU_EXPLOSIF, BALISE_LEURRE }
 
 ## Ce qu'est chaque meuble, en trois nombres. Les points de vie découlent de la
 ## masse : une table encaisse plus qu'un tonneau parce qu'elle est plus lourde,
@@ -14,18 +14,28 @@ enum Genre { CAISSE, TONNEAU, TABLE, TONNEAU_EXPLOSIF }
 const MODELES: Dictionary = {
 	Genre.CAISSE: {
 		"taille": Vector3(1.0, 1.0, 1.0), "masse": 7.0, "cylindrique": false,
+		"portable": true,
 	},
 	Genre.TONNEAU: {
 		"taille": Vector3(0.9, 1.2, 0.9), "masse": 9.0, "cylindrique": true,
+		"portable": true,
 	},
 	Genre.TABLE: {
 		"taille": Vector3(2.2, 0.25, 1.2), "masse": 14.0, "cylindrique": false,
+		"portable": false,
 	},
 	# Plus léger qu'un tonneau ordinaire, donc bien moins résistant : il doit
 	# partir au premier projectile. Un baril qu'il faut viser trois fois n'est
 	# plus une opportunité, c'est une corvée.
 	Genre.TONNEAU_EXPLOSIF: {
 		"taille": Vector3(0.9, 1.2, 0.9), "masse": 6.0, "cylindrique": true,
+		"portable": true,
+	},
+	# Légère, donc elle part loin quand on la lance. C'est voulu : une balise
+	# qu'on ne peut poser qu'à ses pieds ne détourne rien de dangereux.
+	Genre.BALISE_LEURRE: {
+		"taille": Vector3(0.55, 0.55, 0.55), "masse": 3.5, "cylindrique": false,
+		"portable": true,
 	},
 }
 
@@ -39,6 +49,8 @@ static func couleur(genre: Genre) -> Color:
 			return p.table
 		Genre.TONNEAU_EXPLOSIF:
 			return p.tonneau_explosif
+		Genre.BALISE_LEURRE:
+			return p.balise_leurre
 	return p.caisse
 
 
@@ -50,6 +62,8 @@ static func nom(genre: Genre) -> String:
 			return "table"
 		Genre.TONNEAU_EXPLOSIF:
 			return "tonneau explosif"
+		Genre.BALISE_LEURRE:
+			return "balise de leurre"
 	return "caisse"
 
 
@@ -60,15 +74,27 @@ static func cree(genre: Genre, pos: Vector3) -> PropDestructible:
 	var teinte: Color = couleur(genre)
 
 	var explosif: bool = genre == Genre.TONNEAU_EXPLOSIF
-	var corps: PropDestructible = ExplosiveProp.new() if explosif \
-		else PropDestructible.new()
+	var balise: bool = genre == Genre.BALISE_LEURRE
+	# Construit une seule fois, dans la bonne classe. En partir d'un
+	# PropDestructible pour le remplacer ensuite abandonnait un corps par
+	# tonneau créé — un Node non ajouté à l'arbre ne se libère pas tout seul.
+	var corps: PropDestructible
 	if explosif:
-		ExplosiveProp.regle(corps as ExplosiveProp, Content.tuning)
+		var tonneau := ExplosiveProp.new()
+		ExplosiveProp.regle(tonneau, Content.tuning)
+		corps = tonneau
+	elif balise:
+		var beacon := LureBeacon.new()
+		LureBeacon.regle(beacon, Content.tuning)
+		corps = beacon
+	else:
+		corps = PropDestructible.new()
 	corps.position = Vector3(pos.x, taille.y * 0.5 + 0.1, pos.z)
 	corps.mass = masse
 	corps.couleur = teinte
 	# Un objet plus lourd encaisse plus : une table ne part pas comme un tonneau.
 	corps.pv = int(masse * 2.2)
+	corps.portable = bool(modele.get("portable", false))
 	corps.linear_damp = 1.6
 	corps.angular_damp = 2.4
 
@@ -97,7 +123,7 @@ static func cree(genre: Genre, pos: Vector3) -> PropDestructible:
 	visuel.material_override = MaterialLibrary.aplat(teinte, MaterialLibrary.Role.OBJET)
 	corps.add_child(forme)
 	corps.add_child(visuel)
-	if explosif:
+	if explosif or balise:
 		corps.add_child(_bouchon(taille, teinte))
 	return corps
 

@@ -16,6 +16,10 @@ signal veut_tirer(depuis: Vector3, direction: Vector3, degats: int)
 var monster_id: int = -1
 ## Ce que le monstre poursuit. Un leurre peut prendre la place du joueur.
 var cible: Node3D = null
+## Ce vers quoi il revient quand une diversion s'achève. Mémorisé plutôt que
+## reconstruit : c'est ce qui rend `distrait_par()` sûr — un leurre n'a pas à
+## savoir qui poursuivait qui avant lui.
+var cible_par_defaut: Node3D = null
 ## Tant que c'est vrai, le monstre a perdu la trace du joueur (Voile).
 var aveugle: bool = false
 var stats: MonsterStats = null
@@ -40,11 +44,20 @@ var _envol_restant: float = 0.0
 ## le corps : faire tourner le corps ferait tourner sa boîte de collision, et un
 ## monstre qui se coince dans un mur en vrillant n'est drôle qu'une fois.
 var _vrille: Vector3 = Vector3.ZERO
+## Cap de déambulation quand la créature a perdu sa trace, et ce qu'il en reste.
+var _errance: Vector3 = Vector3.ZERO
+var _errance_restante: float = 0.0
+## Temps restant de diversion. Zéro = il poursuit sa cible par défaut.
+var _distraction_restante: float = 0.0
 var _mesh: MeshInstance3D = null
 var _materiau: ShaderMaterial = null
 
 
 func _ready() -> void:
+	# Repérable par le monde physique. Un leurre posé au sol n'a pas de raison
+	# de connaître le registre des monstres, exactement comme un tonneau n'a
+	# pas de raison de le connaître pour exploser.
+	add_to_group(&"monstre")
 	floor_snap_length = 0.5
 	floor_max_angle = deg_to_rad(50.0)
 
@@ -71,6 +84,7 @@ func _physics_process(delta: float) -> void:
 	_telegraphe = maxf(0.0, _telegraphe - delta)
 	_envol_restant = maxf(0.0, _envol_restant - delta)
 	_maj_vrille(delta)
+	_maj_distraction(delta)
 	_maj_ralentissement(delta)
 	_maj_teinte(delta)
 	_impulsion = _impulsion.move_toward(Vector3.ZERO, AMORTISSEMENT * delta)
@@ -83,7 +97,12 @@ func _physics_process(delta: float) -> void:
 		# lirait ni l'un ni l'autre.
 		deplacement = fuite * stats.vitesse * _facteur_vitesse \
 			* Content.tuning.vigilance_vitesse_de_fuite
-	elif cible != null and not aveugle:
+	elif aveugle:
+		# Aveuglée, elle CHERCHE. Se figer sur place se lit comme un bug plutôt
+		# que comme un sort — c'était le défaut du Voile, invisible faute de
+		# quoi que ce soit à regarder.
+		deplacement = _cherche(delta)
+	elif cible != null:
 		deplacement = _cerveau.decide(delta, global_position, cible, _facteur_vitesse)
 	_maj_emote()
 
@@ -111,6 +130,23 @@ func _maj_vertical(delta: float) -> void:
 	velocity.y = (voulue - global_position.y) * 3.0
 
 
+## Déambulation d'une créature qui a perdu sa trace. Un cap tenu quelques
+## secondes, puis un autre — ni une patrouille, ni un tremblement sur place.
+##
+## Le cap est tiré au hasard hors de RngService : c'est de la présentation d'un
+## état, pas une décision de jeu. Deux clients qui la verraient chercher dans
+## des directions différentes verraient quand même la même créature aveuglée
+## au même endroit.
+func _cherche(delta: float) -> Vector3:
+	_errance_restante -= delta
+	if _errance_restante <= 0.0:
+		var t: Tuning = Content.tuning
+		_errance_restante = t.errance_duree_du_cap
+		var angle: float = randf() * TAU
+		_errance = Vector3(cos(angle), 0.0, sin(angle))
+	return _errance * stats.vitesse * Content.tuning.errance_vitesse * _facteur_vitesse
+
+
 # ── Vigilance ─────────────────────────────────────────────────────────────
 
 func _sur_meche_allumee(origine: Vector3, rayon: float, _delai: float) -> void:
@@ -128,20 +164,37 @@ func _sur_alerte() -> void:
 
 
 func _maj_emote() -> void:
-	if not _vigilance.attentif():
+	# La surprise passe avant l'interrogation : une créature qui cherche et qui
+	# voit une mèche s'allumer a un problème plus urgent que sa recherche.
+	var genre: int = -1
+	if _vigilance.attentif():
+		genre = Emote.Genre.SURPRISE
+	elif aveugle:
+		genre = Emote.Genre.INTERROGATION
+
+	if genre < 0:
 		if _emote != null:
 			_emote.efface()
 			_emote = null
 		return
 
+	# Changer de genre change le signe, pas seulement sa couleur : on remplace.
+	if _emote != null and _emote.genre != genre:
+		_emote.efface()
+		_emote = null
+
 	if _emote == null:
 		var parent: Node = get_parent()
 		if parent == null:
 			return
-		_emote = Emote.cree(Emote.Genre.SURPRISE, self,
-			Vector3(0, stats.taille.y * 0.5 + 0.7, 0))
+		_emote = Emote.cree(genre, self, Vector3(0, stats.taille.y * 0.5 + 0.7, 0))
 		parent.add_child(_emote)
-	_emote.remplissage = _vigilance.progression()
+		if genre == Emote.Genre.INTERROGATION:
+			_emote.eclate()
+
+	# L'interrogation est un ÉTAT, pas une progression : elle s'affiche pleine.
+	_emote.remplissage = _vigilance.progression() \
+		if genre == Emote.Genre.SURPRISE else 1.0
 
 
 ## Un monstre qui traverse une caisse sans la bouger casse l'illusion.
@@ -217,6 +270,36 @@ func _maj_vrille(delta: float) -> void:
 	# Retombé : il se remet d'aplomb. Vite, mais pas instantanément — un
 	# redressement sec annulerait la culbute qu'on vient de regarder.
 	_mesh.rotation = _mesh.rotation.lerp(Vector3.ZERO, minf(delta * 7.0, 1.0))
+
+
+## Détourné vers un leurre pour un temps. Le leurre redirige la menace, il ne
+## la supprime pas : le monstre le poursuit sans le frapper, exactement comme
+## avec le sort.
+func distrait_par(leurre: Node3D, duree: float) -> void:
+	if leurre == null or duree <= 0.0:
+		return
+	cible = leurre
+	_distraction_restante = duree
+	desoriente()
+
+
+func _maj_distraction(delta: float) -> void:
+	if _distraction_restante <= 0.0:
+		return
+	_distraction_restante -= delta
+	# On revient aussi si le leurre disparaît avant la fin : poursuivre une
+	# référence morte laisserait le monstre planté pour de bon.
+	if _distraction_restante <= 0.0 or not is_instance_valid(cible):
+		_distraction_restante = 0.0
+		cible = cible_par_defaut
+
+
+## Perdre le fil de son assaut sans être bousculé. Se faire permuter ne pousse
+## personne, mais on ne poursuit pas une charge vers un endroit où l'on n'est
+## plus.
+func desoriente() -> void:
+	if _cerveau != null:
+		_cerveau.interrompt_l_assaut()
 
 
 func ralentis(facteur: float, duree: float) -> void:

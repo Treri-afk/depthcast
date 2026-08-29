@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="SpellEffect" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/spell_effect.gd" id="1_yfe2e"]
+
+[resource]
+script = ExtResource("1_yfe2e")
+nom = "Permutation"
+comportement = 15
+description = "Échange ta place avec la créature visée. Ce qui te menaçait se retrouve où tu étais."
+portee = 18.0
+cooldown = 6.0

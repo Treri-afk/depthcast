@@ -5,7 +5,7 @@ extends Node3D
 ## Sceller un sort est ainsi un geste dans l'espace plutôt qu'une case à cocher
 ## dans un menu — c'est ce qui donne du poids à la décision.
 
-enum Genre { SCEAU, SOIN, VIGUEUR }
+enum Genre { SCEAU, SOIN, VIGUEUR, LEURRE }
 
 var genre: Genre = Genre.SCEAU
 var slot_index: int = 0

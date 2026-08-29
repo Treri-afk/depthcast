@@ -17,7 +17,7 @@ extends Node3D
 ## accrochée dessus hériterait des deux, et une bulle qui se déforme quand son
 ## porteur encaisse ne se lit plus. Elle le suit, elle ne lui appartient pas.
 
-enum Genre { SURPRISE }
+enum Genre { SURPRISE, INTERROGATION }
 
 const HAUTEUR: float = 0.55
 const LARGEUR: float = 0.17
@@ -26,10 +26,14 @@ const MARGE: float = 0.045
 ## Genre → couleur. Une ligne par émote, et c'est tout ce qu'il y a à ajouter.
 const COULEURS: Dictionary = {
 	Genre.SURPRISE: &"emote_surprise",
+	Genre.INTERROGATION: &"emote_interrogation",
 }
 
 ## Ce que l'émote suit, et à quelle hauteur au-dessus.
 var cible: Node3D = null
+## Retenu pour que le porteur sache s'il doit la remplacer : passer de la
+## surprise à l'interrogation change le signe, pas seulement sa couleur.
+var genre: Genre = Genre.SURPRISE
 var decalage: Vector3 = Vector3.UP
 
 var _jauge: MeshInstance3D
@@ -40,6 +44,7 @@ static func cree(genre: Genre, suit: Node3D, hauteur: Vector3) -> Emote:
 	var emote := Emote.new()
 	emote.cible = suit
 	emote.decalage = hauteur
+	emote.genre = genre
 	emote._monte(genre)
 	return emote
 

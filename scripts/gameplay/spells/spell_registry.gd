@@ -29,6 +29,7 @@ func _init() -> void:
 		C.SOIN: HealBehaviour.new(),
 		C.VOILE: VeilBehaviour.new(),
 		C.LEURRE: DecoyBehaviour.new(),
+		C.PERMUTATION: SwapBehaviour.new(),
 	}
 
 

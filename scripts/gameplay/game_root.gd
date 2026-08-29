@@ -148,7 +148,8 @@ func _maj_interaction() -> void:
 	elif _socle_vise != null:
 		_hud.invite(_marchand.libelle(_socle_vise))
 	else:
-		_hud.invite("")
+		# Rien à acheter, rien à franchir : restent les mains.
+		_hud.invite(_joueur.invite_portage())
 
 
 func _interagit() -> void:

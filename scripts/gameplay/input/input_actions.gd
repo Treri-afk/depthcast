@@ -15,6 +15,8 @@ const SAUTER := &"sauter"
 const INTERAGIR := &"interagir"
 const LIBERER_CURSEUR := &"liberer_curseur"
 const TIRER := &"tirer"
+const PORTER := &"porter"
+const LANCER := &"lancer"
 
 ## Nom de l'action de lancement d'un slot donné.
 static func sort(slot_index: int) -> StringName:
@@ -28,6 +30,8 @@ const TOUCHES: Dictionary = {
 	DROITE: [KEY_D, KEY_RIGHT],
 	SAUTER: [KEY_SPACE],
 	INTERAGIR: [KEY_E],
+	PORTER: [KEY_F],
+	LANCER: [KEY_G],
 	LIBERER_CURSEUR: [KEY_ESCAPE],
 	&"lancer_sort_1": [KEY_1, KEY_KP_1],
 	&"lancer_sort_2": [KEY_2, KEY_KP_2],

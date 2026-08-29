@@ -72,6 +72,14 @@ func meuble(salle: FloorPlan.Salle, rng: RandomNumberGenerator) -> void:
 			genre = PropFactory.Genre.TONNEAU_EXPLOSIF
 		_pose(genre, pos)
 
+	# Au plus une balise de leurre par salle, et pas toujours. Un outil qu'on
+	# trouve à tous les coups cesse d'être un outil : il devient une ressource
+	# à gérer, et on arrête de s'en servir pour la garder.
+	if rng.randf() < _tuning.leurre_chance_par_salle:
+		var angle: float = rng.randf() * TAU
+		_pose(PropFactory.Genre.BALISE_LEURRE,
+			salle.centre + Vector3(cos(angle), 0, sin(angle)) * (demi * 0.45))
+
 
 func _estrade(centre: Vector3, cote: float, rng: RandomNumberGenerator) -> void:
 	var hauteur: float = rng.randf_range(1.0, 1.9)

@@ -85,6 +85,7 @@ func fait_apparaitre(stats: MonsterStats, pos: Vector3, cible: Node3D,
 		else MonsterAvatar.new()
 	avatar.monster_id = id
 	avatar.cible = cible
+	avatar.cible_par_defaut = cible
 	avatar.stats = stats
 
 	var forme := CollisionShape3D.new()

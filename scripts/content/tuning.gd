@@ -86,6 +86,14 @@ extends Resource
 @export_range(0.1, 3.0, 0.1) var tonneau_braise_intervalle: float = 0.6
 @export var tonneau_braise_degats: int = 5
 
+@export_group("Créature aveuglée")
+## Vitesse de déambulation d'une créature qui a perdu sa trace, en multiple de
+## sa vitesse. Nettement plus lente : elle cherche, elle ne patrouille pas.
+@export_range(0.0, 1.0, 0.05) var errance_vitesse: float = 0.4
+## Durée d'un cap avant d'en changer. Trop long et elle a l'air de savoir où
+## elle va, trop court et elle tremble sur place.
+@export_range(0.2, 5.0, 0.1) var errance_duree_du_cap: float = 1.3
+
 @export_group("Vigilance")
 ## Combien de temps une créature s'écarte, une fois qu'elle a compris. Assez
 ## pour la voir détaler, trop peu pour qu'elle sorte du rayon — fuir doit
@@ -94,6 +102,35 @@ extends Resource
 ## Vitesse de fuite, en multiple de la vitesse normale. La panique va plus vite
 ## que la marche.
 @export_range(0.5, 3.0, 0.05) var vigilance_vitesse_de_fuite: float = 1.25
+
+@export_group("Balise de leurre")
+## Rayon d'appel. Large : une balise qui n'attire que ce qui est déjà sur soi
+## n'a rien détourné du tout.
+@export_range(2.0, 40.0, 0.5) var leurre_rayon: float = 16.0
+## Combien de temps elle tient l'attention. C'est du répit acheté — assez pour
+## souffler, traverser ou se replacer, jamais assez pour gagner le combat.
+@export_range(1.0, 20.0, 0.5) var leurre_duree: float = 6.5
+## Chance qu'une balise apparaisse dans une salle meublée.
+@export_range(0.0, 1.0, 0.05) var leurre_chance_par_salle: float = 0.35
+@export var leurre_cout: int = 30
+
+@export_group("Portage")
+## Distance à laquelle on attrape un objet, depuis les yeux.
+@export_range(0.5, 6.0, 0.1) var portage_portee: float = 2.6
+## Vitesse en portant, en multiple de la vitesse normale. Porter DOIT coûter :
+## sans coût, c'est gratuit, et il n'y a aucune décision à prendre.
+@export_range(0.2, 1.0, 0.05) var portage_ralentissement: float = 0.62
+## Vitesse de lancer. Divisée par la masse : une caisse part loin, un tonneau
+## tombe à ses pieds — c'est ce qui rend le choix de l'objet intéressant.
+@export_range(1.0, 200.0, 0.5) var portage_force_de_lancer: float = 80.0
+## Lancer un sort les mains pleines. Désactivé, porter un tonneau amorcé
+## jusqu'à un groupe devient un vrai pari.
+## Part d'élévation ajoutée au lancer. À plat, la gravité du jeu — volontairement
+## forte — plaque l'objet au sol en trois dixièmes de seconde et il ne parcourt
+## que quatre mètres. Un peu d'arc rend le lancer utile ; viser vers le haut
+## reste le vrai levier, et c'est celui qui récompense le joueur.
+@export_range(0.0, 1.0, 0.05) var portage_arc: float = 0.25
+@export var portage_bloque_les_sorts: bool = true
 
 @export_group("Souffle et projection")
 ## Part de la puissance d'un souffle qui s'applique au joueur. À zéro, les
@@ -152,6 +189,13 @@ extends Resource
 ## poids à une explosion : on ne se contente pas d'être déplacé, on perd la
 ## main. Activé, la projection redevient un simple effet de caméra.
 @export var projection_bloque_les_sorts: bool = true
+## Les souffles projettent aussi les COÉQUIPIERS, pas seulement leur lanceur.
+##
+## Le dosage est toute la décision : des dégâts entre alliés font des disputes,
+## une poussée seule fait de la comédie. Personne ne meurt de ta main, tout le
+## monde te déteste trente secondes. Les dégâts de sort, eux, ne visent
+## toujours que les monstres.
+@export var souffle_pousse_les_allies: bool = true
 
 
 ## Coût du prochain sceau, renchérissement compris.

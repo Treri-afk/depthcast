@@ -53,6 +53,9 @@ signal player_slammed(player_id: int, vitesse: float)
 ## donc franchissable par le réseau le jour venu (R8).
 signal explosion_armed(origine: Vector3, rayon: float, delai: float)
 signal explosion_triggered(origine: Vector3, puissance: float)
+## Une balise de leurre vient de s'allumer. Le son écoute ; l'interface pourra
+## s'en servir plus tard pour indiquer où l'attention est partie.
+signal lure_activated(origine: Vector3, rayon: float, duree: float)
 
 # ── Monstres ──────────────────────────────────────────────────────────────
 signal monster_spawned(monster_id: int)

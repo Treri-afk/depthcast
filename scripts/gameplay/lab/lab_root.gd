@@ -125,7 +125,8 @@ func _maj_interaction() -> void:
 			meilleure = d
 			_poste_vise = poste
 
-	_terrain.hud.invite(_poste_vise.invite() if _poste_vise != null else "")
+	_terrain.hud.invite(_poste_vise.invite() if _poste_vise != null
+		else _terrain.joueur.invite_portage())
 
 
 ## Ici on ne meurt pas : on se relève. Une mort au banc d'essai n'apprend rien

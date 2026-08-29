@@ -15,6 +15,9 @@ const POUSSEE_MINIMALE: float = 2.0
 signal detruit()
 
 var pv: int = 18
+## Se prend dans les mains. Faux pour une table : ce qui se porte doit tenir
+## dans les bras, sinon la silhouette du joueur ment sur ce qu'il transporte.
+var portable: bool = false
 var couleur: Color = Color(0.48, 0.36, 0.24)
 
 var _mesh: MeshInstance3D
@@ -35,6 +38,12 @@ func _process(delta: float) -> void:
 	if _materiau != null:
 		_materiau.set_shader_parameter("albedo",
 			couleur.lerp(Content.palette.lisere_blanc, _teinte))
+
+
+## Point d'extension : appelé au moment où le joueur le relâche. Un objet
+## ordinaire n'en fait rien ; une balise de leurre s'en sert pour s'armer.
+func lache_par_le_joueur(_joueur: Node3D) -> void:
+	pass
 
 
 ## Encaisse des dégâts. Retourne true si l'objet vient d'être détruit.
