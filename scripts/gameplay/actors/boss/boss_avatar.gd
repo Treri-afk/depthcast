@@ -80,6 +80,7 @@ func _onde_visuelle() -> void:
 	mesh.outer_radius = boss_stats.rayon_special
 	visuel.mesh = mesh
 	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = stats.couleur
 	mat.emission_enabled = true
 	mat.emission = stats.couleur

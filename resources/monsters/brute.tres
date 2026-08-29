@@ -6,7 +6,7 @@
 script = ExtResource("1_84s37")
 id = &"brute"
 nom = "Brute"
-couleur = Color(0.62, 0.24, 0.22, 1)
+couleur = Color(0.66, 0.25, 0.24, 1)
 taille = Vector3(1.9, 2.4, 1.9)
 pv = 78
 degats = 17

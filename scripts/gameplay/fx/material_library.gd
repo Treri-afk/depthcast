@@ -1,53 +1,54 @@
 class_name MaterialLibrary
 extends RefCounted
-## Fabrique les matériaux du jeu à partir des shaders de shaders/.
+## Fabrique tous les matériaux du jeu — ligne claire.
 ##
-## Tout passe par ici pour une raison simple : la patte graphique doit pouvoir
-## changer en un endroit. Si chaque bâtisseur créait son StandardMaterial3D,
-## essayer un autre rendu demanderait de repasser sur dix fichiers.
+## Tout passe par ici, et les couleurs viennent toutes de la palette. C'est ce
+## qui rend l'identité tenable : une couleur écrite en dur dans un bâtisseur est
+## une entorse, et trois entorses suffisent à faire disparaître un style.
 ##
-## Les paramètres sont volontairement peu nombreux — une couleur, un rôle. Le
-## reste est décidé ici pour rester cohérent d'un objet à l'autre.
+## Le liseré clair et le trait d'encre sont obtenus par deux coques inversées
+## enchaînées : objet, puis coque claire fine, puis coque d'encre plus épaisse.
 
-const TOON := preload("res://shaders/toon.gdshader")
+const LIGNE_CLAIRE := preload("res://shaders/ligne_claire.gdshader")
 const CONTOUR := preload("res://shaders/contour.gdshader")
 const DISSOLUTION := preload("res://shaders/dissolution.gdshader")
 
-## Rôle d'une surface. Il décide de l'épaisseur du trait et de la vivacité du
-## liseré : un mur ne doit pas attirer l'oeil autant qu'un monstre.
+## Le rôle décide de l'épaisseur du trait. Un mur ne doit pas être cerné aussi
+## fort qu'une créature : dans un couloir, cent blocs soulignés font une bouillie.
 enum Role { DECOR, OBJET, CREATURE, INTERACTIF }
 
-const _REGLAGES: Dictionary = {
-	Role.DECOR:      {"contour": 0.0,   "lisere": 0.10, "bandes": 3},
-	Role.OBJET:      {"contour": 0.018, "lisere": 0.22, "bandes": 3},
-	Role.CREATURE:   {"contour": 0.030, "lisere": 0.55, "bandes": 4},
-	Role.INTERACTIF: {"contour": 0.026, "lisere": 0.85, "bandes": 4},
+const _TRAIT: Dictionary = {
+	Role.DECOR:      {"encre": 0.0,   "lisere": 0.0},
+	Role.OBJET:      {"encre": 0.016, "lisere": 0.007},
+	Role.CREATURE:   {"encre": 0.030, "lisere": 0.014},
+	Role.INTERACTIF: {"encre": 0.024, "lisere": 0.011},
 }
 
 
-## Matériau cel-shadé, avec contour selon le rôle.
-static func toon(couleur: Color, role: Role = Role.DECOR) -> ShaderMaterial:
-	var reglages: Dictionary = _REGLAGES[role]
+static func palette() -> Palette:
+	return Content.palette
 
+
+## Matériau standard : deux valeurs, ombre commune, trait selon le rôle.
+static func aplat(couleur: Color, role: Role = Role.DECOR) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
-	mat.shader = TOON
-	mat.set_shader_parameter("albedo", couleur)
-	mat.set_shader_parameter("bandes", int(reglages["bandes"]))
-	mat.set_shader_parameter("durete", 0.55)
-	mat.set_shader_parameter("teinte_ombre", Color(0.16, 0.17, 0.26))
-	mat.set_shader_parameter("force_lisere", float(reglages["lisere"]))
-	mat.set_shader_parameter("couleur_lisere", _lisere(couleur, role))
-	mat.set_shader_parameter("finesse_lisere", 3.2)
+	mat.shader = LIGNE_CLAIRE
+	_applique_regles(mat, couleur)
 
-	var epaisseur: float = float(reglages["contour"])
-	if epaisseur > 0.0:
-		mat.next_pass = contour(epaisseur)
+	# « trait » est un mot réservé de GDScript : on nomme la variable autrement.
+	var reglage: Dictionary = _TRAIT[role]
+	var encre: float = float(reglage["encre"])
+	if encre > 0.0:
+		# Ordre : liseré clair d'abord, encre par-dessus. La coque d'encre est
+		# la plus épaisse, donc elle encadre la claire.
+		var clair := coque(float(reglage["lisere"]), palette().lisere_blanc)
+		clair.next_pass = coque(encre, palette().encre)
+		mat.next_pass = clair
 	return mat
 
 
-## Trait d'encre autour d'une silhouette.
-static func contour(epaisseur: float = 0.025,
-		couleur := Color(0.05, 0.05, 0.08)) -> ShaderMaterial:
+## Une coque inversée : le maillage dilaté, faces arrière seulement.
+static func coque(epaisseur: float, couleur: Color) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = CONTOUR
 	mat.set_shader_parameter("couleur", couleur)
@@ -56,34 +57,35 @@ static func contour(epaisseur: float = 0.025,
 	return mat
 
 
-## Matériau de désagrégation, piloté par `progression` de 0 à 1.
-static func dissolution(couleur: Color, bord: Color) -> ShaderMaterial:
+## Surface qui s'éclaire d'elle-même : sorts, portail, objets du marchand.
+## C'est la seule chose du jeu qui a le droit d'être vive.
+static func lumineux(couleur: Color, force: float = 1.5) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = LIGNE_CLAIRE
+	_applique_regles(mat, couleur)
+	mat.set_shader_parameter("emission_force", force)
+	mat.set_shader_parameter("seuil", 0.0)
+	return mat
+
+
+## Désagrégation à la mort, avec un bord incandescent.
+static func dissolution(couleur: Color) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = DISSOLUTION
 	mat.set_shader_parameter("albedo", couleur)
-	mat.set_shader_parameter("couleur_bord", bord)
+	mat.set_shader_parameter("couleur_bord", palette().lisere_blanc)
 	mat.set_shader_parameter("progression", 0.0)
 	mat.set_shader_parameter("largeur_bord", 0.08)
 	mat.set_shader_parameter("echelle_bruit", 12.0)
 	return mat
 
 
-## Surface qui s'éclaire d'elle-même : projectiles, portail, socles.
-static func lumineux(couleur: Color, force: float = 1.4) -> ShaderMaterial:
-	var mat := ShaderMaterial.new()
-	mat.shader = TOON
+## L'ombre et son mélange sont posés au même endroit pour tout le jeu. C'est
+## littéralement la règle numéro deux de la ligne claire.
+static func _applique_regles(mat: ShaderMaterial, couleur: Color) -> void:
+	var p: Palette = palette()
 	mat.set_shader_parameter("albedo", couleur)
-	mat.set_shader_parameter("bandes", 2)
-	mat.set_shader_parameter("durete", 0.2)
-	mat.set_shader_parameter("emission_force", force)
-	mat.set_shader_parameter("force_lisere", 0.9)
-	mat.set_shader_parameter("couleur_lisere", couleur.lightened(0.4))
-	return mat
-
-
-## Le liseré emprunte à la couleur de l'objet pour le décor, et tire vers le
-## froid sur les créatures : elles se détachent ainsi même sur un mur clair.
-static func _lisere(couleur: Color, role: Role) -> Color:
-	if role == Role.CREATURE:
-		return Color(0.6, 0.78, 1.0)
-	return couleur.lightened(0.55)
+	mat.set_shader_parameter("couleur_ombre", p.ombre)
+	mat.set_shader_parameter("melange_ombre", p.melange_ombre)
+	mat.set_shader_parameter("seuil", 0.32)
+	mat.set_shader_parameter("nettete", 0.02)

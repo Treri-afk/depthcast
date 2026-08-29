@@ -8,16 +8,19 @@ extends Node
 const DOSSIER_ECOLES := "res://resources/schools"
 const DOSSIER_MONSTRES := "res://resources/monsters"
 const CHEMIN_TUNING := "res://resources/tuning.tres"
+const CHEMIN_PALETTE := "res://resources/palette.tres"
 
 var ecoles: Array[School] = []
 var monstres: Array[MonsterStats] = []
 var tuning: Tuning
+var palette: Palette
 
 
 func _ready() -> void:
 	ecoles.assign(_charge_dossier(DOSSIER_ECOLES))
 	monstres.assign(_charge_dossier(DOSSIER_MONSTRES))
 	tuning = load(CHEMIN_TUNING) if ResourceLoader.exists(CHEMIN_TUNING) else Tuning.new()
+	palette = load(CHEMIN_PALETTE) if ResourceLoader.exists(CHEMIN_PALETTE) else Palette.new()
 
 	# Un pool hors bornes est une erreur de contenu, pas un plantage : on le
 	# signale et on continue, pour pouvoir tester malgré tout.

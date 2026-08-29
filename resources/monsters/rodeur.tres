@@ -6,5 +6,5 @@
 script = ExtResource("1_pdi6q")
 id = &"rodeur"
 nom = "Rôdeur"
-couleur = Color(0.78, 0.32, 0.36, 1)
+couleur = Color(0.84, 0.36, 0.4, 1)
 vitesse = 4.2

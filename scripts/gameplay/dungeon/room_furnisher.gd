@@ -29,7 +29,7 @@ func meuble(salle: FloorPlan.Salle, rng: RandomNumberGenerator) -> void:
 			var angle: float = TAU * float(i) / 4.0 + PI * 0.25
 			_builder.bloc(salle.centre + Vector3(cos(angle), 0, sin(angle)) * (demi * 0.55)
 				+ Vector3(0, _tuning.hauteur_pilier * 0.5, 0),
-				Vector3(2.0, _tuning.hauteur_pilier, 2.0), Color(0.24, 0.25, 0.30))
+				Vector3(2.0, _tuning.hauteur_pilier, 2.0), Content.palette.pilier)
 		return
 
 	# Piliers en retrait des murs : ils créent des angles morts.
@@ -41,7 +41,7 @@ func meuble(salle: FloorPlan.Salle, rng: RandomNumberGenerator) -> void:
 			_builder.bloc(
 				salle.centre + Vector3(signe_x * recul, _tuning.hauteur_pilier * 0.5,
 					signe_z * recul),
-				Vector3(1.5, _tuning.hauteur_pilier, 1.5), Color(0.24, 0.25, 0.30))
+				Vector3(1.5, _tuning.hauteur_pilier, 1.5), Content.palette.pilier)
 
 	if salle.marchand:
 		_estrade(salle.centre + Vector3(0, 0, -demi * 0.62), 7.0, rng)
@@ -61,18 +61,18 @@ func meuble(salle: FloorPlan.Salle, rng: RandomNumberGenerator) -> void:
 			continue
 		var tirage: float = rng.randf()
 		if tirage < 0.45:
-			_objet(pos, Vector3(1.0, 1.0, 1.0), 7.0, Color(0.48, 0.36, 0.24), false)
+			_objet(pos, Vector3(1.0, 1.0, 1.0), 7.0, Content.palette.caisse, false)
 		elif tirage < 0.8:
-			_objet(pos, Vector3(0.9, 1.2, 0.9), 9.0, Color(0.40, 0.30, 0.20), true)
+			_objet(pos, Vector3(0.9, 1.2, 0.9), 9.0, Content.palette.tonneau, true)
 		else:
 			_objet(pos + Vector3(0, 0.35, 0), Vector3(2.2, 0.25, 1.2), 14.0,
-				Color(0.34, 0.26, 0.20), false)
+				Content.palette.table, false)
 
 
 func _estrade(centre: Vector3, cote: float, rng: RandomNumberGenerator) -> void:
 	var hauteur: float = rng.randf_range(1.0, 1.9)
 	_builder.bloc(centre + Vector3(0, hauteur * 0.5, 0),
-		Vector3(cote, hauteur, cote), Color(0.26, 0.27, 0.33))
+		Vector3(cote, hauteur, cote), Content.palette.estrade)
 	_builder.rampe(centre + Vector3(0, 0, cote * 0.5), Vector3.BACK, hauteur, cote * 0.6)
 
 
@@ -108,7 +108,7 @@ func _objet(pos: Vector3, taille: Vector3, masse: float, couleur: Color,
 		mesh.size = taille
 		visuel.mesh = mesh
 
-	visuel.material_override = MaterialLibrary.toon(couleur, MaterialLibrary.Role.OBJET)
+	visuel.material_override = MaterialLibrary.aplat(couleur, MaterialLibrary.Role.OBJET)
 	corps.add_child(forme)
 	corps.add_child(visuel)
 	_parent.add_child(corps)

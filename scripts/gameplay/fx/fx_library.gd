@@ -75,8 +75,13 @@ func marqueur(pos: Vector3, couleur: Color) -> void:
 	tween.tween_callback(visuel.queue_free)
 
 
+## Les effets translucides gardent un matériau standard : le shader de ligne
+## claire ne gère pas l'alpha. Ils sont en revanche NON ÉCLAIRÉS, sinon ils
+## recevraient un dégradé et réintroduiraient la troisième valeur qu'on
+## s'interdit partout ailleurs.
 func _materiau_emissif(couleur: Color, transparent: bool) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = couleur
 	mat.emission_enabled = true
 	mat.emission = couleur

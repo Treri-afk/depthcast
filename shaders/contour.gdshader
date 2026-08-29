@@ -1,6 +1,10 @@
 shader_type spatial;
 render_mode cull_front, unshaded, shadows_disabled, depth_draw_opaque;
 
+// Coque inversée. Sert DEUX fois de suite : une première coque claire, puis
+// une seconde plus épaisse en encre. On obtient un liseré blanc pris entre
+// l'objet et son trait — la signature « autocollant » qui va avec des mascottes.
+//
 // Contour par coque inversée : on dilate le maillage le long de ses normales
 // et on ne rend que les faces arrière. Le résultat est un trait d'encre autour
 // de la silhouette, sans post-traitement plein écran.

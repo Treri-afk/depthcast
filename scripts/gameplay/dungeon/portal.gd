@@ -16,7 +16,7 @@ static func cree(pos: Vector3) -> Portal:
 	anneau.rotation_degrees = Vector3(90, 0, 0)
 	anneau.position = Vector3(0, 2.0, 0)
 
-	anneau.material_override = MaterialLibrary.lumineux(Color(0.5, 0.72, 1.0), 2.0)
+	anneau.material_override = MaterialLibrary.lumineux(Content.palette.portail, 2.0)
 	portail.add_child(anneau)
 	return portail
 

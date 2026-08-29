@@ -29,7 +29,7 @@ static func cree(fx: FxLibrary, pos: Vector3, genre_voulu: Genre,
 	mesh.height = 0.9
 	pied.mesh = mesh
 	pied.position = Vector3(0, 0.45, 0)
-	pied.material_override = MaterialLibrary.toon(Color(0.34, 0.34, 0.42),
+	pied.material_override = MaterialLibrary.aplat(Content.palette.socle,
 		MaterialLibrary.Role.INTERACTIF)
 	socle.add_child(pied)
 

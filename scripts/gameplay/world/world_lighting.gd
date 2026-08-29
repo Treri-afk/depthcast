@@ -7,16 +7,17 @@ extends RefCounted
 static func installe(parent: Node3D) -> void:
 	var lumiere := DirectionalLight3D.new()
 	lumiere.rotation_degrees = Vector3(-58, -42, 0)
-	lumiere.light_energy = 1.15
+	lumiere.light_energy = 1.0
 	lumiere.shadow_enabled = true
 	parent.add_child(lumiere)
 
 	var ambiance := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.09, 0.09, 0.12)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.35, 0.36, 0.42)
-	env.ambient_light_energy = 0.85
+	env.background_color = Content.palette.fond
+	# Aucune lumière ambiante : le shader la désactive de toute façon, et une
+	# ambiante viendrait éclaircir les ombres, donc introduire une troisième
+	# valeur. Deux valeurs, jamais trois.
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_DISABLED
 	ambiance.environment = env
 	parent.add_child(ambiance)

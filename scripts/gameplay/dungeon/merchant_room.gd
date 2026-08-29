@@ -158,7 +158,7 @@ func _couleur_ecole(slot_index: int) -> Color:
 func _silhouette(pos: Vector3) -> void:
 	var marchand := Node3D.new()
 	marchand.position = pos
-	marchand.add_child(_fx.sphere_lumineuse(0.9, Color(0.95, 0.85, 0.45)))
+	marchand.add_child(_fx.sphere_lumineuse(0.9, Content.palette.marchand))
 
 	var chapeau := MeshInstance3D.new()
 	var cone := CylinderMesh.new()
@@ -167,8 +167,7 @@ func _silhouette(pos: Vector3) -> void:
 	cone.height = 1.1
 	chapeau.mesh = cone
 	chapeau.position = Vector3(0, 1.1, 0)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.35, 0.28, 0.55)
-	chapeau.material_override = mat
+	chapeau.material_override = MaterialLibrary.aplat(
+		Content.palette.chapeau_marchand, MaterialLibrary.Role.INTERACTIF)
 	marchand.add_child(chapeau)
 	_parent.add_child(marchand)

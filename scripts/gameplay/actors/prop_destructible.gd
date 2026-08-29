@@ -13,14 +13,14 @@ var pv: int = 18
 var couleur: Color = Color(0.48, 0.36, 0.24)
 
 var _mesh: MeshInstance3D
-var _materiau: StandardMaterial3D
+var _materiau: ShaderMaterial
 var _teinte: float = 0.0
 
 
 func _ready() -> void:
 	_mesh = get_node_or_null("Mesh") as MeshInstance3D
 	if _mesh != null:
-		_materiau = _mesh.material_override as StandardMaterial3D
+		_materiau = _mesh.material_override as ShaderMaterial
 
 
 func _process(delta: float) -> void:
@@ -28,7 +28,8 @@ func _process(delta: float) -> void:
 		return
 	_teinte = maxf(0.0, _teinte - delta * 3.5)
 	if _materiau != null:
-		_materiau.albedo_color = couleur.lerp(Color(1.0, 0.85, 0.6), _teinte)
+		_materiau.set_shader_parameter("albedo",
+			couleur.lerp(Content.palette.lisere_blanc, _teinte))
 
 
 ## Encaisse des dégâts. Retourne true si l'objet vient d'être détruit.
@@ -81,9 +82,8 @@ func _projette_des_debris() -> void:
 		var mesh := BoxMesh.new()
 		mesh.size = taille
 		visuel.mesh = mesh
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = couleur.darkened(0.15)
-		visuel.material_override = mat
+		visuel.material_override = MaterialLibrary.aplat(couleur.darkened(0.15),
+			MaterialLibrary.Role.OBJET)
 		eclat.add_child(visuel)
 
 		parent.add_child(eclat)

@@ -6,7 +6,7 @@
 script = ExtResource("1_evo11")
 id = &"rodeuse_ailee"
 nom = "Rôdeuse ailée"
-couleur = Color(0.55, 0.45, 0.85, 1)
+couleur = Color(0.58, 0.47, 0.88, 1)
 taille = Vector3(1, 0.8, 1)
 pv = 22
 degats = 9

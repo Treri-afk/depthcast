@@ -12,6 +12,10 @@ func _init(parent: Node3D, tuning: Tuning) -> void:
 	_tuning = tuning
 
 
+func _p() -> Palette:
+	return Content.palette
+
+
 func batit(plan: FloorPlan) -> void:
 	for salle: FloorPlan.Salle in plan.salles:
 		_batit_salle(salle)
@@ -21,7 +25,7 @@ func batit(plan: FloorPlan) -> void:
 
 func _batit_salle(salle: FloorPlan.Salle) -> void:
 	bloc(salle.centre + Vector3(0, -0.5, 0), Vector3(salle.cote, 1, salle.cote),
-		Color(0.30, 0.31, 0.36))
+		_p().sol)
 
 	var demi: float = salle.cote * 0.5
 	var murs := [
@@ -38,7 +42,7 @@ func _batit_salle(salle: FloorPlan.Salle) -> void:
 func _batit_mur(centre: Vector3, longueur: float, le_long_de_z: bool,
 		perce: bool) -> void:
 	var hauteur := Vector3(0, _tuning.hauteur_mur * 0.5, 0)
-	var couleur := Color(0.20, 0.21, 0.26)
+	var couleur: Color = _p().mur
 
 	if not perce:
 		var taille: Vector3 = Vector3(1, _tuning.hauteur_mur, longueur) if le_long_de_z \
@@ -68,7 +72,7 @@ func _batit_couloir(depart: Vector3, direction: Vector3) -> void:
 	var le_long_de_x: bool = absf(direction.x) > 0.5
 	var sol: Vector3 = Vector3(_tuning.longueur_couloir, 1, _tuning.largeur_couloir) \
 		if le_long_de_x else Vector3(_tuning.largeur_couloir, 1, _tuning.longueur_couloir)
-	bloc(milieu + Vector3(0, -0.5, 0), sol, Color(0.26, 0.27, 0.32))
+	bloc(milieu + Vector3(0, -0.5, 0), sol, _p().sol_couloir)
 
 	var hauteur := Vector3(0, _tuning.hauteur_mur * 0.5, 0)
 	var demi_large: float = _tuning.largeur_couloir * 0.5
@@ -76,11 +80,11 @@ func _batit_couloir(depart: Vector3, direction: Vector3) -> void:
 		if le_long_de_x:
 			bloc(milieu + hauteur + Vector3(0, 0, signe * demi_large),
 				Vector3(_tuning.longueur_couloir, _tuning.hauteur_mur, 1),
-				Color(0.18, 0.19, 0.24))
+				_p().mur_couloir)
 		else:
 			bloc(milieu + hauteur + Vector3(signe * demi_large, 0, 0),
 				Vector3(1, _tuning.hauteur_mur, _tuning.longueur_couloir),
-				Color(0.18, 0.19, 0.24))
+				_p().mur_couloir)
 
 
 ## Bloc statique. Utilisé aussi par le meublage, d'où sa visibilité.
@@ -100,7 +104,7 @@ func bloc(pos: Vector3, taille: Vector3, couleur: Color,
 	var mesh := BoxMesh.new()
 	mesh.size = taille
 	visuel.mesh = mesh
-	visuel.material_override = MaterialLibrary.toon(couleur, MaterialLibrary.Role.DECOR)
+	visuel.material_override = MaterialLibrary.aplat(couleur, MaterialLibrary.Role.DECOR)
 	corps.add_child(visuel)
 
 	_parent.add_child(corps)
@@ -115,5 +119,5 @@ func rampe(pied: Vector3, direction: Vector3, hauteur: float, largeur: float) ->
 	var longueur: float = hauteur / tan(deg_to_rad(22.0))
 	var pente: float = sqrt(hauteur * hauteur + longueur * longueur)
 	var centre: Vector3 = pied + direction * (longueur * 0.5) + Vector3(0, hauteur * 0.5, 0)
-	bloc(centre, Vector3(largeur, 0.6, pente), Color(0.23, 0.24, 0.29),
+	bloc(centre, Vector3(largeur, 0.6, pente), _p().rampe,
 		Vector3(atan2(hauteur, longueur), atan2(direction.x, direction.z), 0))

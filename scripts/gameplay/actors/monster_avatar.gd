@@ -171,7 +171,7 @@ func meurt_en_se_dissolvant() -> void:
 		queue_free()
 		return
 
-	var mat := MaterialLibrary.dissolution(stats.couleur, Color(1.0, 0.7, 0.3))
+	var mat := MaterialLibrary.dissolution(stats.couleur)
 	_mesh.set_surface_override_material(0, mat)
 
 	var tween := create_tween()

@@ -64,6 +64,8 @@ func _ready() -> void:
 	monitoring = true
 
 	_materiau = StandardMaterial3D.new()
+	# Non éclairée : une nappe est de la lumière, pas une surface.
+	_materiau.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_materiau.albedo_color = Color(couleur.r, couleur.g, couleur.b, 0.32)
 	_materiau.emission_enabled = true
 	_materiau.emission = couleur

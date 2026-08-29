@@ -99,7 +99,7 @@ func fait_apparaitre(stats: MonsterStats, pos: Vector3, cible: Node3D,
 	mesh.size = stats.taille
 	visuel.mesh = mesh
 	visuel.set_surface_override_material(0,
-		MaterialLibrary.toon(stats.couleur, MaterialLibrary.Role.CREATURE))
+		MaterialLibrary.aplat(stats.couleur, MaterialLibrary.Role.CREATURE))
 	avatar.add_child(visuel)
 
 	# Le volant démarre déjà en l'air, sinon on le voit décoller bêtement.
