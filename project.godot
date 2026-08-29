@@ -22,6 +22,14 @@ RngService="*res://scripts/core/rng_service.gd"
 GameState="*res://scripts/core/game_state.gd"
 EffectResolver="*res://scripts/core/effect_resolver.gd"
 
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+; Le HUD suit la taille de la fenêtre au lieu de rester en pixels fixes.
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

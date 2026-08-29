@@ -15,10 +15,10 @@ const MONSTRES_PAR_ETAGE: int = 4
 const PV_MONSTRE: int = 34
 const RESONANCE_PAR_MONSTRE: int = 12
 const COUT_VERROU: int = 20
-const TAILLE_SALLE: float = 26.0
+const TAILLE_SALLE: float = 22.0
 const VITESSE_PROJECTILE: float = 26.0
-const HAUTEUR_CAMERA: float = 17.0
-const RECUL_CAMERA: float = 13.0
+const HAUTEUR_CAMERA: float = 11.5
+const RECUL_CAMERA: float = 8.5
 
 var _joueur: PlayerAvatar
 var _camera: Camera3D
@@ -176,7 +176,8 @@ func _construit_le_joueur() -> void:
 
 	_camera = Camera3D.new()
 	_camera.position = Vector3(0, HAUTEUR_CAMERA, RECUL_CAMERA)
-	_camera.rotation_degrees = Vector3(-52, 0, 0)
+	_camera.rotation_degrees = Vector3(-54, 0, 0)
+	_camera.fov = 62.0
 	add_child(_camera)
 
 	_conteneur_monstres = Node3D.new()
