@@ -4,7 +4,7 @@ extends RefCounted
 ##
 ## Regroupés ici parce qu'ils étaient dupliqués dans chaque comportement. Ils
 ## seront remplacés par de vrais VFX quand la direction artistique sera posée ;
-## d'ici là ils servent surtout à rendre chaque sort LISIBLE.
+## d'ici là ils servent surtout à rendre chaque sort lisible.
 
 var monde: Node3D
 

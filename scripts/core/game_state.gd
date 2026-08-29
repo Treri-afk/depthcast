@@ -102,9 +102,9 @@ func set_player_schools(player_id: int, schools: Array) -> void:
 
 ## Change l'école d'un seul slot, en cours de run.
 ##
-## N'existe que pour le prototype : en jeu, les écoles se choisissent avant la
-## descente et ne bougent plus. Ici c'est l'outil qui permet de comparer les
-## écoles entre elles sans relancer.
+## Outil de comparaison : en jeu, les écoles se choisissent avant la descente
+## et ne bougent plus. Cette méthode permet de les confronter sans relancer,
+## et servira aussi à l'écran de sélection d'avant-run.
 func set_slot_school(player_id: int, slot_index: int, school_id: StringName,
 		pool_size: int) -> void:
 	var p: PlayerState = run.get_player(player_id) if run != null else null

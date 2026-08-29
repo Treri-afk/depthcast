@@ -1,6 +1,6 @@
 class_name PropDestructible
 extends RigidBody3D
-## Une caisse, un tonneau, une table. JETABLE — remplacé par du vrai décor plus tard.
+## Une caisse, un tonneau, une table : du décor réactif.
 ##
 ## Ses points de vie vivent ici et non dans GameState, contrairement à ceux des
 ## monstres. C'est assumé : un tonneau n'est pas un objet de gameplay répliqué,

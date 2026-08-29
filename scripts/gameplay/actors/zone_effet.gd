@@ -1,7 +1,7 @@
 class_name ZoneEffet
 extends Area3D
 ## Une zone qui agit dans la durée : mur de flammes, sol embrasé, totem de soin,
-## nappe de gel. JETABLE — remplacée par de vraies Resources en C2.
+## nappe de gel.
 ##
 ## Elle ne calcule aucun dégât elle-même. À chaque battement, elle regarde qui
 ## est à l'intérieur et soumet une intention à l'EffectResolver (R4). C'est ce

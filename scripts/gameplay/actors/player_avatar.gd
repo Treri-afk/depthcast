@@ -1,26 +1,16 @@
 class_name PlayerAvatar
 extends CharacterBody3D
-## Le corps du joueur dans le prototype, en vue à la PREMIÈRE PERSONNE.
-## JETABLE — remplacé en C3.
+## Le corps du joueur, en vue à la première personne.
 ##
 ## Il affiche et il déplace. Il ne détient AUCUN point de vie ni aucune donnée
-## de sort : tout ça vit dans GameState (R1). Il ne fait que soumettre des
-## intentions à l'EffectResolver (R4).
+## de sort : tout ça vit dans GameState (R1). Il signale ce que le joueur veut
+## lancer ; c'est le SpellCaster qui décide de ce que ça produit.
 ##
-## ── Les valeurs de feel sont toutes ici, en haut. C'est fait pour être trituré.
+## Les valeurs de ressenti viennent de la table de tuning, éditable dans
+## l'inspecteur : c'est du calibrage, pas du code.
 
-const VITESSE: float = 7.0
-## Plus c'est haut, plus le personnage démarre sec. Bas = patinage.
-const ACCELERATION: float = 55.0
-const FREINAGE: float = 42.0
-## Sensibilité de la souris, en radians par pixel.
-const SENSIBILITE: float = 0.0022
-## Au-delà, on se casse la nuque. En radians.
-const PITCH_MAX: float = 1.45
 ## Hauteur des yeux, mesurée depuis le centre de la capsule.
 const HAUTEUR_YEUX: float = 0.65
-const GRAVITE: float = 26.0
-const IMPULSION_SAUT: float = 8.4
 
 signal a_lance(slot_index: int, direction: Vector3)
 
@@ -28,24 +18,23 @@ var player_id: int = 0
 var tete: Node3D
 var camera: Camera3D
 
-## Charge en cours (Ruée). Direction et temps restant.
+var _tuning: Tuning
+var _regard: MouseLook
+var _trainee: TrailEmitter
+
+## Cooldown restant par slot, en secondes.
+var _cooldowns: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
+## Charge en cours (Ruée) : direction et temps restant.
 var _dash: Vector3 = Vector3.ZERO
 var _dash_restant: float = 0.0
 ## Tant que c'est > 0, les monstres ont perdu notre trace (Voile).
 var _voile_restant: float = 0.0
 
-## Traînée en cours : elle sème des flaques tant qu'elle dure.
-var _trainee_restante: float = 0.0
-var _trainee_effet: SpellEffect = null
-var _trainee_couleur: Color = Color.WHITE
-var _trainee_slot: int = -1
-var _derniere_flaque: Vector3 = Vector3.ZERO
-
-## Cooldown restant par slot, en secondes.
-var _cooldowns: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
-
 
 func _ready() -> void:
+	_tuning = Content.tuning
+	_trainee = TrailEmitter.new()
+
 	tete = Node3D.new()
 	tete.name = "Tete"
 	tete.position = Vector3(0, HAUTEUR_YEUX, 0)
@@ -56,56 +45,44 @@ func _ready() -> void:
 	camera.current = true
 	tete.add_child(camera)
 
+	_regard = MouseLook.new(self, tete, _tuning.sensibilite_souris)
+
 	# Sans accrochage au sol, on décolle en haut d'une rampe et on redescend en
 	# sautillant. 50° laisse de la marge au-dessus de la pente de 22° des rampes.
 	floor_snap_length = 0.5
 	floor_max_angle = deg_to_rad(50.0)
-
-	capture_souris(true)
-
-
-## La souris est capturée pour viser. Échap la relâche, ce qui permet de
-## cliquer les boutons du HUD — et de reprendre la main sans tuer le jeu.
-func capture_souris(actif: bool) -> void:
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if actif else Input.MOUSE_MODE_VISIBLE
-
-
-func souris_capturee() -> bool:
-	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	MouseLook.capture(true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and souris_capturee():
-		var mouvement := event as InputEventMouseMotion
-		# Le lacet tourne le corps entier : c'est lui qui définit l'avant.
-		rotate_y(-mouvement.relative.x * SENSIBILITE)
-		# Le tangage ne bouge que la tête, sinon le personnage bascule.
-		tete.rotation.x = clampf(
-			tete.rotation.x - mouvement.relative.y * SENSIBILITE, -PITCH_MAX, PITCH_MAX
-		)
+	if event is InputEventMouseMotion and MouseLook.est_capture():
+		_regard.applique(event as InputEventMouseMotion)
 
-	if event.is_action_pressed("proto_liberer_souris"):
-		capture_souris(not souris_capturee())
+	if event.is_action_pressed(InputActions.LIBERER_CURSEUR):
+		MouseLook.capture(not MouseLook.est_capture())
 
-	# Un clic dans la fenêtre reprend la visée après un passage par le HUD.
-	if event is InputEventMouseButton and not souris_capturee():
+	# Un clic droit reprend la visée après un passage par l'interface.
+	if event is InputEventMouseButton and not MouseLook.est_capture():
 		var clic := event as InputEventMouseButton
 		if clic.pressed and clic.button_index == MOUSE_BUTTON_RIGHT:
-			capture_souris(true)
+			MouseLook.capture(true)
 
 
 func _physics_process(delta: float) -> void:
 	for i: int in _cooldowns.size():
 		_cooldowns[i] = maxf(0.0, _cooldowns[i] - delta)
-
-	var entree := Input.get_vector(
-		"proto_gauche", "proto_droite", "proto_haut", "proto_bas"
-	)
-	# Déplacement relatif au regard : avancer, c'est aller où l'on regarde.
-	var voulu: Vector3 = (transform.basis * Vector3(entree.x, 0.0, entree.y)) * VITESSE
-
 	_voile_restant = maxf(0.0, _voile_restant - delta)
 
+	_deplace(delta)
+	_ecoute_les_sorts()
+
+
+func _deplace(delta: float) -> void:
+	var entree := Input.get_vector(InputActions.GAUCHE, InputActions.DROITE,
+		InputActions.AVANT, InputActions.ARRIERE)
+	# Déplacement relatif au regard : avancer, c'est aller où l'on regarde.
+	var voulu: Vector3 = (transform.basis * Vector3(entree.x, 0.0, entree.y)) \
+		* _tuning.vitesse_joueur
 	var vitesse_verticale: float = velocity.y
 
 	if _dash_restant > 0.0:
@@ -115,22 +92,21 @@ func _physics_process(delta: float) -> void:
 		velocity.x = _dash.x
 		velocity.z = _dash.z
 	else:
-		var taux: float = ACCELERATION if entree.length_squared() > 0.01 else FREINAGE
+		var taux: float = _tuning.acceleration_joueur \
+			if entree.length_squared() > 0.01 else _tuning.freinage_joueur
 		velocity.x = move_toward(velocity.x, voulu.x, taux * delta)
 		velocity.z = move_toward(velocity.z, voulu.z, taux * delta)
 
 	if is_on_floor():
 		vitesse_verticale = 0.0
-		if Input.is_action_just_pressed("proto_saut") and souris_capturee():
-			vitesse_verticale = IMPULSION_SAUT
+		if Input.is_action_just_pressed(InputActions.SAUTER) and MouseLook.est_capture():
+			vitesse_verticale = _tuning.impulsion_saut
 	else:
-		vitesse_verticale -= GRAVITE * delta
+		vitesse_verticale -= _tuning.gravite * delta
 
 	velocity.y = vitesse_verticale
 	move_and_slide()
 	_bouscule_les_objets()
-
-	_ecoute_les_sorts()
 
 
 ## Un CharacterBody3D ne pousse pas les corps rigides tout seul : il faut lui
@@ -144,22 +120,23 @@ func _bouscule_les_objets() -> void:
 
 
 func _ecoute_les_sorts() -> void:
-	if not souris_capturee():
+	if not MouseLook.est_capture():
 		return
-	# Maj et Ctrl sont réservés au changement d'école et au verrouillage :
-	# sans ce garde, appuyer sur Maj+1 lancerait AUSSI le sort du slot 1.
-	var modificateur: bool = Input.is_key_pressed(KEY_SHIFT) \
-		or Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META)
-	if modificateur:
+	# Maj et Ctrl sont réservés aux raccourcis d'interface : sans ce garde,
+	# Maj+1 lancerait aussi le sort du slot 1.
+	if Input.is_key_pressed(KEY_SHIFT) or Input.is_key_pressed(KEY_CTRL) \
+			or Input.is_key_pressed(KEY_META):
 		return
 
-	for i: int in 4:
-		if Input.is_action_just_pressed("proto_sort_%d" % (i + 1)) and _cooldowns[i] <= 0.0:
+	for i: int in PlayerState.SLOT_COUNT:
+		if Input.is_action_just_pressed(InputActions.sort(i)) and _cooldowns[i] <= 0.0:
 			a_lance.emit(i, direction_visee())
 	# Le clic gauche lance aussi le slot 1 : c'est le réflexe naturel en FPS.
-	if Input.is_action_just_pressed("proto_tir") and _cooldowns[0] <= 0.0:
+	if Input.is_action_just_pressed(InputActions.TIRER) and _cooldowns[0] <= 0.0:
 		a_lance.emit(0, direction_visee())
 
+
+# ── Ce que les sorts pilotent ─────────────────────────────────────────────
 
 ## Là où pointe la caméra, tangage compris.
 func direction_visee() -> Vector3:
@@ -175,10 +152,9 @@ func position_yeux() -> Vector3:
 func point_vise(portee: float) -> Vector3:
 	var depart: Vector3 = position_yeux()
 	var direction: Vector3 = direction_visee()
-	var espace := get_world_3d().direct_space_state
 	var requete := PhysicsRayQueryParameters3D.create(depart, depart + direction * portee)
 	requete.exclude = [get_rid()]
-	var touche: Dictionary = espace.intersect_ray(requete)
+	var touche: Dictionary = get_world_3d().direct_space_state.intersect_ray(requete)
 
 	var but: Vector3 = touche["position"] if touche.has("position") \
 		else depart + direction * portee
@@ -203,35 +179,20 @@ func voile(duree: float) -> void:
 	_voile_restant = duree
 
 
-func arme_trainee(effet: SpellEffect, couleur: Color, slot_index: int) -> void:
-	_trainee_restante = effet.duree
-	_trainee_effet = effet
-	_trainee_couleur = couleur
-	_trainee_slot = slot_index
-	_derniere_flaque = Vector3.ZERO
-
-
-## Rend la prochaine flaque à poser, ou un dictionnaire vide.
-##
-## Une flaque tous les 1,6 mètre plutôt qu'à intervalle fixe : rester immobile
-## ne doit pas empiler dix flaques au même endroit.
-func consomme_flaque(delta: float) -> Dictionary:
-	if _trainee_restante <= 0.0 or _trainee_effet == null:
-		return {}
-	_trainee_restante -= delta
-	if global_position.distance_to(_derniere_flaque) <= 1.6:
-		return {}
-	_derniere_flaque = global_position
-	return {
-		"effet": _trainee_effet,
-		"couleur": _trainee_couleur,
-		"slot": _trainee_slot,
-		"position": global_position,
-	}
-
-
 func est_voile() -> bool:
 	return _voile_restant > 0.0
+
+
+func arme_trainee(effet: SpellEffect, couleur: Color, slot_index: int) -> void:
+	_trainee.arme(effet, couleur, slot_index)
+
+
+func consomme_flaque(delta: float) -> Dictionary:
+	return _trainee.consomme(delta, global_position)
+
+
+func souris_capturee() -> bool:
+	return MouseLook.est_capture()
 
 
 func demarre_cooldown(slot_index: int, duree: float) -> void:
