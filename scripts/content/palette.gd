@@ -33,7 +33,7 @@ extends Resource
 ## Rupture de profondeur qui déclenche un trait. C'est ce qui souligne les
 ## arêtes de géométrie, invisibles à la luminance quand deux surfaces voisines
 ## sont éclairées pareil.
-@export_range(0.0005, 0.05, 0.0005) var contour_seuil_profondeur: float = 0.004
+@export_range(0.0005, 0.05, 0.0005) var contour_seuil_profondeur: float = 0.0015
 
 ## Bruit fixe posé sur l'image. Il ne bouge jamais : un grain animé fait du
 ## bruit vidéo, un grain fixe fait du papier.

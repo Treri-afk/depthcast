@@ -81,24 +81,32 @@ vec2 accroche(vec2 uv, vec2 grille) {
 }
 
 
-// Arête géométrique : deux surfaces adjacentes dont la distance saute.
+// Arête géométrique : une VRAIE rupture, pas une surface vue en rasant.
 //
-// C'est ce qui manquait. La luminance seule ne voit pas la jonction d'un mur et
-// d'un sol quand tous deux sont éclairés de la même façon : il n'y a aucun
-// écart de couleur à détecter, alors que l'arête est bien là.
+// La première version comparait la profondeur du pixel à celle de ses voisins.
+// Sur un sol vu de biais, cet écart est énorme alors qu'il n'y a aucune arête :
+// d'où les traits qui apparaissaient au milieu de nulle part.
+//
+// On compare donc chaque pixel à la MOYENNE de ses deux voisins opposés. Sur
+// une surface plane, même très inclinée, la profondeur varie linéairement et
+// cette moyenne retombe pile sur la valeur du centre : l'écart est nul. Il ne
+// devient grand qu'à une vraie discontinuité — un coin, une silhouette.
 float rupture_profondeur(vec2 uv_centre, vec2 pas, vec2 grille) {
 	float d0 = texture(profondeur, uv_centre).r;
 	if (d0 <= 0.0) {
 		return 0.0;
 	}
 
-	float ecart = 0.0;
-	ecart = max(ecart, abs(texture(profondeur, accroche(uv_centre + vec2(pas.x, 0.0), grille)).r - d0));
-	ecart = max(ecart, abs(texture(profondeur, accroche(uv_centre - vec2(pas.x, 0.0), grille)).r - d0));
-	ecart = max(ecart, abs(texture(profondeur, accroche(uv_centre + vec2(0.0, pas.y), grille)).r - d0));
-	ecart = max(ecart, abs(texture(profondeur, accroche(uv_centre - vec2(0.0, pas.y), grille)).r - d0));
+	float gauche = texture(profondeur, accroche(uv_centre - vec2(pas.x, 0.0), grille)).r;
+	float droite = texture(profondeur, accroche(uv_centre + vec2(pas.x, 0.0), grille)).r;
+	float haut = texture(profondeur, accroche(uv_centre - vec2(0.0, pas.y), grille)).r;
+	float bas = texture(profondeur, accroche(uv_centre + vec2(0.0, pas.y), grille)).r;
 
-	return ecart / max(d0, 0.00001);
+	// Dérivée seconde : la pente s'annule, seule la cassure subsiste.
+	float ecart_x = abs((gauche + droite) * 0.5 - d0);
+	float ecart_y = abs((haut + bas) * 0.5 - d0);
+
+	return max(ecart_x, ecart_y) / max(d0, 0.00001);
 }
 
 

@@ -9,6 +9,12 @@ static func installe(parent: Node3D) -> void:
 	lumiere.rotation_degrees = Vector3(-58, -42, 0)
 	lumiere.light_energy = 1.0
 	lumiere.shadow_enabled = true
+	# Sans ces biais, la carte d'ombre s'auto-intersecte sur les grandes
+	# surfaces planes et laisse des rayures — que le contour souligne ensuite
+	# consciencieusement, ce qui les rend deux fois plus visibles.
+	lumiere.shadow_bias = 0.06
+	lumiere.shadow_normal_bias = 2.0
+	lumiere.directional_shadow_max_distance = 90.0
 	parent.add_child(lumiere)
 
 	var ambiance := WorldEnvironment.new()
