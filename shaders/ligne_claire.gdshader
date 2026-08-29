@@ -56,27 +56,38 @@ void fragment() {
 	}
 
 	ALBEDO = teinte;
-	EMISSION = teinte * emission_force;
+
+	// L'ombre est posée ici, en socle constant, et non dans light().
+	//
+	// Deux raisons. D'abord elle ne dépend d'aucune lumière : une surface non
+	// éclairée garde exactement la teinte d'ombre au lieu de tomber au noir.
+	// Ensuite light() est appelé UNE FOIS PAR LAMPE — poser l'ombre là-bas
+	// l'empilerait autant de fois qu'il y a de lampes dans la salle.
+	vec3 socle_ombre = mix(couleur_ombre.rgb, couleur_ombre.rgb * teinte * 2.0,
+		melange_ombre);
+	EMISSION = teinte * emission_force + socle_ombre;
 }
 
 
 void light() {
-	// L'ORIENTATION seule décide de la bascule lumière/ombre. L'atténuation
-	// est appliquée APRÈS, en fondu.
+	// L'ORIENTATION seule décide de la bascule. L'atténuation module ENSUITE
+	// la quantité de lumière ajoutée, en fondu.
 	//
 	// L'inverse — atténuation incluse dans le seuil — donnait une frontière
-	// circulaire parfaitement nette autour de chaque lampe ponctuelle, que la
-	// grille pixel transformait ensuite en escalier et que le contour
-	// soulignait consciencieusement. C'était l'origine des marches sur les sols.
+	// parfaitement nette et circulaire autour de chaque lampe ponctuelle, que
+	// la grille pixel transformait en escalier et que le contour soulignait.
+	// C'était l'origine des marches sur les sols.
 	//
-	// Une lampe éclaire donc en s'estompant, mais la surface qu'elle éclaire
-	// garde ses deux valeurs : la règle tient, sans anneau parasite.
+	// Ne s'ajoute ici QUE l'écart entre la lumière et l'ombre. Le socle d'ombre
+	// est déjà posé dans fragment() : le rajouter par lampe l'empilerait, et
+	// une salle à cinq lampes aurait des ombres cinq fois trop claires.
 	float incidence = dot(NORMAL, LIGHT);
 	float eclaire = smoothstep(seuil - nettete, seuil + nettete, incidence);
 
-	vec3 teinte_ombre = mix(couleur_ombre.rgb, couleur_ombre.rgb * ALBEDO * 2.0,
+	vec3 socle_ombre = mix(couleur_ombre.rgb, couleur_ombre.rgb * ALBEDO * 2.0,
 		melange_ombre);
 	vec3 teinte_lumiere = ALBEDO * LIGHT_COLOR;
 
-	DIFFUSE_LIGHT += mix(teinte_ombre, teinte_lumiere, eclaire) * ATTENUATION;
+	DIFFUSE_LIGHT += max(teinte_lumiere - socle_ombre, vec3(0.0))
+		* eclaire * ATTENUATION;
 }
