@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="SoundDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/sound_def.gd" id="1_755hx"]
+
+[resource]
+script = ExtResource("1_755hx")
+id = &"ambiance"
+forme = 0
+frequence_debut = 55.0
+frequence_fin = 55.0
+duree = 3.0
+attaque = 0.0
+volume = 0.5
+variation_hauteur = 0.0
+gain_db = -20.0
+boucle = true
+spatialise = false

@@ -92,6 +92,11 @@ var _vitesse_avant_choc: float = 0.0
 var _culbute: Vector2 = Vector2.ZERO
 var _culbute_vitesse: Vector2 = Vector2.ZERO
 var _etait_au_sol: bool = true
+## Marche : la phase avance avec la DISTANCE parcourue, pas avec le temps. Une
+## cadence calquée sur une horloge continue de battre quand on s'arrête, et le
+## balancement se décale du bruit des pas dès qu'on change de vitesse.
+var _phase_de_marche: float = 0.0
+var _position_precedente: Vector3 = Vector3.ZERO
 ## Aide au saut. `_coyote` pardonne le retard — on vient de quitter le sol —
 ## et `_tampon` pardonne l'avance : un saut demandé juste avant de toucher.
 var _coyote: float = 0.0
@@ -185,6 +190,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## La culbute vit dans _process et non dans la physique : c'est du regard, et
 ## le regard se met à jour à chaque image affichée, pas à chaque tick physique.
 func _process(delta: float) -> void:
+	_maj_la_marche()
 	if _secousse == null:
 		return
 	if _culbute.is_zero_approx() and _culbute_vitesse.is_zero_approx():
@@ -473,6 +479,43 @@ func _atterrit() -> void:
 	_culbute_vitesse.y += minf(choc * 0.14, 4.0)
 	_culbute_vitesse = _culbute_vitesse.limit_length(9.0)
 	EventBus.player_slammed.emit(player_id, choc)
+
+
+## Le pas et le balancement, pour TOUS les avatars.
+##
+## Ils se déduisent du déplacement réel, et le déplacement est déjà répliqué :
+## entendre marcher un coéquipier ne coûte donc pas un seul octet de réseau.
+## C'est ce qui fait qu'en co-op on sait où sont les autres sans les regarder.
+func _maj_la_marche() -> void:
+	if _tuning == null:
+		return
+	var maintenant: Vector3 = global_position
+	var pas: Vector3 = maintenant - _position_precedente
+	_position_precedente = maintenant
+	pas.y = 0.0
+
+	# En l'air, on ne marche pas. La phase se fige plutôt que de se remettre à
+	# zéro : reprendre sa démarche là où on l'a laissée évite un à-coup à
+	# chaque atterrissage.
+	if not is_on_floor() or est_projete():
+		return
+
+	var avance: float = pas.length()
+	if avance < 0.0005:
+		return
+
+	var precedente: float = _phase_de_marche
+	_phase_de_marche += avance / maxf(_tuning.marche_cadence, 0.1) * PI
+	# Un pas par demi-cycle : le bruit tombe exactement au bas du balancement,
+	# et c'est cette coïncidence qui fait qu'on croit au pied qui touche.
+	if floori(precedente / PI) != floori(_phase_de_marche / PI):
+		EventBus.sound_emitted.emit(&"pas", maintenant)
+
+	if local and camera != null:
+		camera.position = Vector3(
+			sin(_phase_de_marche * 0.5) * _tuning.marche_lateral,
+			absf(sin(_phase_de_marche)) * -_tuning.marche_amplitude,
+			0.0)
 
 
 ## Une secousse de la vue, SANS perte de contrôle.

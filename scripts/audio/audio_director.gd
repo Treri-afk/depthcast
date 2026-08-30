@@ -26,6 +26,9 @@ var _lecteurs: Array[AudioStreamPlayer] = []
 var _lecteurs_3d: Array[AudioStreamPlayer3D] = []
 var _prochain: int = 0
 var _prochain_3d: int = 0
+## Lecteur dédié à la nappe d'ambiance. À part des voix : elle ne s'arrête
+## jamais et ne doit donc jamais se faire voler son tour par un impact.
+var _nappe: AudioStreamPlayer = null
 
 
 func _ready() -> void:
@@ -38,6 +41,9 @@ func _ready() -> void:
 		var lecteur := AudioStreamPlayer3D.new()
 		add_child(lecteur)
 		_lecteurs_3d.append(lecteur)
+	_nappe = AudioStreamPlayer.new()
+	_nappe.bus = &"Master"
+	add_child(_nappe)
 	_branche_les_evenements()
 	print("[Audio] %d son(s) synthétisé(s)." % _flux.size())
 
@@ -83,6 +89,24 @@ func joue_a(id: StringName, origine: Vector3, gain_supplementaire: float = 0.0) 
 	lecteur.unit_size = def.unite
 	lecteur.pitch_scale = 1.0 + randf_range(-def.variation_hauteur, def.variation_hauteur)
 	lecteur.play()
+
+
+## Installe la nappe de fond. Une seule à la fois : deux nappes superposées ne
+## font pas une ambiance plus riche, elles font de la boue.
+func ambiance(id: StringName, hauteur: float = 1.0) -> void:
+	if _nappe == null or not _flux.has(id):
+		return
+	var def: SoundDef = _definitions[id]
+	if _nappe.stream != _flux[id]:
+		_nappe.stream = _flux[id]
+		_nappe.volume_db = def.gain_db
+		_nappe.play()
+	_nappe.pitch_scale = maxf(hauteur, 0.05)
+
+
+func coupe_l_ambiance() -> void:
+	if _nappe != null:
+		_nappe.stop()
 
 
 func definitions() -> Array:
@@ -134,6 +158,13 @@ func _branche_les_evenements() -> void:
 		joue_a(&"detonation", origine))
 	EventBus.lure_activated.connect(func(origine: Vector3, _r: float, _d: float) -> void:
 		joue_a(&"balise", origine))
-	EventBus.floor_entered.connect(func(_i: int) -> void: joue(&"descente"))
+	# La nappe s'assombrit à mesure qu'on descend. C'est le seul endroit du jeu
+	# où la profondeur s'entend, et ça ne coûte qu'un facteur de hauteur.
+	EventBus.floor_entered.connect(func(etage: int) -> void:
+		joue(&"descente")
+		ambiance(&"ambiance", pow(0.93, float(etage))))
+	EventBus.run_started.connect(func(_s: int) -> void:
+		ambiance(&"ambiance", 1.0))
+	EventBus.run_ended.connect(func(_e: int, _v: bool) -> void: coupe_l_ambiance())
 	EventBus.run_ended.connect(func(_e: int, victoire: bool) -> void:
 		joue(&"victoire" if victoire else &"defaite"))

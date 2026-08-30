@@ -103,6 +103,14 @@ var filtre: int = 0
 ## milieu du mobilier, et retrouver après l'avoir lancée.
 @export var balise_leurre: Color = Color(0.72, 0.48, 0.98)
 
+@export_group("Atmosphère")
+## La poussière en suspension. Claire et très transparente : elle doit se voir
+## en mouvement, jamais en s'arrêtant dessus.
+@export var poussiere: Color = Color(0.86, 0.84, 0.78, 0.16)
+## Nombre de grains. Le seul réglage de coût : tout est calculé sur la carte
+## graphique, mais un nombre absurde reste un nombre absurde.
+@export_range(0, 2000, 10) var poussiere_grains: int = 240
+
 @export_group("Émotes")
 ## Le signe de surprise au-dessus d'une créature qui vient de comprendre.
 ## Volontairement hors de toute autre gamme du jeu : une émote doit se lire

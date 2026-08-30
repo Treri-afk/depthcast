@@ -107,6 +107,10 @@ func _cree_avatar(player_id: int) -> PlayerAvatar:
 	# la passe 3D, et il n'y a qu'un écran.
 	if avatar.local:
 		avatar.camera.add_child(PostProcess.cree(Content.palette))
+		# La poussière est accrochée à la RACINE et suit la caméra : enfant de
+		# la caméra, elle tournerait avec le regard et les grains colleraient à
+		# l'écran comme de la saleté sur l'objectif.
+		racine.add_child(DustMotes.cree(avatar.camera))
 
 	# La réplication est posée même hors ligne : elle ne fait alors rien, et
 	# l'arbre reste identique dans les deux modes. Un arbre qui change selon

@@ -40,6 +40,14 @@ enum Forme {
 ## Décalage de volume en décibels, appliqué à la lecture.
 @export_range(-40.0, 12.0, 0.5) var gain_db: float = 0.0
 
+## Le son tourne en boucle : une nappe d'ambiance, pas un évènement.
+##
+## Une boucle n'a PAS d'enveloppe — une attaque et une chute qui se répètent
+## toutes les deux secondes s'entendent comme un halètement. Et sa fréquence est
+## recalée pour qu'un nombre entier de cycles tienne dans le tampon, sinon le
+## raccord claque à chaque tour.
+@export var boucle: bool = false
+
 @export_group("Espace")
 ## Le son appartient au monde et se joue à un endroit.
 ##

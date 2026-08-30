@@ -12,6 +12,7 @@ func execute() -> void:
 	_check_synthese()
 	_check_origine_des_degats()
 	_check_ressenti()
+	_check_atmosphere()
 
 
 ## Chaque évènement auquel le chef d'orchestre s'abonne doit trouver son son.
@@ -156,3 +157,47 @@ func _son(id: StringName) -> SoundDef:
 		if def.id == id:
 			return def
 	return null
+
+
+## L'atmosphère : la nappe, les pas, la poussière.
+func _check_atmosphere() -> void:
+	print("Atmosphère — nappe, pas, poussière")
+
+	var nappe: SoundDef = _son(&"ambiance")
+	verifie("la nappe d'ambiance existe", nappe != null)
+	verifie("elle tourne en boucle", nappe.boucle)
+	# Une nappe située se mettrait à tourner autour de la tête du joueur.
+	verifie("et elle ne se situe pas dans l'espace", not nappe.spatialise)
+
+	# LE test qui compte : un raccord de boucle qui claque s'entend une fois par
+	# tour, pendant toute la partie. Il vient d'une fréquence dont le nombre de
+	# cycles ne tombe pas juste dans le tampon.
+	var flux: AudioStreamWAV = SoundSynth.genere(nappe)
+	verifie("le flux est marqué bouclant",
+		flux.loop_mode == AudioStreamWAV.LOOP_FORWARD)
+	var octets: PackedByteArray = flux.data
+	var premier: int = octets.decode_s16(0)
+	var dernier: int = octets.decode_s16(octets.size() - 2)
+	verifie("et son raccord ne claque pas", absi(premier - dernier) < 2500,
+		"%d contre %d" % [premier, dernier])
+
+	var pas: SoundDef = _son(&"pas")
+	verifie("le pas existe et se situe", pas != null and pas.spatialise)
+	# Court : on ne doit pas entendre marcher quelqu'un à l'autre bout de
+	# l'étage, sinon l'information cesse d'en être une.
+	verifie("il ne porte pas loin", pas.portee < 30.0, "%.0f m" % pas.portee)
+
+	var t: Tuning = Content.tuning
+	verifie("la cadence de marche se mesure en mètres", t.marche_cadence > 0.0)
+	verifie("le balancement reste discret", t.marche_amplitude < 0.1,
+		"%.3f m" % t.marche_amplitude)
+	# Le latéral est plus faible que le vertical : l'inverse donne un roulis de
+	# bateau plutôt qu'une démarche.
+	verifie("et le latéral ne domine pas le vertical",
+		t.marche_lateral <= t.marche_amplitude)
+
+	var p: Palette = Content.palette
+	verifie("la poussière reste raisonnable en nombre",
+		p.poussiere_grains > 0 and p.poussiere_grains <= 2000,
+		"%d grains" % p.poussiere_grains)
+	verifie("et très transparente", p.poussiere.a < 0.4, "alpha %.2f" % p.poussiere.a)

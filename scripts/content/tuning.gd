@@ -114,6 +114,17 @@ extends Resource
 @export_range(0.0, 1.0, 0.05) var leurre_chance_par_salle: float = 0.35
 @export var leurre_cout: int = 30
 
+@export_group("Marche")
+## Distance parcourue entre deux pas, en mètres. C'est ce nombre qui règle la
+## cadence : la calquer sur une horloge donnerait des pas qui continuent quand
+## on s'arrête.
+@export_range(0.5, 6.0, 0.1) var marche_cadence: float = 1.9
+## Amplitude du balancement vertical de la vue, en mètres.
+@export_range(0.0, 0.2, 0.005) var marche_amplitude: float = 0.032
+## Balancement latéral. Deux fois plus lent que le vertical — un pas à gauche,
+## un pas à droite, c'est ce qui distingue une démarche d'un rebond.
+@export_range(0.0, 0.2, 0.005) var marche_lateral: float = 0.02
+
 @export_group("Portage")
 ## Distance à laquelle on attrape un objet, depuis les yeux.
 @export_range(0.5, 6.0, 0.1) var portage_portee: float = 2.6

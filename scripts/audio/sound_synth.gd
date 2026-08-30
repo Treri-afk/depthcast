@@ -15,6 +15,16 @@ static func genere(def: SoundDef) -> AudioStreamWAV:
 	var donnees := PackedByteArray()
 	donnees.resize(echantillons * 2)
 
+	# Une boucle doit se raccorder à elle-même. On recale donc la fréquence sur
+	# le nombre entier de cycles le plus proche qui tienne dans le tampon : sans
+	# ça, le dernier échantillon ne prolonge pas le premier et le raccord claque
+	# une fois par tour, très audible sur une nappe qui joue en continu.
+	var debut: float = def.frequence_debut
+	var fin: float = def.frequence_fin
+	if def.boucle:
+		debut = _cale_sur_la_boucle(debut, def.duree)
+		fin = debut
+
 	var phase: float = 0.0
 	var rng := RandomNumberGenerator.new()
 	# Seed fixe : deux générations donnent le même bruit, donc un son de jeu
@@ -23,11 +33,12 @@ static func genere(def: SoundDef) -> AudioStreamWAV:
 
 	for i: int in echantillons:
 		var avancee: float = float(i) / float(echantillons)
-		var frequence: float = lerpf(def.frequence_debut, def.frequence_fin, avancee)
+		var frequence: float = lerpf(debut, fin, avancee)
 		phase += frequence / float(TAUX)
 
 		var onde: float = _onde(def.forme, phase, rng)
-		var valeur: float = onde * _enveloppe(avancee, def.attaque) * def.volume
+		var gain: float = 1.0 if def.boucle else _enveloppe(avancee, def.attaque)
+		var valeur: float = onde * gain * def.volume
 		donnees.encode_s16(i * 2, int(clampf(valeur, -1.0, 1.0) * 32767.0))
 
 	var flux := AudioStreamWAV.new()
@@ -35,7 +46,19 @@ static func genere(def: SoundDef) -> AudioStreamWAV:
 	flux.mix_rate = TAUX
 	flux.stereo = false
 	flux.data = donnees
+	if def.boucle:
+		flux.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		flux.loop_begin = 0
+		flux.loop_end = echantillons
 	return flux
+
+
+## Fréquence la plus proche dont un nombre ENTIER de cycles tient dans la durée.
+static func _cale_sur_la_boucle(frequence: float, duree: float) -> float:
+	if duree <= 0.0:
+		return frequence
+	var cycles: float = maxf(1.0, round(frequence * duree))
+	return cycles / duree
 
 
 static func _onde(forme: SoundDef.Forme, phase: float,
