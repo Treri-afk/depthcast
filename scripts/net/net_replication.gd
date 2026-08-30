@@ -57,18 +57,13 @@ func _process(delta: float) -> void:
 	_recois_l_etat.rpc(GameState.serialize())
 
 
-## Un client ne modifie jamais l'état lui-même : il décrit son intention et le
-## host arbitre. C'est la règle R8, et c'est aussi ce qui empêche un client
-## bricolé de s'offrir mille points de vie.
-func soumets(intent: EffectIntent) -> void:
-	if Net.en_ligne():
-		_recois_une_intention.rpc_id(1, intent.to_dict())
-
-
 # ── Ordres du host ────────────────────────────────────────────────────────
 
 ## Émis chez tout le monde en même temps, sur l'ordre du host.
 signal descente_ordonnee()
+## Quelqu'un vient de lancer un sort. Émis chez TOUT LE MONDE, y compris chez
+## le lanceur : chaque machine rejoue le comportement pour son propre écran.
+signal sort_lance(player_id: int, slot_index: int, direction: Vector3)
 ## Un socle du marchand vient d'être consommé, chez tout le monde.
 signal achat_confirme(index_du_socle: int)
 
@@ -92,6 +87,33 @@ func demande_achat(index_du_socle: int) -> void:
 		_traite_achat(index_du_socle)
 	else:
 		_demande_un_achat.rpc_id(1, index_du_socle)
+
+
+## Annonce un lancer.
+##
+## Le sort est REJOUÉ partout, et pas seulement chez son lanceur : c'est ce qui
+## fait qu'on voit le mur de flammes d'un coéquipier au lieu d'encaisser des
+## dégâts venus de nulle part.
+##
+## Les dégâts, eux, ne sont comptés qu'une fois — voir EffectResolver.submit().
+func annonce_lancer(player_id: int, slot_index: int, direction: Vector3) -> void:
+	if Net.en_ligne():
+		_recois_un_lancer.rpc(player_id, slot_index, direction)
+	else:
+		sort_lance.emit(player_id, slot_index, direction)
+
+
+## `any_peer` : un client lance ses propres sorts. L'identifiant annoncé est
+## réécrit d'après l'expéditeur — personne ne lance au nom d'un autre.
+@rpc("any_peer", "call_local", "reliable")
+func _recois_un_lancer(player_id: int, slot_index: int, direction: Vector3) -> void:
+	var expediteur: int = multiplayer.get_remote_sender_id()
+	var vrai_id: int = player_id
+	if expediteur != 0:
+		var declare: int = Net.player_id_de(expediteur)
+		if declare >= 0:
+			vrai_id = declare
+	sort_lance.emit(vrai_id, slot_index, direction)
 
 
 func _ordonne_la_descente() -> void:
@@ -177,14 +199,3 @@ func _recois_degats_joueur(id: int, degats: int, origine: Vector3) -> void:
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _recois_l_etat(etat: Dictionary) -> void:
 	GameState.deserialize(etat)
-
-
-@rpc("any_peer", "call_remote", "reliable")
-func _recois_une_intention(brut: Dictionary) -> void:
-	if not Net.est_host():
-		return
-	var intent: EffectIntent = EffectIntent.from_dict(brut)
-	# L'expéditeur fait foi sur QUI a lancé : un client ne doit pas pouvoir
-	# soumettre une intention au nom d'un autre joueur.
-	intent.source_player_id = Net.player_id_de(multiplayer.get_remote_sender_id())
-	EffectResolver.submit(intent)

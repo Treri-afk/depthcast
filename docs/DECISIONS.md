@@ -464,6 +464,44 @@ sans une erreur.
 
 ---
 
+## D17 — Le sort voyage, pas ses conséquences
+*Décidé le 29 août 2026*
+
+Un lancer est annoncé à toutes les machines, et **chacune rejoue le
+comportement** pour son propre écran. C'est ce qui fait qu'on voit le mur de
+flammes d'un coéquipier au lieu d'encaisser des dégâts venus de nulle part.
+
+Le piège est immédiat : si chaque machine rejoue le sort, chacune soumet son
+intention, et une boule de feu ferait ses dégâts **autant de fois qu'il y a de
+joueurs**.
+
+La réponse tient en une ligne : *un client jette la sienne*. Le host exécute le
+même comportement de son côté et soumet la seule qui compte. Rien d'autre à
+arbitrer, aucune déduplication à écrire.
+
+Et ça rend inutile tout envoi d'intention par le réseau — le mécanisme qui
+existait pour ça a été supprimé. **Le sort voyage, pas ses conséquences.**
+
+### Ce que ça règle au passage
+
+Les zones persistantes — mur de flammes, traînée, gel, totem — étaient créées
+seulement chez leur lanceur. Elles brûlaient donc tout le monde en étant
+invisibles pour tous les autres. Elles suivent maintenant sans une ligne de
+plus, puisqu'elles naissent du comportement rejoué.
+
+Le comportement lit `ctx.joueur` pour savoir d'où partir : on le bascule le
+temps du lancer, puis on le remet. Sans ça, le sort d'un coéquipier partirait de
+nos propres mains.
+
+Le recul de caméra, lui, n'est appliqué que chez le lanceur. C'est du ressenti
+(D16), et le ressenti ne voyage jamais.
+
+**Mesuré** : cinq lancers d'un client, vus cinq fois des deux côtés ;
+dix-sept intentions soumises chez le host, **zéro chez le client** ; treize
+évènements de dégâts identiques des deux côtés, et les mêmes points de vie.
+
+---
+
 ## Q1 — Le multiplicateur cumulatif de verrous : par joueur ou par équipe ?
 *Ouverte depuis le 27 août 2026 — conséquence directe de D3*
 

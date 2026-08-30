@@ -22,13 +22,17 @@ var _sequence: int = 0
 
 ## Soumet une intention. Ne modifie RIEN — elle attend la résolution du tick.
 func submit(intent: EffectIntent) -> void:
-	# R8 : seul le host résout. Un client décrit ce qu'il voudrait faire et
-	# l'envoie ; le résultat lui revient par la réplication. Appliquer aussi en
-	# local donnerait deux vérités, et la photo du host écraserait la sienne un
-	# dixième de seconde plus tard — ce qui se voit comme des dégâts qui
-	# « reviennent ».
+	# R8 : seul le host résout, et il le fait TOUT SEUL.
+	#
+	# Les lancers sont rejoués sur chaque machine pour que chacun voie le sort.
+	# Le comportement soumet donc son intention partout — et si chacune était
+	# appliquée, une boule de feu ferait ses dégâts autant de fois qu'il y a de
+	# joueurs. Un client jette la sienne : le host exécute le MÊME comportement
+	# de son côté et soumet la seule qui compte.
+	#
+	# C'est aussi ce qui rend inutile tout envoi d'intention par le réseau : le
+	# sort voyage, pas ses conséquences.
 	if Net.en_ligne() and not Net.est_host():
-		Repl.soumets(intent)
 		return
 	intent.tick = _tick
 	intent.sequence = _sequence

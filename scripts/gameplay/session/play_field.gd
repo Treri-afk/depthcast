@@ -145,7 +145,12 @@ func _services() -> void:
 	caster = SpellCaster.new(contexte)
 	hud.caster = caster
 
-	joueur.a_lance.connect(func(slot: int, dir: Vector3) -> void: caster.lance(slot, dir))
+	# On ANNONCE le lancer au lieu de l'exécuter directement. Hors ligne
+	# l'annonce revient immédiatement et rien ne change ; en ligne elle part
+	# chez tout le monde, et chaque machine rejoue le sort pour son écran.
+	joueur.a_lance.connect(func(slot: int, dir: Vector3) -> void:
+		Repl.annonce_lancer(joueur.player_id, slot, dir))
+	Repl.sort_lance.connect(_joue_un_sort)
 
 	var apercu := TeleportPreview.new()
 	apercu.joueur = joueur
@@ -167,10 +172,33 @@ func _branche_le_ressenti() -> void:
 			HitStop.frappe(t.hitstop_blessure, t.hitstop_echelle))
 
 
+## Rejoue le sort de n'importe quel joueur, y compris le nôtre.
+func _joue_un_sort(player_id: int, slot_index: int, direction: Vector3) -> void:
+	var lanceur: PlayerAvatar = avatar_de(player_id)
+	if lanceur != null:
+		caster.lance(slot_index, direction, lanceur)
+
+
+func avatar_de(player_id: int) -> PlayerAvatar:
+	for avatar: PlayerAvatar in avatars:
+		if is_instance_valid(avatar) and avatar.player_id == player_id:
+			return avatar
+	return null
+
+
 ## La traînée s'étale dans le temps : le joueur mémorise où semer, le terrain
 ## instancie. Aucun des deux ne connaît la logique de l'autre.
 func seme_la_trainee(delta: float) -> void:
-	var flaque: Dictionary = joueur.consomme_flaque(delta)
+	# TOUS les avatars, pas seulement le nôtre : une traînée ardente est armée
+	# sur l'avatar de celui qui l'a lancée, et si l'on ne consommait que la
+	# sienne, le sol ne s'embraserait jamais sous les pas d'un coéquipier.
+	for avatar: PlayerAvatar in avatars:
+		if is_instance_valid(avatar):
+			_seme_pour(avatar, delta)
+
+
+func _seme_pour(avatar: PlayerAvatar, delta: float) -> void:
+	var flaque: Dictionary = avatar.consomme_flaque(delta)
 	if flaque.is_empty():
 		return
 	var effet: SpellEffect = flaque["effet"]

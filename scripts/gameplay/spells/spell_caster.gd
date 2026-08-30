@@ -41,8 +41,13 @@ func ecole_du_slot(player_id: int, slot_index: int) -> School:
 
 
 ## Lance le sort d'un slot. Retourne false si rien n'a été lancé.
-func lance(slot_index: int, direction: Vector3) -> bool:
-	var joueur: PlayerAvatar = _contexte.joueur
+## `lanceur` à null signifie « le joueur local ». En co-op, chaque machine
+## rejoue le sort de CHACUN : c'est ce qui fait que tout le monde voit la boule
+## de feu, et pas seulement celui qui l'a lancée.
+func lance(slot_index: int, direction: Vector3, lanceur: PlayerAvatar = null) -> bool:
+	var joueur: PlayerAvatar = lanceur if lanceur != null else _contexte.joueur
+	if joueur == null or not is_instance_valid(joueur):
+		return false
 	var effet: SpellEffect = effet_actif(joueur.player_id, slot_index)
 	if effet == null:
 		return false
@@ -59,8 +64,17 @@ func lance(slot_index: int, direction: Vector3) -> bool:
 	# Annoncé plutôt qu'appelé : le son écoute le jeu, le jeu ne pilote pas le
 	# son. Ça vaut aussi pour le lancer, qui appelait Audio en direct.
 	EventBus.sound_emitted.emit(&"sort", joueur.position_yeux())
-	# Le recul vient de la donnée du sort : une boule de feu et un soin ne se
-	# lancent pas pareil, et ça se règle dans l'inspecteur.
-	joueur.recul(effet.recul)
+	# Le recul est de la caméra : il n'appartient qu'à celui qui lance. Le
+	# donner à l'avatar d'un coéquipier secouerait la vue de personne, mais
+	# c'est le genre d'approximation qui finit par se voir.
+	if joueur.local:
+		joueur.recul(effet.recul)
+
+	# Le comportement lit `ctx.joueur` pour savoir d'où partir. On le bascule
+	# le temps du lancer, puis on le remet : sans ça, le sort d'un coéquipier
+	# partirait de nos propres mains.
+	var precedent: PlayerAvatar = _contexte.joueur
+	_contexte.joueur = joueur
 	comportement.lance(_contexte, slot_index, effet, couleur, direction)
+	_contexte.joueur = precedent
 	return true
