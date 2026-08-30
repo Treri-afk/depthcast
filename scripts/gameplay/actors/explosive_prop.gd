@@ -43,6 +43,10 @@ func _casse() -> void:
 func amorce() -> void:
 	if _meche_restante >= 0.0:
 		return
+	# La mèche part de l'hôte et s'allume partout au même instant. Ensuite
+	# chaque machine la fait brûler chez elle : c'est du temps, et le temps
+	# n'a pas besoin de voyager.
+	Repl.annonce_amorce(self)
 	_meche_restante = meche
 	# Annoncé au monde : les créatures qui craignent les explosions ont
 	# maintenant le temps de la mèche pour s'en écarter.

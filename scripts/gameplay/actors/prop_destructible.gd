@@ -50,13 +50,20 @@ func lache_par_le_joueur(_joueur: Node3D) -> void:
 func encaisse(degats: int, depuis: Vector3 = Vector3.ZERO) -> bool:
 	if degats <= 0:
 		return false
-	pv -= degats
 	_teinte = 1.0
 
 	if depuis != Vector3.ZERO:
 		var sens: Vector3 = (global_position - depuis).normalized()
 		apply_central_impulse((sens + Vector3.UP * 0.2) * POUSSEE_MINIMALE * mass * 0.4)
 
+	# Le retour visuel reste local — il ne coûte rien et il est immédiat. La
+	# CASSE, elle, appartient à l'hôte : deux machines dont la physique a
+	# légèrement divergé ne touchent pas la même caisse au même moment, et l'une
+	# détruirait un meuble encore debout chez l'autre.
+	if Net.en_ligne() and not Net.est_host():
+		return false
+
+	pv -= degats
 	if pv > 0:
 		return false
 	_casse()
@@ -64,6 +71,13 @@ func encaisse(degats: int, depuis: Vector3 = Vector3.ZERO) -> bool:
 
 
 func _casse() -> void:
+	Repl.annonce_destruction(self)
+	casse_sans_annonce()
+
+
+## La casse elle-même, sans rien dire à personne. C'est ce que les clients
+## appellent en recevant l'annonce de l'hôte.
+func casse_sans_annonce() -> void:
 	_projette_des_debris()
 	detruit.emit()
 	queue_free()

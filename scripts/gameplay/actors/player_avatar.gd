@@ -33,6 +33,10 @@ const SNAP_SOL: float = 0.5
 const DELAI_DECOLLAGE: float = 0.25
 
 signal a_lance(slot_index: int, direction: Vector3)
+## Les mains ont changé. `prend` distingue ramasser de lâcher ; l'élan ne vaut
+## que pour un lancer. Émis seulement par l'avatar local : c'est une intention
+## de joueur, pas une conséquence.
+signal portage_change(corps: PropDestructible, elan: Vector3, prend: bool)
 
 var player_id: int = 0
 ## Ce client contrôle-t-il cet avatar ?
@@ -598,6 +602,8 @@ func ramasse(corps: PropDestructible) -> void:
 	_couches_portees = [corps.collision_layer, corps.collision_mask]
 	corps.set_deferred(&"collision_layer", 0)
 	corps.set_deferred(&"collision_mask", 0)
+	if local:
+		portage_change.emit(corps, Vector3.ZERO, true)
 
 
 ## Repose l'objet devant soi, sans force.
@@ -633,6 +639,8 @@ func lache(elan: Vector3) -> void:
 	corps.linear_velocity = Vector3.ZERO
 	corps.apply_central_impulse(elan * corps.mass)
 	corps.lache_par_le_joueur(self)
+	if local:
+		portage_change.emit(corps, elan, false)
 
 
 func voile(duree: float) -> void:

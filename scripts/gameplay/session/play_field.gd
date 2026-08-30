@@ -151,6 +151,11 @@ func _services() -> void:
 	joueur.a_lance.connect(func(slot: int, dir: Vector3) -> void:
 		Repl.annonce_lancer(joueur.player_id, slot, dir))
 	Repl.sort_lance.connect(_joue_un_sort)
+	Repl.portage_change.connect(_joue_un_portage)
+	for avatar: PlayerAvatar in avatars:
+		avatar.portage_change.connect(
+			func(corps: PropDestructible, elan: Vector3, prend: bool) -> void:
+				Repl.annonce_portage(avatar.player_id, corps if prend else null, elan))
 
 	var apercu := TeleportPreview.new()
 	apercu.joueur = joueur
@@ -177,6 +182,18 @@ func _joue_un_sort(player_id: int, slot_index: int, direction: Vector3) -> void:
 	var lanceur: PlayerAvatar = avatar_de(player_id)
 	if lanceur != null:
 		caster.lance(slot_index, direction, lanceur)
+
+
+## Rejoue le geste d'un coéquipier. Le nôtre a déjà eu lieu — on l'ignore, sinon
+## on lâcherait ce qu'on vient de prendre.
+func _joue_un_portage(player_id: int, index: int, elan: Vector3) -> void:
+	var porteur: PlayerAvatar = avatar_de(player_id)
+	if porteur == null or porteur.local:
+		return
+	if index >= 0:
+		porteur.ramasse(Repl.objet_a(index))
+	else:
+		porteur.lache(elan)
 
 
 func avatar_de(player_id: int) -> PlayerAvatar:

@@ -43,11 +43,14 @@ func lache_par_le_joueur(_joueur: Node3D) -> void:
 
 
 func _sur_contact(_corps: Node) -> void:
-	if _armee and not _active:
-		_declenche()
+	# Le contact qui compte est celui de l'hôte : sa physique fait foi, et deux
+	# machines ne posent pas la balise exactement au même endroit.
+	if _armee and not _active and Net.est_host():
+		Repl.annonce_balise(self)
+		declenche_sans_annonce()
 
 
-func _declenche() -> void:
+func declenche_sans_annonce() -> void:
 	_active = true
 	# Même groupe que le leurre du sort : les cerveaux poursuivent un leurre
 	# sans jamais le frapper, et cette règle ne doit exister qu'à un endroit.

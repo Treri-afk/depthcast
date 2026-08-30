@@ -44,6 +44,7 @@ func _ready() -> void:
 	_assemble_le_donjon()
 	_branche_les_evenements()
 	_contexte.objets = _etage.genere()
+	Repl.enregistre_les_objets(_contexte.objets)
 	_hud.journalise("Nettoie l'étage, va voir le marchand au fond, puis prends le portail.")
 	_hud.aide_debug(_debug.aide())
 
@@ -116,7 +117,13 @@ func _termine_la_run(victoire: bool) -> void:
 
 func _branche_les_evenements() -> void:
 	_marchand.achat_effectue.connect(_hud.journalise)
-	_spawner.monstre_veut_tirer.connect(_sur_tir_monstre)
+	# Seul l'hôte fait tourner les cerveaux, donc seul lui sait qu'un tir part.
+	# Il l'annonce, et chacun crée le projectile chez soi.
+	_spawner.monstre_veut_tirer.connect(Repl.annonce_tir)
+	Repl.tir_ennemi.connect(_sur_tir_monstre)
+	Repl.objet_amorce.connect(_sur_objet_amorce)
+	Repl.objet_detruit.connect(_sur_objet_detruit)
+	Repl.balise_activee.connect(_sur_balise_activee)
 	_etage.boss_invoque.connect(_sur_boss_invoque)
 	# Sauter un étage passe par la même porte que le portail : le reroll et la
 	# régénération doivent se produire exactement comme en jeu normal, sinon on
@@ -194,6 +201,7 @@ func _note_mutation(slot: int, mute: bool) -> void:
 func _descend_d_un_etage() -> void:
 	_mutations.clear()
 	_contexte.objets = _etage.descend()
+	Repl.enregistre_les_objets(_contexte.objets)
 	_terrain.montre_le_reroll(_mutations, GameState.run.floor_index)
 	_hud.journalise("Étage %d. Tes sorts non scellés ont muté." %
 		(GameState.run.floor_index + 1))
@@ -203,6 +211,26 @@ func _descend_d_un_etage() -> void:
 
 func _sur_tir_monstre(depuis: Vector3, direction: Vector3, degats: int) -> void:
 	add_child(EnemyProjectile.cree(_fx, depuis, direction, degats))
+
+
+## Le mobilier obéit à l'hôte : chez un client, ces trois-là sont les seuls
+## chemins par lesquels une caisse s'amorce, se casse ou s'allume.
+func _sur_objet_amorce(index: int) -> void:
+	var tonneau := Repl.objet_a(index) as ExplosiveProp
+	if tonneau != null and not Net.est_host():
+		tonneau.amorce()
+
+
+func _sur_objet_detruit(index: int) -> void:
+	var corps: PropDestructible = Repl.objet_a(index)
+	if corps != null and not Net.est_host():
+		corps.casse_sans_annonce()
+
+
+func _sur_balise_activee(index: int) -> void:
+	var balise := Repl.objet_a(index) as LureBeacon
+	if balise != null and not Net.est_host():
+		balise.declenche_sans_annonce()
 
 
 func _sur_degat_monstre(monster_id: int, pv_restant: int, degats: int) -> void:

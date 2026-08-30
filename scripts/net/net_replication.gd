@@ -34,8 +34,19 @@ extends Node
 ## Photos par seconde. Dix suffisent : les évènements ponctuels partent à part,
 ## et la photo ne sert qu'à rattraper ce qui aurait glissé.
 const TAUX_ETAT: float = 10.0
+## Envois par seconde pour le mobilier EN MOUVEMENT. Un objet posé n'occupe
+## aucune bande passante : on n'envoie que ce qui bouge, et un seul paquet pour
+## tout l'étage plutôt qu'un par caisse.
+const TAUX_OBJETS: float = 12.0
+## En dessous, l'objet est considéré comme immobile et cesse d'être annoncé.
+const IMMOBILE: float = 0.05
 
 var _restant: float = 0.0
+var _restant_objets: float = 0.0
+## Le mobilier de l'étage, dans l'ordre de création. Cet ordre est identique sur
+## toutes les machines — la génération est déterministe — donc le RANG suffit à
+## désigner une caisse à travers le réseau, sans identifiant à inventer.
+var _objets: Array = []
 
 
 func _ready() -> void:
@@ -57,6 +68,44 @@ func _process(delta: float) -> void:
 	_recois_l_etat.rpc(GameState.serialize())
 
 
+func _physics_process(delta: float) -> void:
+	if not Net.en_ligne() or not Net.est_host():
+		return
+	_restant_objets -= delta
+	if _restant_objets > 0.0:
+		return
+	_restant_objets = 1.0 / TAUX_OBJETS
+
+	var bouges: Array = []
+	for i: int in _objets.size():
+		var corps: PropDestructible = _objets[i]
+		if corps == null or not is_instance_valid(corps) or corps.freeze:
+			continue
+		if corps.linear_velocity.length_squared() < IMMOBILE:
+			continue
+		bouges.append([i, corps.global_position, corps.rotation])
+	if not bouges.is_empty():
+		_recois_les_objets.rpc(bouges)
+
+
+## Le mobilier du nouvel étage. Appelé après chaque génération : les rangs ne
+## valent que pour l'étage courant.
+func enregistre_les_objets(objets: Array) -> void:
+	_objets = objets
+	_restant_objets = 0.0
+
+
+func index_de(corps: PropDestructible) -> int:
+	return _objets.find(corps)
+
+
+func objet_a(index: int) -> PropDestructible:
+	if index < 0 or index >= _objets.size():
+		return null
+	var corps: PropDestructible = _objets[index]
+	return corps if is_instance_valid(corps) else null
+
+
 # ── Ordres du host ────────────────────────────────────────────────────────
 
 ## Émis chez tout le monde en même temps, sur l'ordre du host.
@@ -64,6 +113,15 @@ signal descente_ordonnee()
 ## Quelqu'un vient de lancer un sort. Émis chez TOUT LE MONDE, y compris chez
 ## le lanceur : chaque machine rejoue le comportement pour son propre écran.
 signal sort_lance(player_id: int, slot_index: int, direction: Vector3)
+## Un monstre vient de tirer. Seul l'hôte fait tourner les cerveaux, donc seul
+## lui sait qu'un tir part : sans cette annonce, un client encaisse des
+## projectiles qu'il ne voit jamais quitter le canon.
+signal tir_ennemi(depuis: Vector3, direction: Vector3, degats: int)
+## Le mobilier, par son rang dans la liste de l'étage.
+signal objet_amorce(index: int)
+signal objet_detruit(index: int)
+signal balise_activee(index: int)
+signal portage_change(player_id: int, index: int, elan: Vector3)
 ## Un socle du marchand vient d'être consommé, chez tout le monde.
 signal achat_confirme(index_du_socle: int)
 
@@ -114,6 +172,97 @@ func _recois_un_lancer(player_id: int, slot_index: int, direction: Vector3) -> v
 		if declare >= 0:
 			vrai_id = declare
 	sort_lance.emit(vrai_id, slot_index, direction)
+
+
+## Annonces de l'hôte vers tout le monde. Toutes suivent le même patron que les
+## sorts : on transporte le FAIT, chaque machine en tire les conséquences chez
+## elle. Aucune ne transporte de dégâts — ceux-là ne sont comptés que par
+## l'hôte, dans le resolver.
+func annonce_tir(depuis: Vector3, direction: Vector3, degats: int) -> void:
+	if not Net.est_host():
+		return
+	if Net.en_ligne():
+		_recois_un_tir.rpc(depuis, direction, degats)
+	else:
+		tir_ennemi.emit(depuis, direction, degats)
+
+
+func annonce_amorce(corps: PropDestructible) -> void:
+	_annonce_sur_objet(corps, &"amorce")
+
+
+func annonce_destruction(corps: PropDestructible) -> void:
+	_annonce_sur_objet(corps, &"detruit")
+
+
+func annonce_balise(corps: PropDestructible) -> void:
+	_annonce_sur_objet(corps, &"balise")
+
+
+## Porter et lâcher se répliquent comme des ACTIONS, pas comme des positions :
+## une fois l'objet dans les mains d'un avatar, il suit ces mains chez tout le
+## monde sans qu'un seul octet de plus ne circule.
+func annonce_portage(player_id: int, corps: PropDestructible, elan: Vector3) -> void:
+	var index: int = index_de(corps) if corps != null else -1
+	if Net.en_ligne():
+		_recois_un_portage.rpc(player_id, index, elan)
+	else:
+		portage_change.emit(player_id, index, elan)
+
+
+func _annonce_sur_objet(corps: PropDestructible, quoi: StringName) -> void:
+	# Le mobilier appartient à l'hôte. Un client qui annoncerait se ferait
+	# refuser l'appel — autant ne pas l'émettre, et surtout ne pas boucler
+	# quand il rejoue ce qu'il vient de recevoir.
+	if not Net.est_host():
+		return
+	var index: int = index_de(corps)
+	if index < 0:
+		return
+	if Net.en_ligne():
+		_recois_sur_objet.rpc(index, quoi)
+	else:
+		_emet_sur_objet(index, quoi)
+
+
+func _emet_sur_objet(index: int, quoi: StringName) -> void:
+	match quoi:
+		&"amorce":
+			objet_amorce.emit(index)
+		&"detruit":
+			objet_detruit.emit(index)
+		&"balise":
+			balise_activee.emit(index)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _recois_un_tir(depuis: Vector3, direction: Vector3, degats: int) -> void:
+	tir_ennemi.emit(depuis, direction, degats)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _recois_sur_objet(index: int, quoi: StringName) -> void:
+	_emet_sur_objet(index, quoi)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _recois_un_portage(player_id: int, index: int, elan: Vector3) -> void:
+	var expediteur: int = multiplayer.get_remote_sender_id()
+	var vrai_id: int = player_id
+	if expediteur != 0:
+		var declare: int = Net.player_id_de(expediteur)
+		if declare >= 0:
+			vrai_id = declare
+	portage_change.emit(vrai_id, index, elan)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _recois_les_objets(bouges: Array) -> void:
+	for ligne: Array in bouges:
+		var corps: PropDestructible = objet_a(int(ligne[0]))
+		if corps != null and not corps.freeze:
+			corps.global_position = ligne[1]
+			corps.rotation = ligne[2]
 
 
 func _ordonne_la_descente() -> void:
