@@ -74,6 +74,20 @@ func installe(salle: FloorPlan.Salle) -> void:
 	_parent.add_child(portail)
 
 
+## Les socles sont construits dans le même ordre sur toutes les machines : leur
+## rang suffit donc à les désigner à travers le réseau, sans identifiant à
+## inventer ni à synchroniser.
+func index_du_socle(socle: ShopPedestal) -> int:
+	return socles.find(socle)
+
+
+func socle_par_index(index: int) -> ShopPedestal:
+	if index < 0 or index >= socles.size():
+		return null
+	var socle: ShopPedestal = socles[index]
+	return socle if is_instance_valid(socle) else null
+
+
 func cout_du_prochain_sceau() -> int:
 	return _tuning.cout_scelle(GameState.local_player().locks_bought_this_floor)
 

@@ -65,6 +65,74 @@ func soumets(intent: EffectIntent) -> void:
 		_recois_une_intention.rpc_id(1, intent.to_dict())
 
 
+# ── Ordres du host ────────────────────────────────────────────────────────
+
+## Émis chez tout le monde en même temps, sur l'ordre du host.
+signal descente_ordonnee()
+## Un socle du marchand vient d'être consommé, chez tout le monde.
+signal achat_confirme(index_du_socle: int)
+
+
+## Un joueur veut descendre. Seul le host tranche : sinon un client changerait
+## d'étage tout seul et se retrouverait dans un donjon que personne d'autre
+## n'habite.
+func demande_descente() -> void:
+	if Net.est_host():
+		_ordonne_la_descente()
+	else:
+		_demande_la_descente.rpc_id(1)
+
+
+## Un joueur veut acheter. Même règle : c'est le pot COMMUN qu'on dépense, donc
+## c'est le host qui vérifie qu'il y a de quoi. Un client qui déciderait seul
+## verrait son achat s'annuler à la photo suivante — ce qui est exactement ce
+## qui se passait avant.
+func demande_achat(index_du_socle: int) -> void:
+	if Net.est_host():
+		_traite_achat(index_du_socle)
+	else:
+		_demande_un_achat.rpc_id(1, index_du_socle)
+
+
+func _ordonne_la_descente() -> void:
+	if Net.en_ligne():
+		_recois_la_descente.rpc()
+	else:
+		_recois_la_descente()
+
+
+func _traite_achat(index_du_socle: int) -> void:
+	# L'arbitrage lui-même appartient à la salle du marchand : la réplication
+	# transporte des décisions, elle n'en prend aucune.
+	if Net.en_ligne():
+		_recois_un_achat.rpc(index_du_socle)
+	else:
+		achat_confirme.emit(index_du_socle)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _demande_la_descente() -> void:
+	if Net.est_host():
+		_ordonne_la_descente()
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _demande_un_achat(index_du_socle: int) -> void:
+	if Net.est_host():
+		_traite_achat(index_du_socle)
+
+
+## `call_local` : le host joue l'ordre en même temps que ceux qui le reçoivent.
+@rpc("authority", "call_local", "reliable")
+func _recois_la_descente() -> void:
+	descente_ordonnee.emit()
+
+
+@rpc("authority", "call_local", "reliable")
+func _recois_un_achat(index_du_socle: int) -> void:
+	achat_confirme.emit(index_du_socle)
+
+
 # ── Relais du host vers les clients ───────────────────────────────────────
 
 func _peut_relayer() -> bool:

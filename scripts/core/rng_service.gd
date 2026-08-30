@@ -45,6 +45,17 @@ func stream(stream_name: String) -> RandomNumberGenerator:
 	return _get_or_create(stream_name)
 
 
+## Flux d'un étage donné.
+##
+## Dérivé de l'INDEX de l'étage, donc indépendant du nombre de fois qu'on l'a
+## généré. Un flux global qui avance à chaque génération suppose que toutes les
+## machines l'ont fait autant de fois, dans le même ordre — une hypothèse que le
+## co-op casse à la première régénération, et qui produirait deux donjons
+## différents sans que rien ne le signale.
+func floor_stream(stream_name: String, floor_index: int) -> RandomNumberGenerator:
+	return _get_or_create("%s@%d" % [stream_name, floor_index])
+
+
 ## Flux propre à un joueur. Deux joueurs qui rerollent au même étage tirent
 ## indépendamment, et l'ordre dans lequel ils le font n'a aucune influence.
 func player_stream(stream_name: String, player_id: int) -> RandomNumberGenerator:

@@ -35,13 +35,16 @@ func _init(geometrie: Node3D, tuning: Tuning, builder: FloorBuilder,
 ## Construit l'étage courant de zéro. Retourne les objets destructibles créés,
 ## que le contexte de sorts doit connaître.
 func genere() -> Array[PropDestructible]:
-	var rng: RandomNumberGenerator = RngService.stream(RngService.STREAM_DUNGEON)
+	var etage: int = GameState.run.floor_index
+	# Le flux est celui de CET étage, pas un flux global qui avance : deux
+	# machines qui ne l'auraient pas fait avancer le même nombre de fois
+	# généreraient deux donjons différents sans que rien ne le signale.
+	var rng: RandomNumberGenerator = RngService.floor_stream(
+		RngService.STREAM_DUNGEON, etage)
 
 	for enfant: Node in _geometrie.get_children():
 		enfant.queue_free()
 	_furnisher.objets.clear()
-
-	var etage: int = GameState.run.floor_index
 	var boss: bool = etage >= _tuning.etage_du_boss
 
 	# L'arène du boss n'a ni couloir, ni marchand : on y descend pour combattre,
@@ -85,6 +88,17 @@ func peut_descendre() -> bool:
 	return GameState.is_in_run() and GameState.run.alive_monsters().is_empty()
 
 
+## La descente est jouée à l'IDENTIQUE sur chaque machine, sur l'ordre du host.
+##
+## Un client rejoue donc `advance_floor()` localement, ce qui est normalement
+## interdit (R8). L'exception est assumée et sûre : l'opération est entièrement
+## déterministe — même étage, mêmes flux par joueur, même nombre d'appels — donc
+## les deux machines aboutissent au même état, et la photo du host le confirme
+## un dixième de seconde plus tard.
+##
+## L'alternative aurait été de répliquer le reroll effet par effet. Elle coûte
+## beaucoup plus cher pour un résultat identique, et elle prive chaque machine
+## des évènements `slot_rerolled` dont dépend toute la séquence de mutation.
 func descend() -> Array[PropDestructible]:
 	GameState.complete_floor()
 	GameState.advance_floor()

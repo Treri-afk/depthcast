@@ -123,8 +123,11 @@ func _branche_les_evenements() -> void:
 	# ne teste pas la vraie boucle.
 	_debug.saut_d_etage_demande.connect(func() -> void:
 		if GameState.is_in_run():
-			_descend_d_un_etage())
+			Repl.demande_descente())
 	_debug.message.connect(_hud.journalise)
+
+	Repl.descente_ordonnee.connect(_descend_d_un_etage)
+	Repl.achat_confirme.connect(_sur_achat_confirme)
 
 	EventBus.monster_damaged.connect(_sur_degat_monstre)
 	EventBus.monster_died.connect(_sur_mort_monstre)
@@ -160,10 +163,26 @@ func _interagit() -> void:
 		if not _etage.peut_descendre():
 			_hud.journalise("Le portail reste scellé tant que l'étage n'est pas nettoyé.")
 			return
-		_descend_d_un_etage()
+		# On DEMANDE la descente, on ne la prend pas : c'est l'hôte qui donne le
+		# départ, et tout le monde bascule au même moment.
+		Repl.demande_descente()
 		return
 	if _socle_vise != null:
-		_marchand.achete(_socle_vise)
+		Repl.demande_achat(_marchand.index_du_socle(_socle_vise))
+
+
+## L'achat est arbitré par l'hôte, puis rejoué partout : le socle se vide sur
+## tous les écrans, et pas seulement sur celui de l'acheteur.
+func _sur_achat_confirme(index_du_socle: int) -> void:
+	var socle: ShopPedestal = _marchand.socle_par_index(index_du_socle)
+	if socle == null:
+		return
+	if Net.est_host():
+		_marchand.achete(socle)
+	else:
+		# Chez un client, la dépense a déjà eu lieu chez l'hôte et la photo
+		# l'apportera. Il ne reste qu'à faire disparaître l'objet du socle.
+		socle.consomme()
 
 
 func _note_mutation(slot: int, mute: bool) -> void:
