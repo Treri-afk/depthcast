@@ -26,6 +26,7 @@ GameState="*res://scripts/core/game_state.gd"
 EffectResolver="*res://scripts/core/effect_resolver.gd"
 Net="*res://scripts/net/net_session.gd"
 Repl="*res://scripts/net/net_replication.gd"
+SteamNet="*res://scripts/net/steam_lobby.gd"
 
 [display]
 

@@ -108,9 +108,15 @@ func player_id_de(peer: int) -> int:
 
 # ── Cycle de vie ──────────────────────────────────────────────────────────
 
-func heberge(port: int = PORT_PAR_DEFAUT, mon_nom: String = "Host") -> bool:
+## `tuyau` laissé à `null` prend le réseau local : c'est le transport du
+## développement et de la CI (D15). Steam se branche en passant un
+## `SteamTransport`, et c'est le SEUL endroit où le choix se fait — R9 exige
+## qu'il reste une configuration de lancement, pas une branche disséminée dans
+## le gameplay.
+func heberge(port: int = PORT_PAR_DEFAUT, mon_nom: String = "Host",
+		tuyau: NetTransport = null) -> bool:
 	quitte()
-	transport = EnetTransport.new()
+	transport = tuyau if tuyau != null else EnetTransport.new()
 	var pair: MultiplayerPeer = transport.heberge(port)
 	if pair == null:
 		echec.emit(transport.derniere_erreur)
@@ -127,10 +133,12 @@ func heberge(port: int = PORT_PAR_DEFAUT, mon_nom: String = "Host") -> bool:
 	return true
 
 
+## `adresse` est une IP pour ENet, un SteamID64 pour Steam. La session ne fait
+## que la transmettre : elle ne sait pas laquelle elle tient, et c'est voulu.
 func rejoint(adresse: String, port: int = PORT_PAR_DEFAUT,
-		mon_nom: String = "Invité") -> bool:
+		mon_nom: String = "Invité", tuyau: NetTransport = null) -> bool:
 	quitte()
-	transport = EnetTransport.new()
+	transport = tuyau if tuyau != null else EnetTransport.new()
 	var pair: MultiplayerPeer = transport.rejoint(adresse, port)
 	if pair == null:
 		echec.emit(transport.derniere_erreur)

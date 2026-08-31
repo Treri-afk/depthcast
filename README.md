@@ -24,9 +24,14 @@ défaut est le réseau local (ENet) : deux instances du jeu sur la même machine
 parlent en `127.0.0.1`, sans compte, sans client tiers, sans connexion Internet.
 
 **Steam n'est pas nécessaire pour développer ni pour essayer le co-op.** Il
-viendra remplacer le tuyau pour la distribution — traverser les box des joueurs,
-inviter des amis — et rien d'autre. C'est tout l'objet de
-[R9](docs/ARCHITECTURE.md) : le jeu ne connaît jamais son transport.
+sert à la distribution — traverser les box des joueurs, inviter des amis — et à
+rien d'autre. C'est tout l'objet de [R9](docs/ARCHITECTURE.md) : le jeu ne
+connaît jamais son transport.
+
+Le menu propose aussi **Héberger sur Steam** et **Rejoindre le lobby**. Ces
+boutons restent grisés tant que GodotSteam n'est pas installé, et disent
+pourquoi — l'extension n'est pas versionnée dans le dépôt. Marche à suivre :
+[STEAM.md](docs/STEAM.md).
 
 Lancer deux instances sur la même machine :
 
