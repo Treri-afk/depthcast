@@ -502,6 +502,69 @@ dix-sept intentions soumises chez le host, **zéro chez le client** ; treize
 
 ---
 
+## D18 — Steam est branché, GodotSteam n'est pas versionné
+*Décidé le 31 août 2026 · met en œuvre D8, D9 et R9*
+
+Le transport Steam existe (`SteamTransport`) et les lobbies avec
+(`SteamLobby`, autoload `SteamNet`). **L'extension GodotSteam, elle, n'est pas
+dans le dépôt** : chacun l'installe sur sa machine, voir [STEAM.md](STEAM.md).
+
+### Pourquoi ne pas la versionner
+
+C'est un binaire tiers de plusieurs dizaines de mégaoctets, par plateforme, qui
+suit ses propres versions. Le mettre dans le dépôt le fait passer par Git LFS —
+1 Go de bande passante par mois sur le plan gratuit (D6), dépensé à chaque
+clone et à chaque job de CI qui n'en a aucun besoin. La CI ne teste que de la
+logique et tourne sous Linux, sans client Steam.
+
+### La conséquence, et comment elle est absorbée
+
+Le code ne peut donc pas écrire `Steam.getSteamID()` en dur : sur une machine
+sans extension, le script ne se parse pas, et **le projet entier cesse de
+s'ouvrir** — éditeur compris. Une intégration Steam qui empêche d'ouvrir le jeu
+a coûté plus qu'elle n'a rapporté.
+
+Tout passe donc par `SteamApi`, qui appelle le singleton par
+`Engine.get_singleton("Steam")` et vérifie `has_method()` avant chaque appel.
+Cela fait une chose de plus : les noms de l'API GodotSteam ont bougé d'une
+version à l'autre, et une version qui manque une méthode dégrade au lieu de
+planter. **L'absence de Steam est un `false` et une phrase à afficher, jamais
+une erreur.** Un test le garde, et il tourne sur une CI qui n'a pas Steam.
+
+### Ce qui reste vrai du menu
+
+Les deux transports cohabitent, et le réseau local ne disparaît pas le jour où
+Steam marche. Steam refuse deux clients sur le même compte (D8) : sans ENet, on
+ne pourrait plus essayer une partie à deux seul devant sa machine. C'est la
+boucle de travail de D15, et elle survit à la mise en production.
+
+### Vérifié en conditions réelles, et ce qui ne l'est pas
+
+**Vérifié** le 31 août 2026, GodotSteam installé et client Steam connecté :
+l'API s'initialise sur l'App ID 480 par variable d'environnement (aucun
+`steam_appid.txt` nécessaire), le pair `SteamMultiplayerPeer` s'ouvre, la
+session passe à `connecté — hôte`, et **le lobby se crée** — jusqu'en headless.
+Cela lève le « non vérifié » que D9 laissait ouvert.
+
+**Pas encore vérifié** : une connexion Steam de bout en bout entre deux
+machines, l'entrée par identifiant de lobby, et l'invitation par overlay. Elles
+demandent un second compte, une seconde machine, **et un export** — l'overlay ne
+répond pas depuis l'éditeur (D9). Le chemin ENet, lui, est vérifié de bout en
+bout par `tools/sonde.tscn`.
+
+### Steam livre `lobby_created` deux fois
+
+Observé, pas supposé. Sans garde, la session s'annonçait prête deux fois et le
+menu changeait de scène deux fois. Le rappel d'entrée dans un lobby est traité
+pareil, et là ça coûtait plus cher : `Net.rejoint()` commence par fermer la
+session en cours, donc un doublon coupait une connexion qui marchait.
+
+C'est le genre de détail qu'on ne peut pas déduire de la documentation, et la
+raison pour laquelle un rappel réseau se traite toujours comme s'il pouvait
+arriver deux fois.
+
+---
+
 ## Q1 — Le multiplicateur cumulatif de verrous : par joueur ou par équipe ?
 *Ouverte depuis le 27 août 2026 — conséquence directe de D3*
 

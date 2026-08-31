@@ -13,6 +13,13 @@
 *.pck
 *.zip
 
+# ── Extensions tierces ────────────────────────────────────────────────────
+# GodotSteam s'installe par l'AssetLib, machine par machine (D18) : plusieurs
+# dizaines de Mo de binaires par plateforme, quand le dépôt n'a qu'1 Go de LFS
+# par mois. Rien de ce que fait la CI n'en a besoin — voir docs/STEAM.md.
+/addons/godotsteam/
+/addons/godotsteam*/
+
 # ── Éditeurs ──────────────────────────────────────────────────────────────
 .vs/
 .idea/

@@ -17,6 +17,7 @@ func execute() -> void:
 	_check_etat_partage()
 	_check_flux_independants()
 	_check_session_hors_ligne()
+	_check_transport_steam()
 
 
 ## Le joueur local est une notion de CLIENT, pas de partie. Deux machines qui
@@ -137,3 +138,62 @@ func _check_session_hors_ligne() -> void:
 	verifie("le transport local s'annonce", enet.nom() != "aucun")
 	verifie("et il sait dire où le joindre", enet.adresse_affichable() != "")
 	verifie("il dérive bien de l'abstraction", enet is NetTransport)
+
+
+## Le transport Steam, vérifié SANS Steam.
+##
+## C'est tout l'enjeu de R9 : le jour où l'extension n'est pas installée — sur
+## la CI, sur la machine d'un artiste, sur celle d'un développeur qui n'a pas
+## lancé le client — le jeu doit s'ouvrir, tourner, et refuser proprement.
+## Une intégration Steam qui empêche d'ouvrir le projet a cassé plus de choses
+## qu'elle n'en apporte.
+func _check_transport_steam() -> void:
+	print("Steam se branche par-dessus, et son absence est un refus poli")
+
+	var steam := SteamTransport.new()
+	verifie("il dérive de l'abstraction, comme ENet", steam is NetTransport)
+	verifie("et il s'annonce sous son nom", steam.nom() == "Steam")
+	verifie("le plafond de joueurs reste celui du jeu",
+		NetTransport.JOUEURS_MAX == 4)
+
+	# Une IP n'est pas un SteamID. Sans ce refus, `to_int()` transformerait
+	# « 192.168.1.4 » en 192 et on tenterait d'ouvrir une session vers un
+	# identifiant qui n'a jamais existé — avec un échec illisible à la clé.
+	verifie("une adresse IP n'est pas acceptée comme identifiant Steam",
+		steam.rejoint("192.168.1.4", 27015) == null)
+	verifie("et le refus s'explique", not steam.derniere_erreur.is_empty(),
+		steam.derniere_erreur)
+
+	# Le reste ne se vérifie que sur une machine sans Steam. Sur un poste où
+	# l'extension est installée ET le client lancé, ces chemins-là s'essaient à
+	# la main, dans un export — l'overlay ne répond pas depuis l'éditeur (D9).
+	if SteamNet.disponible():
+		verifie("Steam est disponible : le lobby sait le dire",
+			SteamNet.indisponible_pourquoi().is_empty())
+		return
+
+	verifie("sans Steam, le lobby dit non", not SteamNet.disponible())
+	verifie("et il dit pourquoi, en une phrase affichable",
+		not SteamNet.indisponible_pourquoi().is_empty(),
+		SteamNet.indisponible_pourquoi())
+
+	var motifs: Array[String] = []
+	var ecoute: Callable = func(message: String) -> void: motifs.append(message)
+	SteamNet.echec.connect(ecoute)
+	SteamNet.heberge()
+	verifie("héberger sans Steam échoue", motifs.size() == 1, str(motifs))
+	# Le point qui compte vraiment : un échec ne doit RIEN laisser derrière lui.
+	# Une session ouverte sur un tuyau mort, c'est un salon qui se croit hôte et
+	# laisse descendre — chacun jouant alors sa propre partie.
+	verifie("et ne laisse aucune session ouverte derrière lui",
+		not Net.en_ligne() and Net.etat == Net.Etat.HORS_LIGNE)
+
+	SteamNet.rejoint_le_lobby(0)
+	verifie("rejoindre un lobby sans Steam échoue aussi", motifs.size() == 2,
+		str(motifs))
+	verifie("toujours sans session ouverte", not Net.en_ligne())
+
+	# Le solo, lui, n'a jamais entendu parler de tout ça.
+	verifie("et le solo continue de répondre comme avant",
+		Net.est_host() and Net.nombre_de_joueurs() == 1)
+	SteamNet.echec.disconnect(ecoute)

@@ -13,6 +13,7 @@ var _liste: Label
 var _descendre: Button
 var _statut: Label
 var _connexion: Label
+var _inviter: Button
 
 
 func _ready() -> void:
@@ -35,6 +36,14 @@ func _ready() -> void:
 	_liste.add_theme_font_size_override("font_size", 18)
 	col.add_child(_liste)
 	col.add_child(_espace(20))
+
+	# L'invitation n'existe que par Steam, et seulement une fois le lobby créé :
+	# c'est son identifiant qui part à l'ami, pas le nôtre. Le bouton apparaît
+	# donc quand le lobby arrive, pas quand l'écran s'ouvre.
+	_inviter = ScreenUtils.bouton("Inviter des amis")
+	_inviter.pressed.connect(func() -> void: SteamNet.invite_des_amis())
+	col.add_child(_inviter)
+	SteamNet.lobby_change.connect(func(_id: int) -> void: _rafraichit())
 
 	_descendre = ScreenUtils.bouton("Descendre")
 	_descendre.pressed.connect(func() -> void: Net.lance_la_partie())
@@ -75,6 +84,12 @@ func _rafraichit() -> void:
 		var moi: String = "  ← toi" if GameState.est_local(id) else ""
 		lignes.append("%d.  %s%s%s" % [id + 1, Net.nom_du_joueur(id), marque, moi])
 	_liste.text = "\n".join(lignes)
+
+	# Rien à inviter sans lobby Steam : en réseau local, on communique une
+	# adresse, et le bouton n'aurait aucune action à proposer.
+	_inviter.visible = SteamNet.lobby > 0
+	if _inviter.visible:
+		_inviter.text = "Inviter des amis  ·  lobby %d" % SteamNet.lobby
 
 	_connexion.text = Net.description()
 	_connexion.add_theme_color_override("font_color",

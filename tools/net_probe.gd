@@ -10,17 +10,27 @@ extends Node
 ##     Godot --headless --path . res://tools/sonde.tscn            (terminal 2)
 ##
 ## Elle doit afficher, des deux côtés, le même salon et la même graine.
+##
+## Ajouter `steam` passe par le transport Steam au lieu du réseau local. Le
+## client donne alors le SteamID64 de l'hôte, que celui-ci affiche au démarrage.
+## Ça demande deux comptes et deux machines — Steam en refuse deux sur le même
+## compte (D8) — mais c'est le seul moyen d'essayer le tuyau de production sans
+## passer par l'interface, et sans export :
+##
+##     Godot --headless --path . res://tools/sonde.tscn -- host steam
+##     Godot --headless --path . res://tools/sonde.tscn -- steam 76561198000000000
 
 var _t: float = 0.0
 var _host: bool = false
 
 
 func _ready() -> void:
-	_host = OS.get_cmdline_user_args().has("host")
-	if _host:
-		print("[sonde] hébergement : ", Net.heberge(27015, "Alice"))
-	else:
-		print("[sonde] connexion : ", Net.rejoint("127.0.0.1", 27015, "Bob"))
+	var arguments: PackedStringArray = OS.get_cmdline_user_args()
+	_host = arguments.has("host")
+
+	# Les écoutes d'abord, l'ouverture ensuite : par Steam, la session peut
+	# s'ouvrir avant la fin de cette fonction, et un salon qu'on n'écoutait pas
+	# encore ne se raconte jamais.
 	Net.roster_change.connect(func() -> void:
 		var noms: Array = []
 		for id: int in Net.joueurs():
@@ -30,6 +40,48 @@ func _ready() -> void:
 			GameState.local_player_id, Net.est_host()]))
 	Net.partie_lancee.connect(func(g: int) -> void:
 		print("[sonde] %s départ avec graine %d" % ["HOST" if _host else "CLIENT", g]))
+
+	if arguments.has("steam"):
+		_demarre_par_steam(arguments)
+	elif _host:
+		print("[sonde] hébergement : ", Net.heberge(27015, "Alice"))
+	else:
+		print("[sonde] connexion : ", Net.rejoint("127.0.0.1", 27015, "Bob"))
+
+
+## Le chemin Steam. Il échoue bruyamment plutôt que de retomber sur ENet : une
+## sonde qui répond « SUCCÈS » en ayant testé l'autre transport est pire
+## qu'une sonde qui ne répond rien.
+func _demarre_par_steam(arguments: PackedStringArray) -> void:
+	var pourquoi: String = SteamNet.indisponible_pourquoi()
+	if not pourquoi.is_empty():
+		print("[sonde] ÉCHEC — %s" % pourquoi)
+		get_tree().quit(1)
+		return
+
+	SteamNet.echec.connect(func(message: String) -> void:
+		print("[sonde] ÉCHEC — %s" % message)
+		get_tree().quit(1))
+
+	if _host:
+		print("[sonde] hébergement Steam — les clients rejoignent l'hôte %d"
+			% SteamApi.mon_id())
+		SteamNet.heberge()
+		return
+
+	# Le dernier argument numérique est l'identifiant : celui d'un hôte, ou
+	# celui d'un lobby. Un lobby demande un aller-retour de plus, et c'est très
+	# exactement ce qu'on veut vérifier quand on le passe.
+	var identifiant: String = ""
+	for argument: String in arguments:
+		if argument.is_valid_int():
+			identifiant = argument
+	if identifiant.is_empty():
+		print("[sonde] ÉCHEC — donne le SteamID64 de l'hôte en argument.")
+		get_tree().quit(1)
+		return
+	print("[sonde] connexion Steam à %s" % identifiant)
+	SteamNet.rejoint_lhote(identifiant)
 
 
 var _battement: float = 0.0

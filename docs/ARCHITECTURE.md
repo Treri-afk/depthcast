@@ -150,8 +150,14 @@ seconde machine. Sans cette règle, elle est infaisable.
   `127.0.0.1`, utilisé en développement et en CI) et **Steam Networking Sockets**
   (utilisé en production).
 - Le choix du transport est une configuration de lancement, pas une branche de
-  code disséminée dans les systèmes.
-- Aucun appel à l'API Steam en dehors de la couche de transport et du lobby.
+  code disséminée dans les systèmes. En pratique : `Net.heberge()` et
+  `Net.rejoint()` acceptent un transport, et c'est le seul endroit où le choix
+  se fait. Sans argument, c'est ENet.
+- Aucun appel à l'API Steam en dehors de la couche de transport et du lobby —
+  `scripts/net/steam_api.gd`, `steam_transport.gd`, `steam_lobby.gd`, et eux
+  seuls. Ces trois-là passent par `Engine.get_singleton("Steam")` et non par
+  l'identifiant global, pour que le projet s'ouvre sur une machine sans
+  l'extension ([D18](DECISIONS.md#d18--steam-est-branché-godotsteam-nest-pas-versionné)).
 
 **Test.** Puis-je lancer quatre instances locales et jouer une run complète, sans
 client Steam démarré ? Si non, le couplage est déjà installé.
