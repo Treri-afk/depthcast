@@ -87,24 +87,67 @@ Version 4.x, build standard. Le build **.NET n'est pas nécessaire** : le projet
 
 Téléchargement : [godotengine.org/download](https://godotengine.org/download)
 
+Prends la **même version que le reste de l'équipe** (aujourd'hui 4.6.3). Une
+version différente réimporte les ressources et fait apparaître des différences
+dans Git qui n'en sont pas.
+
 ### 2. Git LFS
 
-Indispensable **avant** de cloner : sans lui, tu récupères des fichiers texte de quelques octets à la place des modèles et des textures.
+Indispensable **avant** de cloner : sans lui, tu récupères des fichiers texte de
+quelques octets à la place des modèles et des textures.
 
 ```bash
 brew install git-lfs   # macOS
 git lfs install
 ```
 
+```powershell
+winget install Git.Git ; git lfs install   # Windows
+```
+
 ### 3. Cloner
 
+Le dépôt est **privé** : il faut s'authentifier. Le plus simple est le client
+GitHub, qui gère la connexion une fois pour toutes.
+
+```powershell
+winget install GitHub.cli
+gh auth login
+gh repo clone Treri-afk/depthcast
+```
+
+Sans lui, un `git clone https://github.com/Treri-afk/depthcast.git` demandera un
+jeton d'accès personnel — pas ton mot de passe, GitHub ne l'accepte plus.
+
 ```bash
-git clone <url-du-dépôt>
-cd DepthCast
+cd depthcast
 git lfs pull
 ```
 
-Ouvre ensuite `project.godot` depuis Godot. Le premier lancement régénère le cache `.godot/` — c'est normal, il est ignoré par Git.
+Ouvre ensuite `project.godot` depuis Godot. Le premier lancement régénère le
+cache `.godot/` — c'est normal, il est ignoré par Git.
+
+### 4. Vérifier que tout est arrivé
+
+```bash
+godot --headless --path . res://scenes/verification.tscn --quit-after 3
+```
+
+Le banc doit annoncer toutes ses vérifications au vert. C'est le test le plus
+court qui prouve que le clone est complet et que la version de Godot convient.
+
+### Travailler sur deux machines
+
+Les fins de ligne sont normalisées par `.gitattributes`, donc rien à régler
+entre Windows et macOS.
+
+En revanche la **sauvegarde ne suit pas** : Éclats et écoles débloquées vivent
+dans `user://depthcast.save`, hors du dépôt, propre à chaque machine
+(`%APPDATA%\Godot\app_userdata\DepthCast\` sous Windows). C'est voulu — c'est
+une progression de joueur, pas du code.
+
+Et le réflexe qui évite les conflits : **`git pull` avant de commencer**, sur la
+machine où l'on reprend.
 
 ---
 
