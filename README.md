@@ -2,7 +2,7 @@
 
 > Un donjon roguelite coopératif où la magie ne t'obéit jamais complètement — tes sorts changent de nature à chaque étage, et maîtriser le chaos devient la vraie compétence.
 
-**Godot 4.x · GDScript typé · 3D stylisé low-poly · co-op 2-4 joueurs via Steam**
+**Godot 4.7 · GDScript typé · 3D stylisé low-poly · co-op 2-4 joueurs via Steam**
 
 ---
 
@@ -88,13 +88,14 @@ une version simplifiée de ce qu'il mesure finit par ne mesurer que lui-même.
 
 ### 1. Godot — build standard
 
-Version 4.x, build standard. Le build **.NET n'est pas nécessaire** : le projet est en GDScript ([D7](docs/DECISIONS.md#d7--gdscript-plutôt-que-c)).
+Version **4.7.2**, build standard. Le build **.NET n'est pas nécessaire** : le projet est en GDScript ([D7](docs/DECISIONS.md#d7--gdscript-plutôt-que-c)).
 
 Téléchargement : [godotengine.org/download](https://godotengine.org/download)
 
-Prends la **même version que le reste de l'équipe** (aujourd'hui 4.6.3). Une
-version différente réimporte les ressources et fait apparaître des différences
-dans Git qui n'en sont pas.
+Prends **exactement 4.7.2**, la version que la CI installe. Une version
+différente réimporte les ressources et fait apparaître dans Git des différences
+qui n'en sont pas — et surtout, GodotSteam est publié par version de Godot :
+une archive prévue pour une autre ne se chargera jamais.
 
 ### 2. Git LFS
 

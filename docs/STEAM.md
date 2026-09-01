@@ -16,6 +16,11 @@ Décidé en [D9](DECISIONS.md#d9--intégration-steam--godotsteam-en-gdextension)
 la **GDExtension**, jamais le module compilé — celui-ci imposerait un binaire
 Godot custom à tout le monde, y compris à quelqu'un qui ne vient que dessiner.
 
+0. **Vérifie ta version de Godot d'abord.** Le projet est en **4.7.2**, et
+   GodotSteam est publié par version : une archive prévue pour 4.6 s'installe
+   sans broncher, crée bien le dossier `addons/`, et ne se charge jamais. C'est
+   le mode d'échec le plus fréquent, et il ne ressemble pas à un problème de
+   version — il ressemble à une extension absente.
 1. Dans l'éditeur : **AssetLib** → chercher `GodotSteam GDExtension` → installer.
    (Ou télécharger l'archive sur <https://godotsteam.com> et la décompresser à la
    racine du projet.)
