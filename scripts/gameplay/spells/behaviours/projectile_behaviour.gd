@@ -34,6 +34,7 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 		if objet != null:
 			consomme[0] = true
 			objet.encaisse(effet.degats, bille.global_position)
+			ctx.fx.impact(effet.impact, bille.global_position, couleur)
 			bille.queue_free()
 			return
 
@@ -42,6 +43,10 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 			return
 		consomme[0] = true
 		ctx.degats(slot_index, effet.degats, [avatar.monster_id])
+		# La marque part du point de contact et non du monstre : un projectile
+		# qui touche l'épaule ne doit pas s'allumer au centre du corps.
+		ctx.fx.impact(effet.impact, bille.global_position, couleur,
+			(bille.global_position - avatar.global_position).normalized())
 		_a_touche(ctx, slot_index, effet)
 		bille.queue_free()
 	)

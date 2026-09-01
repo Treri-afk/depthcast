@@ -27,12 +27,18 @@ var source_slot: int = -1
 ## sans y penser.
 var blesse_le_joueur: bool = false
 var couleur: Color = Color.WHITE
+## L'apparence. C'est elle qui distingue un mur de flammes d'une nappe de gel :
+## en ligne claire, deux surfaces de même couleur sont indiscernables, donc la
+## silhouette est le SEUL levier disponible.
+var allure: ZoneVisual.Allure = ZoneVisual.Allure.NAPPE
+## Mémorisées à la construction : le visuel n'est monté qu'à l'entrée dans
+## l'arbre, une fois que l'appelant a fini de régler la couleur et l'allure.
+var dimensions: Vector3 = Vector3.ONE
 
 var _restant: float = 0.0
 var _prochain_battement: float = 0.0
-var _visuel: MeshInstance3D
+var _apparence: ZoneVisual
 var _lampe: OmniLight3D
-var _materiau: StandardMaterial3D
 
 
 static func cree(forme: Forme, dimensions: Vector3, position_monde: Vector3,
@@ -41,29 +47,22 @@ static func cree(forme: Forme, dimensions: Vector3, position_monde: Vector3,
 	zone.position = position_monde
 	zone.rotation.y = rotation_y
 
+	# La collision et l'apparence sont deux choses séparées, et c'est délibéré :
+	# une nappe de pics et une flaque occupent le même volume mais ne se
+	# ressemblent en rien. Mélanger les deux obligerait à choisir entre une
+	# forme juste et une forme lisible.
 	var collision := CollisionShape3D.new()
-	var visuel := MeshInstance3D.new()
-
 	if forme == Forme.SPHERE:
 		var sphere := SphereShape3D.new()
 		sphere.radius = dimensions.x
 		collision.shape = sphere
-		var mesh := SphereMesh.new()
-		mesh.radius = dimensions.x
-		mesh.height = dimensions.x * 2.0
-		visuel.mesh = mesh
 	else:
 		var boite := BoxShape3D.new()
 		boite.size = dimensions
 		collision.shape = boite
-		var mesh := BoxMesh.new()
-		mesh.size = dimensions
-		visuel.mesh = mesh
 
+	zone.dimensions = dimensions
 	zone.add_child(collision)
-	visuel.name = "Visuel"
-	zone.add_child(visuel)
-	zone._visuel = visuel
 	return zone
 
 
@@ -82,17 +81,10 @@ func _ready() -> void:
 	add_child(lampe)
 	_lampe = lampe
 
-	_materiau = StandardMaterial3D.new()
-	# Non éclairée : une nappe est de la lumière, pas une surface.
-	_materiau.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_materiau.albedo_color = Color(couleur.r, couleur.g, couleur.b, 0.32)
-	_materiau.emission_enabled = true
-	_materiau.emission = couleur
-	_materiau.emission_energy_multiplier = 0.6
-	_materiau.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_materiau.cull_mode = BaseMaterial3D.CULL_DISABLED
-	if _visuel != null:
-		_visuel.material_override = _materiau
+	# Monté ici et pas à la construction : l'appelant règle la couleur et
+	# l'allure entre les deux, et un visuel bâti trop tôt les ignorerait.
+	_apparence = ZoneVisual.cree(allure, dimensions, couleur)
+	add_child(_apparence)
 
 
 func _physics_process(delta: float) -> void:
@@ -103,8 +95,8 @@ func _physics_process(delta: float) -> void:
 
 	# La zone s'estompe en fin de vie : on voit qu'elle va disparaître.
 	var reste: float = clampf(_restant / maxf(duree, 0.01), 0.0, 1.0)
-	if _materiau != null:
-		_materiau.albedo_color.a = 0.10 + 0.26 * reste
+	if _apparence != null:
+		_apparence.fondu(0.12 + 0.30 * reste)
 	if _lampe != null:
 		_lampe.light_energy = Content.palette.lumiere_sort_energie * reste
 

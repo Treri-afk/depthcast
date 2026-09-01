@@ -17,6 +17,7 @@ func execute() -> void:
 	_check_palette()
 	_check_trame()
 	_check_interface()
+	_check_allures()
 
 
 ## Règle 2 : l'ombre est la même pour toute surface, jamais un albédo assombri.
@@ -188,3 +189,51 @@ func _check_interface() -> void:
 			and b.has_theme_stylebox_override("hover")
 			and b.has_theme_stylebox_override("pressed"))
 	b.free()
+
+
+## Règle 5 : deux sorts ne se ressemblent pas.
+##
+## En ligne claire, ni dégradé ni lueur ne séparent deux surfaces de la même
+## couleur. La silhouette est donc le seul levier, et si les allures se
+## confondent, le joueur ne sait pas quel sort il vient de lancer — le pire
+## défaut possible dans un jeu dont le sujet est de ne pas savoir de quoi son
+## sort est capable.
+func _check_allures() -> void:
+	print("Allures et impacts — deux sorts ne se ressemblent pas")
+
+	# Les cinq allures doivent produire des géométries RÉELLEMENT différentes.
+	# Un refactor qui les ferait converger passerait sans ça inaperçu.
+	var empreintes: Array[String] = []
+	for allure: int in [ZoneVisual.Allure.NAPPE, ZoneVisual.Allure.MUR,
+			ZoneVisual.Allure.DOME, ZoneVisual.Allure.PICS,
+			ZoneVisual.Allure.COLONNE]:
+		var visuel := ZoneVisual.cree(allure, Vector3(3.0, 2.5, 3.0), Color.RED)
+		var formes: Array[String] = []
+		for enfant: Node in visuel.get_children():
+			var piece := enfant as MeshInstance3D
+			if piece != null:
+				formes.append(piece.mesh.get_class())
+		formes.sort()
+		empreintes.append("%d:%s" % [formes.size(), "/".join(formes)])
+		verifie("l'allure %d produit une silhouette" % allure, not formes.is_empty())
+		visuel.free()
+
+	var distinctes: Array[String] = []
+	for e: String in empreintes:
+		if not distinctes.has(e):
+			distinctes.append(e)
+	verifie("les cinq allures ne se confondent pas deux à deux",
+		distinctes.size() >= 4, str(empreintes))
+
+	# Et la donnée s'en sert : des allures posées mais jamais choisies ne
+	# valent pas mieux que pas d'allures du tout.
+	var vues: Array[int] = []
+	var impacts: Array[int] = []
+	for ecole: School in Content.ecoles:
+		for effet: SpellEffect in ecole.effets:
+			if not vues.has(effet.allure):
+				vues.append(effet.allure)
+			if not impacts.has(effet.impact):
+				impacts.append(effet.impact)
+	verifie("le contenu emploie plusieurs allures", vues.size() >= 3, str(vues))
+	verifie("et plusieurs impacts", impacts.size() >= 3, str(impacts))

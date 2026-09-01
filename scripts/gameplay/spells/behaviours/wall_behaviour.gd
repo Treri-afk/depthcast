@@ -20,4 +20,5 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 	zone.source_player_id = ctx.joueur.player_id
 	zone.source_slot = slot_index
 	zone.couleur = couleur
+	zone.allure = effet.allure
 	ctx.monde.add_child(zone)

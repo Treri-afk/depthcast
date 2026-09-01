@@ -49,6 +49,20 @@ enum Comportement {
 ## pareil, et c'est ce nombre qui le dit — pas une ligne de code par sort.
 @export_range(0.0, 6.0, 0.05) var recul: float = 0.9
 
+@export_group("Allure")
+## La forme que prend la zone posée par ce sort.
+##
+## En ligne claire, deux surfaces de la même couleur sont indiscernables : ni
+## dégradé, ni volume, ni lueur pour les séparer. La SILHOUETTE est donc le seul
+## levier, et c'est ce réglage qui fait qu'un mur de flammes ne ressemble pas à
+## une nappe de gel. Sans lui, tous les sorts de zone se ressemblaient.
+@export var allure: ZoneVisual.Allure = ZoneVisual.Allure.NAPPE
+
+## Ce qui se produit au point de contact. Même raison que l'allure : sans lui,
+## toucher avec une boule de feu ou avec un éclat de givre donnait exactement la
+## même image.
+@export var impact: FxLibrary.Impact = FxLibrary.Impact.ECLAT
+
 @export_group("État appliqué")
 ## Nom de l'état posé. Vide = ce sort n'en pose aucun.
 ##

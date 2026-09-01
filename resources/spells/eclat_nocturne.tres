@@ -8,3 +8,4 @@ nom = "Éclat Nocturne"
 degats = 28
 portee = 15.0
 cooldown = 1.6
+impact = 3

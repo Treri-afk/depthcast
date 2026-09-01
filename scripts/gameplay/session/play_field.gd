@@ -237,6 +237,7 @@ func _seme_pour(avatar: PlayerAvatar, delta: float) -> void:
 	zone.degats = effet.degats
 	zone.source_slot = int(flaque["slot"])
 	zone.couleur = flaque["couleur"]
+	zone.allure = flaque["allure"]
 	racine.add_child(zone)
 
 

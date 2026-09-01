@@ -40,6 +40,7 @@ func consomme(delta: float, position: Vector3) -> Dictionary:
 	_derniere = position
 	return {
 		"effet": effet,
+		"allure": effet.allure,
 		"couleur": couleur,
 		"slot": slot_index,
 		"position": position,

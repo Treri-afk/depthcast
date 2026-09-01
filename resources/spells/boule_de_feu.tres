@@ -8,3 +8,4 @@ nom = "Boule de Feu"
 degats = 14
 portee = 24.0
 cooldown = 0.55
+impact = 0
