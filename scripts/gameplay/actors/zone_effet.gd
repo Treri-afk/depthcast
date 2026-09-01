@@ -138,10 +138,12 @@ func _bat() -> void:
 		var joueur := corps as PlayerAvatar
 		if joueur != null:
 			touche_le_joueur = true
-			if blesse_le_joueur:
-				joueurs.append(joueur.player_id)
+			joueurs.append(joueur.player_id)
 
-	if degats > 0 and not (cibles.is_empty() and joueurs.is_empty()):
+	# Les dégâts ne visent les joueurs que si la zone est hostile ; le soin, lui,
+	# va à tous ceux qui sont dedans. D'où deux listes tirées du même passage.
+	var brules: Array = joueurs if blesse_le_joueur else []
+	if degats > 0 and not (cibles.is_empty() and brules.is_empty()):
 		var intent := EffectIntent.new()
 		intent.source_player_id = source_player_id
 		intent.source_slot = source_slot
@@ -151,15 +153,18 @@ func _bat() -> void:
 		# subjective, encaisser sans savoir d'où ça vient est illisible.
 		intent.origine = global_position
 		intent.target_monsters = PackedInt64Array(cibles)
-		intent.target_ids = PackedInt64Array(joueurs)
+		intent.target_ids = PackedInt64Array(brules)
 		EffectResolver.submit(intent)
 
-	if soin > 0 and touche_le_joueur:
+	# Le soin va à QUI se tient dedans, pas à celui qui a posé le totem. Une
+	# nappe qui ne soignerait que son auteur ne pourrait relever personne, et
+	# c'est justement par là que passe la relève.
+	if soin > 0 and not joueurs.is_empty():
 		var intent := EffectIntent.new()
 		intent.source_player_id = source_player_id
 		intent.source_slot = source_slot
 		intent.kind = EffectIntent.Kind.HEAL
 		intent.amount = soin
 		intent.origine = global_position
-		intent.target_ids = PackedInt64Array([source_player_id])
+		intent.target_ids = PackedInt64Array(joueurs)
 		EffectResolver.submit(intent)

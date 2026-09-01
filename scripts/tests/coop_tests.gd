@@ -17,6 +17,7 @@ func execute() -> void:
 	_check_etat_partage()
 	_check_flux_independants()
 	_check_session_hors_ligne()
+	_check_chute_et_releve()
 	_check_transport_steam()
 
 
@@ -197,3 +198,54 @@ func _check_transport_steam() -> void:
 	verifie("et le solo continue de répondre comme avant",
 		Net.est_host() and Net.nombre_de_joueurs() == 1)
 	SteamNet.echec.disconnect(ecoute)
+
+
+## Tomber n'est pas mourir, et la relève n'a pas de verbe à elle.
+func _check_chute_et_releve() -> void:
+	print("À terre — et relevé par un soin")
+
+	GameState.start_run(31, 2)
+	var a: PlayerState = GameState.run.get_player(0)
+	var b: PlayerState = GameState.run.get_player(1)
+
+	_frappe_joueur(0, a.max_hp + 50)
+	verifie("tomber met à terre, pas à zéro joueur", not a.is_alive() and a.hp == 0)
+	# LA règle : la run continue tant que quelqu'un tient debout.
+	verifie("la run continue tant qu'il reste quelqu'un debout",
+		GameState.run.alive_players().size() == 1)
+
+	# N'importe quel soin relève : il n'existe aucun sort de relève, et c'est
+	# tout l'intérêt — pouvoir relever dépend de ce que le reroll a donné.
+	_soigne_joueur(1, 0, 20)
+	verifie("un soin venu d'un coéquipier relève", a.is_alive() and a.hp == 20)
+
+	_frappe_joueur(0, 999)
+	_frappe_joueur(1, 999)
+	verifie("quand tout le monde est à terre, plus personne ne tient",
+		GameState.run.alive_players().is_empty()
+			and not a.is_alive() and not b.is_alive())
+
+	# Un soin nul ne ressuscite personne : sinon le moindre effet de zone
+	# relèverait toute l'équipe sans que ce soit voulu.
+	_soigne_joueur(0, 1, 0)
+	verifie("mais un soin nul ne relève pas", not b.is_alive())
+
+
+func _frappe_joueur(cible: int, degats: float) -> void:
+	var intent := EffectIntent.new()
+	intent.kind = EffectIntent.Kind.DAMAGE
+	intent.amount = degats
+	intent.source_player_id = -1
+	intent.target_ids = PackedInt64Array([cible])
+	EffectResolver.submit(intent)
+	EffectResolver.resolve_tick()
+
+
+func _soigne_joueur(soigneur: int, cible: int, montant: float) -> void:
+	var intent := EffectIntent.new()
+	intent.kind = EffectIntent.Kind.HEAL
+	intent.amount = montant
+	intent.source_player_id = soigneur
+	intent.target_ids = PackedInt64Array([cible])
+	EffectResolver.submit(intent)
+	EffectResolver.resolve_tick()

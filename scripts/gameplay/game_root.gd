@@ -63,9 +63,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed(InputActions.INTERAGIR):
 		_interagit()
 
-	var local: PlayerState = GameState.local_player()
-	if GameState.is_in_run() and local != null and local.hp <= 0:
-		_termine_la_run(false)
+	_verifie_la_fin()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -96,13 +94,29 @@ func _assemble_le_donjon() -> void:
 		_marchand, _spawner, _terrain.avatars)
 
 
-## Fin de run : par la mort, ou par la chute du boss.
+## La run s'arrête quand PLUS PERSONNE n'est debout — pas quand quelqu'un tombe.
+##
+## Tomber met à terre ; il faut qu'un soin passe pour se relever. C'est aussi
+## pour ça que la décision revient à l'hôte : chaque machine ne jugeait que son
+## propre joueur, donc un invité tombé mettait fin à sa run pendant que les
+## autres jouaient, et l'hôte tombé l'arrêtait pour toute l'équipe.
+func _verifie_la_fin() -> void:
+	if not Net.est_host() or not GameState.is_in_run():
+		return
+	if GameState.run.alive_players().is_empty():
+		GameState.end_run(false)
+
+
+## Fin de run : plus personne debout, ou le boss tombé. Prononcée par l'hôte,
+## affichée par tout le monde — d'où le passage par le bus.
 func _termine_la_run(victoire: bool) -> void:
 	if not GameState.is_in_run():
 		return
-	var etage: int = GameState.run.floor_index
-	var graine: int = GameState.run.run_seed
 	GameState.end_run(victoire)
+
+
+func _montre_l_ecran_de_fin(etage: int, victoire: bool) -> void:
+	var graine: int = GameState.run.run_seed if GameState.run != null else 0
 	MouseLook.capture(false)
 
 	var ecran := RunEndScreen.new()
@@ -135,6 +149,10 @@ func _branche_les_evenements() -> void:
 
 	Repl.descente_ordonnee.connect(_descend_d_un_etage)
 	Repl.achat_confirme.connect(_sur_achat_confirme)
+
+	EventBus.run_ended.connect(_montre_l_ecran_de_fin)
+	EventBus.player_downed.connect(_sur_chute)
+	EventBus.player_revived.connect(_sur_releve)
 
 	EventBus.monster_damaged.connect(_sur_degat_monstre)
 	EventBus.monster_died.connect(_sur_mort_monstre)
@@ -190,6 +208,21 @@ func _sur_achat_confirme(index_du_socle: int) -> void:
 		# Chez un client, la dépense a déjà eu lieu chez l'hôte et la photo
 		# l'apportera. Il ne reste qu'à faire disparaître l'objet du socle.
 		socle.consomme()
+
+
+func _sur_chute(player_id: int) -> void:
+	if GameState.est_local(player_id):
+		_hud.journalise("Tu es à terre. Il faut qu'un soin t'atteigne.")
+	else:
+		_hud.journalise("%s est à terre — un soin le relèvera." %
+			Net.nom_du_joueur(player_id))
+
+
+func _sur_releve(player_id: int, par: int) -> void:
+	if GameState.est_local(player_id):
+		_hud.journalise("Relevé par %s." % Net.nom_du_joueur(par))
+	else:
+		_hud.journalise("%s est relevé." % Net.nom_du_joueur(player_id))
 
 
 func _note_mutation(slot: int, mute: bool) -> void:
@@ -251,7 +284,9 @@ func _sur_mort_monstre(monster_id: int, _tueur: int, recompense: int) -> void:
 	_spawner.avatars.erase(monster_id)
 
 	if etait_le_boss:
-		_termine_la_run(true)
+		# Le boss est tombé chez tout le monde, mais un seul prononce la fin.
+		if Net.est_host():
+			_termine_la_run(true)
 		return
 
 	_hud.journalise("+%d Résonance   ·   %d monstre(s) restant(s)" % [

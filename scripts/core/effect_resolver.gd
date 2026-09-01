@@ -108,8 +108,14 @@ func _apply_damage(intent: EffectIntent) -> void:
 	for target_id: int in intent.target_ids:
 		var target: PlayerState = GameState.run.get_player(target_id)
 		if target != null:
+			var debout: bool = target.is_alive()
 			target.hp = maxi(0, target.hp - int(intent.amount))
 			EventBus.player_damaged.emit(target_id, int(intent.amount), intent.origine)
+			# Tomber n'est pas mourir. On le dit ici, au seul endroit qui voit
+			# la transition — ailleurs, il faudrait comparer avec un état
+			# précédent que personne ne garde.
+			if debout and not target.is_alive():
+				EventBus.player_downed.emit(target_id)
 
 	# Cibles monstres. La récompense de Résonance part au pot COMMUN (D3),
 	# quel que soit le joueur qui a porté le coup fatal.
@@ -131,5 +137,12 @@ func _apply_heal(intent: EffectIntent) -> void:
 		return
 	for target_id: int in intent.target_ids:
 		var target: PlayerState = GameState.run.get_player(target_id)
-		if target != null:
-			target.hp = mini(target.max_hp, target.hp + int(intent.amount))
+		if target == null:
+			continue
+		var etait_a_terre: bool = not target.is_alive()
+		target.hp = mini(target.max_hp, target.hp + int(intent.amount))
+		# La relève n'est pas un geste à part : c'est un soin qui arrive sur
+		# quelqu'un à terre. Aucun sort de relève n'existe, et c'est voulu —
+		# si tu veux relever, il faut pouvoir soigner.
+		if etait_a_terre and target.is_alive():
+			EventBus.player_revived.emit(target_id, intent.source_player_id)

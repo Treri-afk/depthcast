@@ -45,6 +45,12 @@ signal player_blasted(player_id: int, force: float, origine: Vector3)
 ## la vitesse de chute : c'est elle qui dit si c'est une réception ou un impact.
 signal player_slammed(player_id: int, vitesse: float)
 
+## Tombé à terre. Ce n'est PAS la mort : on reste là, hors de combat, en
+## attendant qu'un soin passe. La run ne s'arrête que si tout le monde y est.
+signal player_downed(player_id: int)
+## Relevé par un soin. `par` est celui dont le sort a rendu les points de vie.
+signal player_revived(player_id: int, par: int)
+
 # ── Décor ─────────────────────────────────────────────────────────────────
 ## Une explosion vient de partir — un tonneau aujourd'hui, un piège demain. Le
 ## son écoute ; rien d'autre n'a besoin de savoir d'où elle venait.

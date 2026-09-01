@@ -35,15 +35,38 @@ func degats(slot_index: int, montant: int, ids_monstres: Array) -> void:
 	EffectResolver.submit(intent)
 
 
-func soin(slot_index: int, montant: int) -> void:
+## Soigne QUI le sort atteint, dans un rayon autour du lanceur.
+##
+## Un rayon nul ne soigne que le lanceur : c'est le cas du vol de vie, où le
+## soin est la contrepartie d'un coup porté, pas un sort de soutien.
+##
+## C'est ce qui rend la relève possible sans inventer un seul verbe : un
+## coéquipier à terre est une cible de soin comme une autre, et n'importe quel
+## sort capable de rendre des points de vie le remet debout. Aucune touche
+## dédiée, aucun temps de maintien — si tu veux relever, il faut pouvoir soigner.
+func soin(slot_index: int, montant: int, rayon: float = 0.0) -> void:
 	if montant <= 0:
 		return
+	var cibles: Array[int] = []
+	for avatar in _avatars():
+		if not is_instance_valid(avatar):
+			continue
+		if avatar == joueur or rayon <= 0.0:
+			if avatar == joueur:
+				cibles.append(avatar.player_id)
+			continue
+		if avatar.global_position.distance_to(joueur.global_position) <= rayon:
+			cibles.append(avatar.player_id)
+	if cibles.is_empty():
+		return
+
 	var intent := EffectIntent.new()
 	intent.source_player_id = joueur.player_id
 	intent.source_slot = slot_index
 	intent.kind = EffectIntent.Kind.HEAL
 	intent.amount = montant
-	intent.target_ids = PackedInt64Array([joueur.player_id])
+	intent.origine = joueur.global_position
+	intent.target_ids = PackedInt64Array(cibles)
 	EffectResolver.submit(intent)
 
 

@@ -114,6 +114,14 @@ extends Resource
 @export_range(0.0, 1.0, 0.05) var leurre_chance_par_salle: float = 0.35
 @export var leurre_cout: int = 30
 
+@export_group("À terre")
+## Vitesse en rampant, en multiple de la vitesse normale. On se traîne : assez
+## pour se mettre à couvert ou se rapprocher d'un coéquipier, jamais assez pour
+## fuir un combat.
+@export_range(0.0, 1.0, 0.05) var a_terre_vitesse: float = 0.3
+## Hauteur des yeux une fois à terre, en part de la hauteur normale.
+@export_range(0.0, 1.0, 0.05) var a_terre_hauteur: float = 0.25
+
 @export_group("Marche")
 ## Distance parcourue entre deux pas, en mètres. C'est ce nombre qui règle la
 ## cadence : la calquer sur une horloge donnerait des pas qui continuent quand

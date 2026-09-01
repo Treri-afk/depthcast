@@ -56,6 +56,15 @@ func _ready() -> void:
 	EventBus.monster_damaged.connect(_relaie_degats_monstre)
 	EventBus.monster_died.connect(_relaie_mort_monstre)
 	EventBus.player_damaged.connect(_relaie_degats_joueur)
+	EventBus.player_downed.connect(func(id: int) -> void:
+		if _peut_relayer():
+			_recois_une_chute.rpc(id))
+	EventBus.player_revived.connect(func(id: int, par: int) -> void:
+		if _peut_relayer():
+			_recois_une_releve.rpc(id, par))
+	EventBus.run_ended.connect(func(etage: int, victoire: bool) -> void:
+		if _peut_relayer():
+			_recois_la_fin.rpc(etage, victoire))
 
 
 func _process(delta: float) -> void:
@@ -384,6 +393,27 @@ func _recois_mort_monstre(id: int, tueur: int, recompense: int) -> void:
 @rpc("authority", "call_remote", "reliable")
 func _recois_degats_joueur(id: int, degats: int, origine: Vector3) -> void:
 	EventBus.player_damaged.emit(id, degats, origine)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _recois_une_chute(id: int) -> void:
+	EventBus.player_downed.emit(id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _recois_une_releve(id: int, par: int) -> void:
+	EventBus.player_revived.emit(id, par)
+
+
+## La fin de run est prononcée par l'hôte seul. Sans ça, un invité tombé mettait
+## fin à SA run pendant que les autres jouaient encore — et la photo suivante la
+## lui rouvrait. L'écran de fin clignotait et disparaissait.
+@rpc("authority", "call_remote", "reliable")
+func _recois_la_fin(etage: int, victoire: bool) -> void:
+	if GameState.run != null:
+		GameState.run.is_over = true
+		GameState.run.victory = victoire
+	EventBus.run_ended.emit(etage, victoire)
 
 
 @rpc("authority", "call_remote", "unreliable_ordered")

@@ -191,6 +191,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## le regard se met à jour à chaque image affichée, pas à chaque tick physique.
 func _process(delta: float) -> void:
 	_maj_la_marche()
+	_maj_la_hauteur_des_yeux(delta)
 	if _secousse == null:
 		return
 	if _culbute.is_zero_approx() and _culbute_vitesse.is_zero_approx():
@@ -233,6 +234,10 @@ func _deplace(delta: float) -> void:
 	var allure: float = _tuning.vitesse_joueur
 	if _porte != null:
 		allure *= _tuning.portage_ralentissement
+	# À terre on se traîne : assez pour se mettre à couvert ou se rapprocher
+	# d'un coéquipier, jamais assez pour fuir un combat.
+	if est_a_terre():
+		allure *= _tuning.a_terre_vitesse
 	var voulu: Vector3 = (transform.basis * Vector3(entree.x, 0.0, entree.y)) * allure
 	var vitesse_verticale: float = velocity.y
 
@@ -305,7 +310,7 @@ func _maj_les_fenetres_de_saut(delta: float, au_sol: bool) -> void:
 
 
 func _peut_sauter(au_sol: bool) -> bool:
-	return (au_sol or _coyote > 0.0) and _releve_restant <= 0.0
+	return (au_sol or _coyote > 0.0) and _releve_restant <= 0.0 and not est_a_terre()
 
 
 ## Un CharacterBody3D ne pousse pas les corps rigides tout seul : il faut lui
@@ -329,6 +334,10 @@ func _ecoute_les_sorts() -> void:
 	# Les mains pleines, on ne lance pas. C'est ce qui fait de « porter un
 	# tonneau amorcé jusqu'au groupe » un pari plutôt qu'un geste gratuit.
 	if _tuning.portage_bloque_les_sorts and _porte != null:
+		return
+	# À terre, on n'agit plus. C'est ce qui fait qu'être relevé compte : sans
+	# ça, tomber ne serait qu'un ralentissement.
+	if est_a_terre():
 		return
 	# Maj et Ctrl sont réservés aux raccourcis d'interface : sans ce garde,
 	# Maj+1 lancerait aussi le sort du slot 1.
@@ -481,6 +490,20 @@ func _atterrit() -> void:
 	EventBus.player_slammed.emit(player_id, choc)
 
 
+## La vue descend au sol quand on tombe, et remonte quand on est relevé.
+##
+## Progressif, et pas d'un coup : c'est la seule chose qui dise au joueur ce qui
+## vient de lui arriver avant qu'il ait lu quoi que ce soit, et une bascule
+## instantanée se lirait comme un défaut d'affichage.
+func _maj_la_hauteur_des_yeux(delta: float) -> void:
+	if tete == null or _tuning == null:
+		return
+	var voulue: float = HAUTEUR_YEUX
+	if est_a_terre():
+		voulue *= _tuning.a_terre_hauteur
+	tete.position.y = move_toward(tete.position.y, voulue, delta * 2.4)
+
+
 ## Le pas et le balancement, pour TOUS les avatars.
 ##
 ## Ils se déduisent du déplacement réel, et le déplacement est déjà répliqué :
@@ -558,6 +581,18 @@ func _arme_la_culbute(impulsion: Vector3) -> void:
 
 # ── Porter, poser, lancer ─────────────────────────────────────────────────
 
+## À terre : les points de vie sont tombés à zéro, mais ce n'est pas la mort.
+##
+## L'état n'est pas mémorisé ici — il se lit dans GameState, comme tout le
+## reste (R1). Un second drapeau sur le corps finirait par contredire l'état
+## le jour où un soin arrive par le réseau plutôt que par nos propres mains.
+func est_a_terre() -> bool:
+	if not GameState.is_in_run():
+		return false
+	var etat: PlayerState = GameState.run.get_player(player_id)
+	return etat != null and not etat.is_alive()
+
+
 func porte_quelque_chose() -> bool:
 	return _porte != null and is_instance_valid(_porte)
 
@@ -603,7 +638,7 @@ func objet_a_portee() -> PropDestructible:
 
 
 func _ecoute_le_portage() -> void:
-	if not local or not MouseLook.est_capture() or est_projete():
+	if not local or not MouseLook.est_capture() or est_projete() or est_a_terre():
 		return
 
 	if Input.is_action_just_pressed(InputActions.PORTER):
