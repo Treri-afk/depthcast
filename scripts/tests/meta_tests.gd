@@ -111,18 +111,33 @@ func _check_socles_liberes() -> void:
 ## Le hub est un lieu : ses autels doivent refléter l'état réel, et l'équipe
 ## ne doit jamais pouvoir dépasser le nombre de slots.
 func _check_hub() -> void:
-	var avant: Array[StringName] = GameState.ecoles_choisies.duplicate()
+	var avant: Dictionary = GameState.ecoles_choisies.duplicate(true)
 	GameState.ecoles_choisies.clear()
 
 	var disponibles: Array[School] = Meta.ecoles_disponibles()
 	verifie("assez d'écoles débloquées pour composer une équipe",
 		disponibles.size() >= PlayerState.SLOT_COUNT)
 
+	# La composition est PAR JOUEUR : en co-op chacun compose la sienne, et
+	# c'est le sujet même de la préparation.
 	for ecole: School in disponibles:
-		if GameState.ecoles_choisies.size() < PlayerState.SLOT_COUNT:
-			GameState.ecoles_choisies.append(ecole.id)
+		GameState.bascule_ecole(0, ecole.id)
 	verifie("une équipe complète tient exactement dans les slots",
-		GameState.ecoles_choisies.size() == PlayerState.SLOT_COUNT)
+		GameState.ecoles_de(0).size() == PlayerState.SLOT_COUNT)
+	verifie("et la cinquième école est refusée",
+		GameState.bascule_ecole(0, &"une_de_plus") == GameState.Bascule.REFUSEE)
+
+	# Deux joueurs composent indépendamment : prendre une école ne la retire à
+	# personne, et voir qui a pris quoi est ce qui permet de se répartir.
+	var premiere: StringName = disponibles[0].id
+	GameState.bascule_ecole(1, premiere)
+	verifie("un second joueur compose sans toucher au premier",
+		GameState.ecoles_de(0).size() == PlayerState.SLOT_COUNT
+			and GameState.ecoles_de(1).size() == 1)
+	var porteurs: Array = GameState.porteurs_de(premiere)
+	verifie("et l'on sait qui a pris quoi",
+		porteurs.size() == 2 and porteurs[0] == 0 and porteurs[1] == 1,
+		str(porteurs))
 
 	# La sélection traverse le changement de scène par l'état, pas par un
 	# paramètre : c'est GameState qui fait foi, y compris entre deux scènes.

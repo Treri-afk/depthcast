@@ -17,7 +17,48 @@ var run: RunState = null
 ## Écoles composées au hub, en attente de la descente. Elles traversent le
 ## changement de scène par l'état plutôt que par un paramètre : GameState fait
 ## foi, y compris entre deux scènes (R1).
-var ecoles_choisies: Array[StringName] = []
+## Les écoles composées au hub, PAR joueur. Clé : `player_id`.
+##
+## Par joueur et pas globale : en co-op chacun compose la sienne, et c'est le
+## sujet même de la préparation — se répartir les écoles au lieu de prendre les
+## mêmes. Une liste unique faisait jouer tout le monde avec le même grimoire.
+##
+## Hors de `run` comme le joueur local : elle survit au changement de scène
+## entre le hub et le donjon, mais elle n'appartient à aucune partie en cours.
+var ecoles_choisies: Dictionary = {}
+
+
+## Les écoles d'un joueur. Toujours un tableau, jamais null.
+func ecoles_de(player_id: int) -> Array:
+	if not ecoles_choisies.has(player_id):
+		ecoles_choisies[player_id] = []
+	return ecoles_choisies[player_id]
+
+
+## Prend ou rend une école. Retourne ce qui s'est passé, pour que l'appelant
+## sache quoi dire et quel son jouer sans refaire le calcul.
+enum Bascule { RETIREE, PRISE, REFUSEE }
+
+func bascule_ecole(player_id: int, id: StringName) -> Bascule:
+	var miennes: Array = ecoles_de(player_id)
+	if miennes.has(id):
+		miennes.erase(id)
+		return Bascule.RETIREE
+	if miennes.size() >= PlayerState.SLOT_COUNT:
+		return Bascule.REFUSEE
+	miennes.append(id)
+	return Bascule.PRISE
+
+
+## Qui a pris cette école. Sert au hub : voir ce que prennent les autres est la
+## moitié de l'intérêt d'une préparation à plusieurs.
+func porteurs_de(id: StringName) -> Array:
+	var out: Array = []
+	for player_id: int in ecoles_choisies:
+		if (ecoles_choisies[player_id] as Array).has(id):
+			out.append(player_id)
+	out.sort()
+	return out
 
 ## Le joueur que CE client contrôle.
 ##

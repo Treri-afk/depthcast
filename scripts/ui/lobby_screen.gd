@@ -45,7 +45,7 @@ func _ready() -> void:
 	col.add_child(_inviter)
 	SteamNet.lobby_change.connect(func(_id: int) -> void: _rafraichit())
 
-	_descendre = ScreenUtils.bouton("Descendre")
+	_descendre = ScreenUtils.bouton("Rejoindre le hub")
 	_descendre.pressed.connect(func() -> void: Net.lance_la_partie())
 	col.add_child(_descendre)
 
@@ -108,12 +108,15 @@ func _rafraichit() -> void:
 	elif not multiplayer.is_server():
 		_descendre.text = "En attente de l'hôte…"
 	else:
-		_descendre.text = "Descendre"
+		_descendre.text = "Rejoindre le hub"
 
 
 
+## Le salon mène au HUB, pas au donjon. C'est là qu'on se retrouve, qu'on voit
+## ce que prennent les autres et qu'on se répartit les écoles — la préparation
+## est un moment de jeu, pas un écran de configuration.
 func _descend(_graine: int) -> void:
-	get_tree().change_scene_to_file(ScreenUtils.CHEMIN_JEU)
+	get_tree().change_scene_to_file(ScreenUtils.CHEMIN_HUB)
 
 
 func _espace(hauteur: int) -> Control:

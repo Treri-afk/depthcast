@@ -35,7 +35,7 @@ func _ready() -> void:
 	# zéro, et la run en tire une — sinon une partie solo lancée après un salon
 	# rejouerait le même étage indéfiniment.
 	var graine: int = Net.graine if Net.en_ligne() else 0
-	_terrain.monte(graine, Net.nombre_de_joueurs())
+	_terrain.monte(graine)
 	_joueur = _terrain.joueur
 	_hud = _terrain.hud
 	_fx = _terrain.fx

@@ -18,6 +18,8 @@ var debloquee: bool = false
 var _flamme: MeshInstance3D
 var _lampe: OmniLight3D
 var _materiau_flamme: ShaderMaterial
+## Les marques des joueurs qui ont pris cette école.
+var _porteurs: Label3D = null
 
 
 static func cree(p_ecole: School, position_monde: Vector3, fx: FxLibrary) -> SchoolAltar:
@@ -56,6 +58,35 @@ static func cree(p_ecole: School, position_monde: Vector3, fx: FxLibrary) -> Sch
 	autel.add_child(autel._lampe)
 
 	return autel
+
+
+## Affiche qui a pris cette école, à sa couleur de joueur.
+##
+## En solo la ligne reste vide et l'autel est exactement comme avant. À
+## plusieurs, c'est ce qui permet de se répartir : découvrir en plein combat
+## qu'on a tous pris Braise est trop tard pour en changer.
+func montre_les_porteurs(joueurs: Array) -> void:
+	if _porteurs == null:
+		_porteurs = Label3D.new()
+		_porteurs.font_size = 40
+		_porteurs.pixel_size = 0.004
+		_porteurs.position = Vector3(0, 2.6, 0)
+		_porteurs.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_porteurs.outline_size = 10
+		_porteurs.outline_modulate = Content.palette.encre
+		add_child(_porteurs)
+
+	# Une seule couleur possible sur un Label3D : au-delà d'un porteur, on
+	# revient au blanc et ce sont les numéros qui portent l'information.
+	if joueurs.is_empty():
+		_porteurs.text = ""
+		return
+	var marques: PackedStringArray = []
+	for player_id: int in joueurs:
+		marques.append("J%d" % (player_id + 1))
+	_porteurs.text = " ".join(marques)
+	_porteurs.modulate = Content.palette.couleur_joueur(int(joueurs[0])) \
+		if joueurs.size() == 1 else Content.palette.lisere_blanc
 
 
 func _process(delta: float) -> void:

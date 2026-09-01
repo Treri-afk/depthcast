@@ -43,25 +43,29 @@ func _init(p_racine: Node3D) -> void:
 ## Elle ouvre la run elle-même, et c'est délibéré : le nombre de joueurs décide
 ## du nombre d'avatars, donc l'état doit exister avant le monde. Les racines
 ## dupliquaient cet appel, chacune avec ses propres oublis.
-func monte(graine: int = 0, nb_joueurs: int = 1) -> void:
+## `combat` à faux monte un terrain SANS run, sans sorts et sans HUD de jeu :
+## c'est le hub. Il y a quand même des corps, une caméra et une réplication —
+## c'est exactement ce qui manquait au hub pour être jouable à plusieurs, et
+## c'est déjà écrit ici.
+func monte(graine: int = 0, combat: bool = true) -> void:
 	InputActions.declare()
 	WorldLighting.installe(racine)
 	_conteneurs()
-	_ouvre_la_run(graine, nb_joueurs)
+	if combat:
+		_ouvre_la_run(graine)
 	_joueurs()
-	_interface()
-	_services()
-	_branche_le_ressenti()
+	if combat:
+		_interface()
+		_services()
+		_branche_le_ressenti()
 
 
-func _ouvre_la_run(graine: int, nb_joueurs: int) -> void:
-	GameState.start_run(graine, maxi(nb_joueurs, 1))
-	# Tout le monde part avec la même composition tant que le lobby n'existe
-	# pas. En co-op, chaque joueur compose la sienne au hub : ce sera un
-	# `set_player_schools` par joueur, et rien d'autre à changer ici.
-	var composition: Array = definitions_choisies()
+func _ouvre_la_run(graine: int) -> void:
+	GameState.start_run(graine, Net.nombre_de_joueurs())
+	# Chacun descend avec SA composition. C'est tout l'objet du hub : se
+	# répartir les écoles plutôt que partir avec le même grimoire.
 	for etat: PlayerState in GameState.run.players:
-		GameState.set_player_schools(etat.player_id, composition)
+		GameState.set_player_schools(etat.player_id, definitions_de(etat.player_id))
 
 
 func _conteneurs() -> void:
@@ -75,8 +79,10 @@ func _conteneurs() -> void:
 
 
 func _joueurs() -> void:
-	for etat: PlayerState in GameState.run.players:
-		var avatar := _cree_avatar(etat.player_id)
+	# La liste vient de la SESSION, pas de la run : le hub n'a pas de run, et
+	# pourtant il a besoin d'un corps par joueur connecté.
+	for player_id: int in Net.joueurs():
+		var avatar := _cree_avatar(player_id)
 		avatars.append(avatar)
 		if avatar.local:
 			joueur = avatar
@@ -290,11 +296,11 @@ func change_ecole(slot_index: int, pas: int) -> void:
 		slot_index + 1, suivante.nom, suivante.taille_pool()])
 
 
-## Les écoles composées au hub. En leur absence — lancement direct d'une scène
-## pendant le développement — on retombe sur les premières débloquées plutôt
-## que de planter.
-static func definitions_choisies() -> Array:
-	var ids: Array[StringName] = GameState.ecoles_choisies
+## Les écoles composées au hub par UN joueur. En leur absence — lancement direct
+## d'une scène pendant le développement — on retombe sur les premières
+## débloquées plutôt que de planter.
+static func definitions_de(player_id: int) -> Array:
+	var ids: Array = GameState.ecoles_de(player_id)
 	if ids.is_empty():
 		for ecole: School in Meta.ecoles_disponibles():
 			if ids.size() < PlayerState.SLOT_COUNT:

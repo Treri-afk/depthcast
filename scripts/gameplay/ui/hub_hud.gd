@@ -44,11 +44,22 @@ func _ready() -> void:
 		+ "Retour arrière — menu principal")
 
 
+## L'état de session, affiché au hub comme en jeu : sans lui, une préparation
+## à plusieurs est indiscernable d'une préparation solo tant qu'on ne s'est pas
+## cherché du regard.
+func ligne_de_session() -> String:
+	if not Net.en_ligne():
+		return ""
+	return "\n[color=#7fd0ff]co-op · %d joueur(s) · tu es %s[/color]" % [
+		Net.nombre_de_joueurs(), "l'hôte" if Net.est_host() else "invité"]
+
+
 func rafraichit(choisies: int) -> void:
 	_entete.texte.text = ("[b]Éclats : %d[/b]\n"
-		+ "Équipe : %d / %d écoles\n"
-		+ "Prochain déblocage : %d Éclats") % [
-			Meta.eclats, choisies, PlayerState.SLOT_COUNT, Meta.cout_deblocage()]
+		+ "Ton équipe : %d / %d écoles\n"
+		+ "Prochain déblocage : %d Éclats%s") % [
+			Meta.eclats, choisies, PlayerState.SLOT_COUNT, Meta.cout_deblocage(),
+			ligne_de_session()]
 
 
 func invite(texte: String) -> void:

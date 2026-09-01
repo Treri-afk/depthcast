@@ -27,7 +27,7 @@ func _ready() -> void:
 	# La run est ouverte par le terrain lui-même : les slots, la Résonance et
 	# les monstres n'existent qu'à l'intérieur d'une run (R1), et le banc
 	# d'essai ne fait pas exception — sinon il testerait un autre état.
-	_terrain.monte(1, 1)
+	_terrain.monte(1)
 	_terrain.joueur.position = Vector3(0, 1.2, 18.0)
 
 	_batit_la_salle()

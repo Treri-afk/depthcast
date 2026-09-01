@@ -122,6 +122,8 @@ signal objet_amorce(index: int)
 signal objet_detruit(index: int)
 signal balise_activee(index: int)
 signal portage_change(player_id: int, index: int, elan: Vector3)
+## Quelqu'un a pris ou rendu une école au hub.
+signal ecoles_changees(player_id: int)
 ## Un socle du marchand vient d'être consommé, chez tout le monde.
 signal achat_confirme(index_du_socle: int)
 
@@ -263,6 +265,45 @@ func _recois_les_objets(bouges: Array) -> void:
 		if corps != null and not corps.freeze:
 			corps.global_position = ligne[1]
 			corps.rotation = ligne[2]
+
+
+## La composition d'un joueur a changé. Diffusée telle quelle : ce n'est pas de
+## l'état de partie — il n'y a pas encore de run — et chacun est maître de la
+## sienne. Le host n'a rien à arbitrer ici.
+func annonce_ecoles(player_id: int, ecoles: Array) -> void:
+	if Net.en_ligne():
+		_recois_des_ecoles.rpc(player_id, ecoles)
+	else:
+		ecoles_changees.emit(player_id)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _recois_des_ecoles(player_id: int, ecoles: Array) -> void:
+	var expediteur: int = multiplayer.get_remote_sender_id()
+	var declare: int = Net.player_id_de(expediteur)
+	# Chacun ne compose que la sienne.
+	if declare < 0 or declare != player_id:
+		return
+	var copie: Array[StringName] = []
+	for id: Variant in ecoles:
+		copie.append(StringName(id))
+	GameState.ecoles_choisies[player_id] = copie
+	ecoles_changees.emit(player_id)
+
+
+## Quelqu'un veut lancer la descente depuis le hub. Le host tranche, puis
+## `Net.lance_la_partie()` emmène tout le monde avec la même graine.
+func demande_le_depart() -> void:
+	if Net.est_host():
+		Net.lance_la_partie()
+	else:
+		_demande_le_depart.rpc_id(1)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _demande_le_depart() -> void:
+	if Net.est_host():
+		Net.lance_la_partie()
 
 
 func _ordonne_la_descente() -> void:
