@@ -71,6 +71,27 @@ var filtre: int = 0
 @export var filtre_ombre: Color = Color(0.06, 0.05, 0.12)
 @export_range(0.0, 1.0, 0.05) var filtre_force: float = 1.0
 
+@export_group("Ciel")
+## Le ciel des salles à ciel ouvert. Le fond du ciel est `fond` : c'est la même
+## valeur que le vide et que la brume, donc l'horizon ne fait aucune couture.
+##
+## Les deux valeurs de nuage restent SOUS celle des murs. Un nuage plus clair
+## qu'un mur mangerait la silhouette du décor dès qu'on lève les yeux, et le
+## contour se mettrait à souligner le ciel au lieu de l'architecture.
+@export var ciel_actif: bool = true
+@export var ciel_nuage: Color = Color(0.22, 0.22, 0.31)
+@export var ciel_nuage_ombre: Color = Color(0.155, 0.155, 0.225)
+## Part du ciel couverte. 0 dégage tout, 1 bouche tout.
+@export_range(0.0, 1.0, 0.01) var ciel_couverture: float = 0.52
+## Taille des masses. Petite valeur = grands nuages.
+@export_range(0.2, 6.0, 0.05) var ciel_echelle: float = 1.6
+## Vitesse de dérive. Assez lente pour qu'on ne la surprenne pas en la fixant.
+@export_range(0.0, 0.05, 0.001) var ciel_derive: float = 0.006
+## Dureté du bord. Volontairement minuscule : c'est elle qui garde l'aplat.
+@export_range(0.001, 0.2, 0.001) var ciel_bord: float = 0.014
+## Épaisseur de la face à l'ombre du nuage.
+@export_range(0.02, 0.4, 0.01) var ciel_epaisseur_ombre: float = 0.13
+
 @export_group("Décor")
 ## Les valeurs sont volontairement ÉCARTÉES les unes des autres. Le contour se
 ## détecte sur la luminance : deux surfaces adjacentes de valeur voisine ne

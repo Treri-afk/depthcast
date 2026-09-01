@@ -19,7 +19,15 @@ static func installe(parent: Node3D) -> void:
 
 	var ambiance := WorldEnvironment.new()
 	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
+	# Le ciel remplace le fond plat quand la palette en veut un. Sa couleur de
+	# base EST `fond` : sans ciel, ou sous l'horizon, on retombe exactement sur
+	# ce qu'on avait avant, donc aucune salle fermée ne change d'aspect.
+	var ciel: Sky = CloudSky.cree()
+	if ciel != null:
+		env.background_mode = Environment.BG_SKY
+		env.sky = ciel
+	else:
+		env.background_mode = Environment.BG_COLOR
 	env.background_color = Content.palette.fond
 	# Aucune lumière ambiante : le shader la désactive de toute façon, et une
 	# ambiante viendrait éclaircir les ombres, donc introduire une troisième
