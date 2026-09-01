@@ -34,7 +34,9 @@ func _init(geometrie: Node3D, tuning: Tuning, builder: FloorBuilder,
 
 ## Construit l'étage courant de zéro. Retourne les objets destructibles créés,
 ## que le contexte de sorts doit connaître.
-func genere() -> Array[PropDestructible]:
+## `reprise` : on rebâtit la géométrie mais on ne crée aucun monstre neuf — on
+## reconstruit les corps de ceux qui sont déjà dans l'état.
+func genere(reprise: bool = false) -> Array[PropDestructible]:
 	var etage: int = GameState.run.floor_index
 	# Le flux est celui de CET étage, pas un flux global qui avance : deux
 	# machines qui ne l'auraient pas fait avancer le même nombre de fois
@@ -59,7 +61,9 @@ func genere() -> Array[PropDestructible]:
 	else:
 		_marchand.installe(plan.salle_du_marchand())
 
-	if boss:
+	if reprise:
+		_spawner.reconstitue(GameState.run.monsters, _joueurs, etage)
+	elif boss:
 		var avatar: BossAvatar = _spawner.invoque_le_boss(plan, _joueurs, etage)
 		if avatar != null:
 			boss_invoque.emit(avatar)

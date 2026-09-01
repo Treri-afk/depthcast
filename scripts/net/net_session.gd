@@ -44,6 +44,9 @@ var etat: Etat = Etat.HORS_LIGNE
 var transport: NetTransport = null
 ## Graine de la run en cours. Choisie par le host, diffusée à tous.
 var graine: int = 0
+## Vrai chez celui qui vient de rejoindre une partie DÉJÀ commencée : il adopte
+## l'état du host au lieu d'en ouvrir un neuf. Consommé au montage du terrain.
+var reprise_en_cours: bool = false
 
 ## peer Godot → player_id du jeu. Le host est toujours le joueur 0.
 var _joueurs: Dictionary = {}
@@ -165,6 +168,7 @@ func quitte() -> void:
 	# avoir quitté un salon rejouait le donjon de la partie d'avant, à
 	# l'identique, jusqu'au redémarrage du jeu.
 	graine = 0
+	reprise_en_cours = false
 	GameState.local_player_id = 0
 
 
@@ -211,6 +215,12 @@ func _sur_arrivee(peer: int) -> void:
 		return
 	_joueurs[peer] = _prochain_identifiant_libre()
 	_diffuse_le_salon()
+
+	# Une partie tourne déjà : on ne le laisse pas dans un salon vide pendant
+	# que les autres jouent. On l'inscrit et on lui envoie l'état complet.
+	if GameState.is_in_run():
+		GameState.ajoute_joueur(int(_joueurs[peer]), String(_noms.get(peer, "")))
+		Repl.accueille_en_cours(peer, graine)
 
 
 func _sur_depart(peer: int) -> void:

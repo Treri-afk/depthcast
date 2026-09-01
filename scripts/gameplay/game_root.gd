@@ -43,8 +43,11 @@ func _ready() -> void:
 
 	_assemble_le_donjon()
 	_branche_les_evenements()
-	_contexte.objets = _etage.genere()
+	# Celui qui rejoint rebâtit le décor de l'étage courant, mais ne repeuple
+	# pas : ses monstres sont ceux de la photo qu'il vient de recevoir.
+	_contexte.objets = _etage.genere(Net.reprise_en_cours)
 	Repl.enregistre_les_objets(_contexte.objets)
+	Net.reprise_en_cours = false
 	_hud.journalise("Nettoie l'étage, va voir le marchand au fond, puis prends le portail.")
 	_hud.aide_debug(_debug.aide())
 
@@ -135,6 +138,16 @@ func _branche_les_evenements() -> void:
 	# Il l'annonce, et chacun crée le projectile chez soi.
 	_spawner.monstre_veut_tirer.connect(Repl.annonce_tir)
 	Repl.tir_ennemi.connect(_sur_tir_monstre)
+	# Un arrivant doit devenir une cible possible pour les monstres déjà en
+	# place : leur liste a été COPIÉE au moment de leur apparition, elle ne se
+	# met pas à jour toute seule.
+	_terrain.avatar_ajoute.connect(func(avatar: PlayerAvatar) -> void:
+		for id: int in _spawner.avatars:
+			var monstre: MonsterAvatar = _spawner.avatars[id]
+			if is_instance_valid(monstre) and not monstre.cibles.has(avatar):
+				monstre.cibles.append(avatar)
+		_hud.journalise("%s a rejoint la partie." % Net.nom_du_joueur(avatar.player_id)))
+
 	Repl.objet_active.connect(_sur_objet_active)
 	Repl.objet_amorce.connect(_sur_objet_amorce)
 	Repl.objet_detruit.connect(_sur_objet_detruit)

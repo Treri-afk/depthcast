@@ -18,6 +18,7 @@ func execute() -> void:
 	_check_flux_independants()
 	_check_session_hors_ligne()
 	_check_chute_et_releve()
+	_check_reprise()
 	_check_transport_steam()
 
 
@@ -249,3 +250,38 @@ func _soigne_joueur(soigneur: int, cible: int, montant: float) -> void:
 	intent.target_ids = PackedInt64Array([cible])
 	EffectResolver.submit(intent)
 	EffectResolver.resolve_tick()
+
+
+## Rejoindre une partie en cours, et y revenir après une coupure.
+##
+## Personne n'y pense avant la sortie, et c'est précisément ce qui plombe une
+## soirée : quelqu'un perd sa connexion et la partie est finie pour lui.
+func _check_reprise() -> void:
+	print("Reprise — rejoindre une partie déjà commencée")
+
+	GameState.start_run(55, 1)
+	verifie("la partie commence seule", GameState.run.players.size() == 1)
+
+	# Un arrivant s'inscrit dans une run déjà ouverte.
+	var arrivant: PlayerState = GameState.ajoute_joueur(1, "Tard")
+	verifie("un arrivant entre dans la run", arrivant != null
+		and GameState.run.players.size() == 2)
+	# Il arrive DEBOUT : le punir de l'état d'une partie qu'il n'a pas jouée
+	# n'apprendrait rien à personne.
+	verifie("et il arrive debout", arrivant.is_alive())
+
+	# Revenir n'est pas arriver : on ne se dédouble pas.
+	var encore: PlayerState = GameState.ajoute_joueur(1, "Tard")
+	verifie("revenir ne crée pas un second corps",
+		GameState.run.players.size() == 2 and encore == arrivant)
+
+	# Et quelqu'un qui s'était fait mettre à terre avant de tomber de la partie
+	# revient debout, sinon il rejoint pour ne rien pouvoir faire.
+	arrivant.hp = 0
+	GameState.ajoute_joueur(1, "Tard")
+	verifie("celui qui revient après une coupure se relève",
+		GameState.run.get_player(1).is_alive())
+
+	# Hors run, il n'y a rien à rejoindre.
+	GameState.end_run(false)
+	verifie("hors partie, personne ne rejoint", GameState.ajoute_joueur(2) == null)

@@ -75,10 +75,37 @@ func peuple(plan: FloorPlan, cibles: Array, etage: int,
 				cibles, etage)
 
 
+## Rebâtit les corps des monstres DÉJÀ dans l'état, sans en créer de nouveaux.
+##
+## C'est le chemin de celui qui rejoint une partie en cours. Repeupler l'étage
+## lui donnerait des monstres déjà tués par les autres, et en doublerait les
+## identifiants dans l'état — deux erreurs qui ne se verraient qu'en jeu, sous
+## la forme de créatures fantômes que personne d'autre ne voit.
+##
+## La position exacte n'a pas d'importance : elle arrive du host à la frame
+## suivante par la réplication. Ce qui compte est qu'il y ait le bon nombre de
+## corps, avec les bons identifiants.
+func reconstitue(etats: Array, cibles: Array, etage: int) -> void:
+	vide()
+	for etat: MonsterState in etats:
+		if not etat.is_alive():
+			continue
+		var stats: MonsterStats = Content.monstre(etat.archetype_id)
+		if stats == null:
+			continue
+		_installe(stats, Vector3.ZERO, cibles, etat.monster_id)
+
+
 func fait_apparaitre(stats: MonsterStats, pos: Vector3, cibles: Array,
 		etage: int) -> MonsterAvatar:
 	var pv: int = stats.pv + etage * _tuning.pv_monstre_par_etage
-	var id: int = GameState.spawn_monster(pv, stats.resonance, stats.id)
+	return _installe(stats, pos, cibles, GameState.spawn_monster(pv, stats.resonance, stats.id))
+
+
+## Le corps seul, pour un identifiant déjà attribué. Séparé de l'inscription
+## dans l'état : celui qui rejoint reconstruit des corps sans rien inscrire.
+func _installe(stats: MonsterStats, pos: Vector3, cibles: Array,
+		id: int) -> MonsterAvatar:
 
 	# Un boss a son propre corps, mais entre dans l'état par le même chemin.
 	var avatar: MonsterAvatar = BossAvatar.new() if stats is BossStats \

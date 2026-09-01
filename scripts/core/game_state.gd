@@ -180,6 +180,23 @@ func end_run(is_victory: bool) -> void:
 
 # ── Joueurs (R2 : collection, jamais de singleton) ────────────────────────
 
+## Ajoute un joueur à une run DÉJÀ commencée.
+##
+## Il arrive debout et à pleine santé : le punir de l'état d'une partie qu'il
+## n'a pas jouée n'apprendrait rien à personne, et quelqu'un qui vient de perdre
+## sa connexion n'a pas à revenir à terre.
+func ajoute_joueur(player_id: int, nom: String = "") -> PlayerState:
+	if not is_in_run():
+		return null
+	var deja: PlayerState = run.get_player(player_id)
+	if deja != null:
+		# Une reconnexion : on le remet debout plutôt que de le dupliquer.
+		if not deja.is_alive():
+			deja.hp = maxi(1, deja.max_hp / 2)
+		return deja
+	return _register_player(player_id, nom)
+
+
 func _register_player(player_id: int, display_name: String) -> PlayerState:
 	var p := PlayerState.new(player_id, display_name)
 	# Les 4 écoles seront choisies avant la run. Placeholder tant que les

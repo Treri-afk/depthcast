@@ -20,6 +20,8 @@ var couche_ui: CanvasLayer
 
 ## Émis quand la séquence de reroll se referme et que le contrôle est rendu.
 signal sequence_terminee()
+## Un corps vient d'apparaître pour quelqu'un qui a rejoint en cours de partie.
+signal avatar_ajoute(avatar: PlayerAvatar)
 
 ## Vrai pendant la séquence de reroll : la racine doit suspendre sa boucle.
 var sequence_en_cours: bool = false
@@ -52,7 +54,12 @@ func monte(graine: int = 0, combat: bool = true) -> void:
 	WorldLighting.installe(racine)
 	_conteneurs()
 	if combat:
-		_ouvre_la_run(graine)
+		if Net.reprise_en_cours:
+			# L'état vient d'arriver du host : l'écraser par une run neuve
+			# effacerait exactement ce qu'on vient de recevoir.
+			RngService.seed_run(graine)
+		else:
+			_ouvre_la_run(graine)
 	_joueurs()
 	if combat:
 		_interface()
@@ -90,6 +97,29 @@ func _joueurs() -> void:
 	# et l'écran reste noir sans dire pourquoi.
 	if joueur == null and not avatars.is_empty():
 		push_error("Aucun avatar local : local_player_id ne correspond à personne.")
+
+	# Quelqu'un peut arriver APRÈS le montage du monde. Sans ça, celui qui
+	# rejoint voyait tout le monde, et personne ne le voyait — le pire des deux
+	# cas, parce qu'il se croit là et se demande pourquoi on l'ignore.
+	Net.roster_change.connect(_accueille_les_nouveaux)
+
+
+## Crée les corps manquants et retire ceux qui sont partis.
+func _accueille_les_nouveaux() -> void:
+	var attendus: Array[int] = Net.joueurs()
+	for player_id: int in attendus:
+		if avatar_de(player_id) == null:
+			var avatar := _cree_avatar(player_id)
+			avatars.append(avatar)
+			avatar_ajoute.emit(avatar)
+
+	# Et le corps de celui qui s'en va s'en va avec lui : le laisser planté au
+	# milieu de la salle ferait tirer dessus.
+	for avatar: PlayerAvatar in avatars.duplicate():
+		if not attendus.has(avatar.player_id):
+			avatars.erase(avatar)
+			if is_instance_valid(avatar):
+				avatar.queue_free()
 
 
 func _cree_avatar(player_id: int) -> PlayerAvatar:

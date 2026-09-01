@@ -341,6 +341,28 @@ func _demande_le_depart() -> void:
 		Net.lance_la_partie()
 
 
+## Accueille un arrivant en pleine partie. On lui envoie la photo complète de
+## l'état AVANT de lui dire de charger la scène : il doit connaître l'étage et
+## les monstres au moment où il bâtit son monde, sinon il génère l'étage zéro et
+## se retrouve seul dans un donjon que personne d'autre n'habite.
+##
+## Rien de neuf n'est inventé ici : c'est la même photo que celle diffusée dix
+## fois par seconde, envoyée une fois de plus à quelqu'un qui en avait besoin.
+func accueille_en_cours(peer: int, graine: int) -> void:
+	if not Net.est_host():
+		return
+	_recois_l_accueil.rpc_id(peer, graine, GameState.serialize())
+
+
+@rpc("authority", "call_remote", "reliable")
+func _recois_l_accueil(graine: int, etat: Dictionary) -> void:
+	Net.graine = graine
+	Net.reprise_en_cours = true
+	GameState.deserialize(etat)
+	# On change de scène soi-même : personne d'autre ne sait où l'on en est.
+	get_tree().change_scene_to_file(ScreenUtils.CHEMIN_JEU)
+
+
 func _ordonne_la_descente() -> void:
 	if Net.en_ligne():
 		_recois_la_descente.rpc()
