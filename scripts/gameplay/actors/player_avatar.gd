@@ -30,6 +30,8 @@ const SNAP_SOL: float = 0.5
 ## Position des mains au repos, sous la caméra. La charge d'un lancer les
 ## ramène en arrière à partir de là.
 const MAINS_AU_REPOS := Vector3(0.5, -0.5, -1.25)
+## Champ de vision au repos. La vitesse l'ouvre à partir de là.
+const FOV_BASE: float = 78.0
 ## Si l'on n'a toujours pas décollé après ce délai, c'est qu'on ne décollera
 ## pas — souffle rasant, plafond bas, corps coincé dans un angle. On considère
 ## alors la projection terminée plutôt que d'attendre un envol qui ne vient pas.
@@ -102,6 +104,18 @@ var _etait_au_sol: bool = true
 ## balancement se décale du bruit des pas dès qu'on change de vitesse.
 var _phase_de_marche: float = 0.0
 var _position_precedente: Vector3 = Vector3.ZERO
+## Endurance restante, en secondes de course.
+##
+## Sur le corps et non dans GameState, contrairement au reste : elle change à
+## chaque frame, elle n'a aucune conséquence pour les autres joueurs, et la
+## faire transiter par la photo du host la ferait sauter dix fois par seconde.
+## Ce qu'un coéquipier doit savoir — que tu cours — se lit déjà à ta vitesse,
+## qui est répliquée.
+var _endurance: float = 0.0
+## Vrai tant qu'on n'a pas récupéré assez pour repartir après un épuisement.
+var _souffle_coupe: bool = false
+## Battements : temps avant le prochain.
+var _coeur: float = 0.0
 ## Aide au saut. `_coyote` pardonne le retard — on vient de quitter le sol —
 ## et `_tampon` pardonne l'avance : un saut demandé juste avant de toucher.
 var _coyote: float = 0.0
@@ -122,7 +136,7 @@ func _ready() -> void:
 	tete.add_child(_secousse)
 
 	camera = Camera3D.new()
-	camera.fov = 78.0
+	camera.fov = FOV_BASE
 	# Une seule caméra active par écran. Les avatars distants gardent la leur —
 	# éteinte — pour que `position_yeux()` et `direction_visee()` fonctionnent
 	# sur eux aussi, sans un seul cas particulier ailleurs.
@@ -134,6 +148,7 @@ func _ready() -> void:
 	_mains.position = MAINS_AU_REPOS
 	_secousse.add_child(_mains)
 
+	_endurance = _tuning.endurance_max
 	if local:
 		_regard = MouseLook.new(self, tete, _tuning.sensibilite_souris)
 	else:
@@ -197,6 +212,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	_maj_la_marche()
 	_maj_la_hauteur_des_yeux(delta)
+	_maj_la_camera(delta)
+	_maj_le_coeur(delta)
 	if _secousse == null:
 		return
 	if _culbute.is_zero_approx() and _culbute_vitesse.is_zero_approx():
@@ -237,6 +254,8 @@ func _deplace(delta: float) -> void:
 	# Porter coûte de la vitesse. Sans coût, porter serait gratuit et il n'y
 	# aurait aucune décision à prendre entre traverser vite et traverser armé.
 	var allure: float = _tuning.vitesse_joueur
+	if _court(delta, entree):
+		allure *= _tuning.course_facteur
 	if _porte != null:
 		allure *= _tuning.portage_ralentissement
 	# À terre on se traîne : assez pour se mettre à couvert ou se rapprocher
@@ -302,6 +321,45 @@ func _deplace(delta: float) -> void:
 	_bouscule_les_objets()
 
 
+## Court-on, et l'endurance suit.
+##
+## Elle ne se dépense qu'en AVANÇANT : rester la touche enfoncée à l'arrêt ne
+## coûte rien, sinon on se retrouve épuisé sans avoir bougé, et le joueur ne
+## comprend pas où est passée sa jauge.
+func _court(delta: float, entree: Vector2) -> bool:
+	if not local or _tuning == null:
+		return false
+
+	var veut: bool = Input.is_action_pressed(InputActions.COURIR) \
+		and entree.length_squared() > 0.01 and is_on_floor() \
+		and not est_a_terre() and not est_projete() and _porte == null
+
+	if veut and not _souffle_coupe:
+		_endurance -= delta
+		if _endurance <= 0.0:
+			_endurance = 0.0
+			# Le palier de reprise : sans lui, on repart un dixième de seconde à
+			# chaque frame et la course bégaie au lieu de s'arrêter franchement.
+			_souffle_coupe = true
+		return true
+
+	_endurance = minf(_endurance + delta * _tuning.endurance_recharge,
+		_tuning.endurance_max)
+	if _souffle_coupe and _endurance >= _tuning.endurance_reprise:
+		_souffle_coupe = false
+	return false
+
+
+## Part d'endurance restante, pour la jauge. Toujours entre 0 et 1.
+func endurance() -> float:
+	return 0.0 if _tuning == null \
+		else clampf(_endurance / maxf(_tuning.endurance_max, 0.01), 0.0, 1.0)
+
+
+func souffle_coupe() -> bool:
+	return _souffle_coupe
+
+
 ## Les deux pardons du saut.
 ##
 ## Le coyote laisse sauter un instant APRÈS avoir quitté le sol : sans lui,
@@ -352,8 +410,9 @@ func _ecoute_les_sorts() -> void:
 		return
 	# Maj et Ctrl sont réservés aux raccourcis d'interface : sans ce garde,
 	# Maj+1 lancerait aussi le sort du slot 1.
-	if Input.is_key_pressed(KEY_SHIFT) or Input.is_key_pressed(KEY_CTRL) \
-			or Input.is_key_pressed(KEY_META):
+	# Ctrl et Cmd restent réservés aux raccourcis d'interface. Maj, lui, sert
+	# maintenant à courir : le garder ici empêcherait de lancer en courant.
+	if Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META):
 		return
 
 	for i: int in PlayerState.SLOT_COUNT:
@@ -499,6 +558,57 @@ func _atterrit() -> void:
 	_culbute_vitesse.y += minf(choc * 0.14, 4.0)
 	_culbute_vitesse = _culbute_vitesse.limit_length(9.0)
 	EventBus.player_slammed.emit(player_id, choc)
+
+
+## Champ de vision et roulis : les deux réglages qui font qu'un déplacement se
+## sent au lieu de se mesurer.
+##
+## Le champ s'ouvre avec la vitesse RÉELLE et non avec la touche appuyée : une
+## course contre un mur ne doit rien ouvrir du tout. Le roulis, lui, suit
+## l'intention — c'est un mouvement du corps, pas une conséquence physique.
+func _maj_la_camera(delta: float) -> void:
+	if not local or camera == null or _tuning == null:
+		return
+
+	var plat := Vector2(velocity.x, velocity.z)
+	var part: float = clampf(plat.length() / maxf(_tuning.vitesse_joueur
+		* _tuning.course_facteur, 0.1), 0.0, 1.4)
+	var vise: float = FOV_BASE + _tuning.fov_gain * part
+	camera.fov = lerpf(camera.fov, vise, minf(delta * _tuning.fov_souplesse, 1.0))
+
+	var lateral: float = Input.get_axis(InputActions.GAUCHE, InputActions.DROITE) \
+		if MouseLook.est_capture() else 0.0
+	var roulis: float = -lateral * _tuning.roulis_amplitude
+	camera.rotation.z = lerpf(camera.rotation.z, roulis,
+		minf(delta * _tuning.roulis_souplesse, 1.0))
+
+
+## Le cœur bat quand la santé baisse, de plus en plus vite.
+##
+## C'est le seul retour qui informe SANS occuper l'écran : on l'entend en
+## combat, on ne le lit pas. Un chiffre de points de vie demande de quitter la
+## mêlée des yeux, ce qui est exactement le moment où il ne faut pas.
+func _maj_le_coeur(delta: float) -> void:
+	if not local or _tuning == null or not GameState.is_in_run():
+		return
+	var etat: PlayerState = GameState.run.get_player(player_id)
+	if etat == null or not etat.is_alive():
+		return
+
+	var part: float = float(etat.hp) / float(maxi(etat.max_hp, 1))
+	if part > _tuning.coeur_seuil:
+		_coeur = 0.0
+		return
+
+	_coeur -= delta
+	if _coeur > 0.0:
+		return
+	# L'intervalle se resserre à mesure qu'on approche de zéro : c'est
+	# l'accélération qui alarme, pas le battement lui-même.
+	var urgence: float = 1.0 - clampf(part / maxf(_tuning.coeur_seuil, 0.01), 0.0, 1.0)
+	_coeur = lerpf(_tuning.coeur_intervalle_lent, _tuning.coeur_intervalle_rapide,
+		urgence)
+	EventBus.sound_emitted.emit(&"coeur", global_position)
 
 
 ## La vue descend au sol quand on tombe, et remonte quand on est relevé.

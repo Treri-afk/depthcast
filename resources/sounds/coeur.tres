@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SoundDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/sound_def.gd" id="1_755hx"]
+
+[resource]
+script = ExtResource("1_755hx")
+id = &"coeur"
+forme = 0
+frequence_debut = 62.0
+frequence_fin = 44.0
+duree = 0.22
+attaque = 0.02
+volume = 0.8
+variation_hauteur = 0.02
+gain_db = -8.0
+spatialise = false

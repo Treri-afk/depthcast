@@ -301,11 +301,11 @@ func montre_le_reroll(mutations: Array[bool], etage: int) -> void:
 		sequence_terminee.emit())
 
 
-## Maj + 1 à 4 fait défiler les écoles sur un slot. Outil de comparaison : en
+## Ctrl + 1 à 4 fait défiler les écoles sur un slot. Outil de comparaison : en
 ## jeu, les écoles se choisissent au hub et ne bougent plus de la descente.
 ## Retourne true si la touche a été consommée.
 func traite_raccourci(touche: InputEventKey) -> bool:
-	if touche == null or not touche.pressed or touche.echo or not touche.shift_pressed:
+	if touche == null or not touche.pressed or touche.echo or not touche.ctrl_pressed:
 		return false
 	var index: int = InputActions.TOUCHES_SLOTS.find(touche.physical_keycode)
 	if index < 0:

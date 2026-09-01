@@ -196,6 +196,29 @@ func _check_atmosphere() -> void:
 	verifie("et le latéral ne domine pas le vertical",
 		t.marche_lateral <= t.marche_amplitude)
 
+	# Course et endurance : le réglage qui rend le champ de vision utile.
+	verifie("courir va plus vite que marcher", t.course_facteur > 1.0)
+	# Courte à dessein : la course sert à franchir une salle ou à décrocher, pas
+	# à traverser l'étage.
+	verifie("mais l'endurance ne dure pas une éternité",
+		t.endurance_max > 0.0 and t.endurance_max <= 10.0, "%.1f s" % t.endurance_max)
+	# Sans palier de reprise, on repart un dixième de seconde à chaque frame et
+	# la course bégaie au lieu de s'arrêter franchement.
+	verifie("un palier empêche la course de bégayer",
+		t.endurance_reprise > 0.0 and t.endurance_reprise < t.endurance_max)
+	verifie("le champ de vision s'ouvre avec la vitesse", t.fov_gain > 0.0)
+	# Deux degrés suffisent : personne ne le remarque, tout le monde le sent.
+	verifie("le roulis reste discret", t.roulis_amplitude > 0.0
+		and t.roulis_amplitude < 0.12, "%.3f rad" % t.roulis_amplitude)
+	# L'accélération alarme, pas le battement.
+	verifie("le cœur s'emballe en approchant de zéro",
+		t.coeur_intervalle_rapide < t.coeur_intervalle_lent)
+	verifie("et il ne bat pas en pleine santé",
+		t.coeur_seuil > 0.0 and t.coeur_seuil < 1.0)
+	var coeur: SoundDef = _son(&"coeur")
+	verifie("son battement ne se situe pas dans l'espace",
+		coeur != null and not coeur.spatialise)
+
 	var p: Palette = Content.palette
 	verifie("la poussière reste raisonnable en nombre",
 		p.poussiere_grains > 0 and p.poussiere_grains <= 2000,

@@ -122,6 +122,37 @@ extends Resource
 ## Hauteur des yeux une fois à terre, en part de la hauteur normale.
 @export_range(0.0, 1.0, 0.05) var a_terre_hauteur: float = 0.25
 
+@export_group("Course et endurance")
+## Vitesse en courant, en multiple de la vitesse normale.
+@export_range(1.0, 3.0, 0.05) var course_facteur: float = 1.55
+## Secondes de course à fond, endurance pleine. Courte à dessein : la course
+## sert à franchir une salle ou à décrocher, pas à traverser l'étage.
+@export_range(0.5, 20.0, 0.1) var endurance_max: float = 3.2
+## Endurance rendue par seconde, à l'arrêt de la course.
+@export_range(0.1, 10.0, 0.1) var endurance_recharge: float = 1.1
+## Ce qu'il faut avoir récupéré avant de pouvoir repartir, après être tombé à
+## zéro. Sans ce palier, on repart un dixième de seconde à chaque frame et la
+## course bégaie au lieu de s'arrêter.
+@export_range(0.0, 5.0, 0.1) var endurance_reprise: float = 0.9
+
+@export_group("Caméra")
+## Ouverture du champ de vision à pleine vitesse, en degrés. C'est ce qui fait
+## qu'une vitesse SE SENT au lieu de se mesurer.
+@export_range(0.0, 40.0, 0.5) var fov_gain: float = 13.0
+## Souplesse du champ de vision. Trop vif, il pompe à chaque pas.
+@export_range(1.0, 20.0, 0.5) var fov_souplesse: float = 5.0
+## Inclinaison de la vue en pas chassé, en radians. Deux degrés suffisent :
+## personne ne le remarque, tout le monde le sent.
+@export_range(0.0, 0.2, 0.005) var roulis_amplitude: float = 0.035
+@export_range(1.0, 20.0, 0.5) var roulis_souplesse: float = 7.0
+
+@export_group("Cœur")
+## Part de points de vie sous laquelle le cœur se met à battre.
+@export_range(0.0, 1.0, 0.05) var coeur_seuil: float = 0.35
+## Intervalle entre deux battements, du seuil (lent) jusqu'à un souffle de vie.
+@export_range(0.2, 3.0, 0.05) var coeur_intervalle_lent: float = 1.15
+@export_range(0.1, 2.0, 0.05) var coeur_intervalle_rapide: float = 0.42
+
 @export_group("Marche")
 ## Distance parcourue entre deux pas, en mètres. C'est ce nombre qui règle la
 ## cadence : la calquer sur une horloge donnerait des pas qui continuent quand

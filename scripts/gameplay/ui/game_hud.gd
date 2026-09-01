@@ -16,6 +16,8 @@ var _aide: HudPanel
 var _journal: Label
 var _invite: Label
 var _cartes: Array[HudSlotCard] = []
+var _jauge_fond: ColorRect
+var _jauge: ColorRect
 
 
 func _ready() -> void:
@@ -34,7 +36,7 @@ func _ready() -> void:
 		+ "[color=#ffd24a]E — interagir (marchand, portail)[/color]\n"
 		+ "[color=#ffd24a]F — ramasser / poser  ·  G — lancer[/color]\n"
 		+ "[color=#ffd24a]E — activer ce qu'on tient (mèche, balise)[/color]\n"
-		+ "[color=#ffd24a]Maj + 1-4 — changer l'école du slot[/color]\n"
+		+ "[color=#ffd24a]Maj — courir  ·  Ctrl + 1-4 — changer l'école[/color]\n"
 		+ "Échap — libérer le curseur\n"
 		+ "Clic droit — reprendre la visée")
 
@@ -51,6 +53,7 @@ func _ready() -> void:
 
 	_construit_les_cartes()
 	_construit_le_reticule()
+	_construit_la_jauge()
 
 
 ## L'ancrage passe par des offsets explicites et non par un preset seul : un
@@ -73,6 +76,42 @@ func _construit_les_cartes() -> void:
 			ecole_changee.emit(index, pas))
 		barre.add_child(carte)
 		_cartes.append(carte)
+
+
+## La jauge d'endurance, sous le réticule.
+##
+## Elle ne s'affiche QUE lorsqu'elle n'est pas pleine : une barre permanente
+## devient du décor qu'on cesse de voir, et le seul moment où l'endurance
+## compte est celui où elle manque. Sous le réticule et pas dans un coin, parce
+## que c'est là que le regard est déjà.
+func _construit_la_jauge() -> void:
+	_jauge_fond = ColorRect.new()
+	_jauge_fond.color = Color(Content.palette.encre, 0.55)
+	_jauge_fond.size = Vector2(120, 5)
+	_jauge_fond.set_anchors_preset(Control.PRESET_CENTER)
+	_jauge_fond.position = Vector2(-60, 26)
+	_jauge_fond.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_jauge_fond)
+
+	_jauge = ColorRect.new()
+	_jauge.size = Vector2(120, 5)
+	_jauge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_jauge_fond.add_child(_jauge)
+
+
+func _maj_la_jauge() -> void:
+	if _jauge_fond == null or joueur == null:
+		return
+	var part: float = joueur.endurance()
+	_jauge_fond.visible = part < 0.999
+	if not _jauge_fond.visible:
+		return
+	_jauge.size.x = 120.0 * part
+	# Rouge tant qu'on n'a pas récupéré assez pour repartir : c'est ce qui
+	# explique pourquoi la course refuse, au lieu de la laisser refuser en
+	# silence.
+	_jauge.color = Content.palette.creature_commune if joueur.souffle_coupe() \
+		else Content.palette.lisere_blanc
 
 
 func _construit_le_reticule() -> void:
@@ -126,6 +165,7 @@ func _process(_delta: float) -> void:
 			GameState.run.resonance_pool, GameState.run.run_seed, curseur,
 			_ligne_de_session()]
 
+	_maj_la_jauge()
 	for carte: HudSlotCard in _cartes:
 		carte.rafraichit(p.slots[carte.slot_index], etage,
 			joueur.cooldown_restant(carte.slot_index) if joueur != null else 0.0)
