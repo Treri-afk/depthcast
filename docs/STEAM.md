@@ -28,6 +28,15 @@ Godot custom à tout le monde, y compris à quelqu'un qui ne vient que dessiner.
 Pour vérifier : lancer le jeu, ouvrir le menu. Si la ligne orange sous les
 boutons Steam a disparu, l'extension est chargée.
 
+**Si elle dit que GodotSteam est présent mais ne s'est pas chargé**, c'est le cas
+le plus fréquent et il n'a rien à voir avec l'installation : GodotSteam est
+publié **par version de Godot**, et une archive prévue pour une autre échoue au
+chargement sans message clair. Reprends l'archive correspondant exactement à ta
+version de Godot (le menu l'affiche), et redémarre l'éditeur.
+
+Sous Windows, vérifie aussi que `steam_api64.dll` accompagne bien l'extension :
+il est dans l'archive, et une décompression partielle le laisse derrière.
+
 ## 2. Lancer le client Steam
 
 Il doit tourner **et être connecté**. Le jeu démarre sur l'App ID public de

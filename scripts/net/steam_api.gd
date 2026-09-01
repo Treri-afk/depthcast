@@ -52,7 +52,7 @@ static func demarre(app_id: int = APP_ID_DEV) -> bool:
 		return true
 	var steam: Object = api()
 	if steam == null:
-		_raison = "GodotSteam n'est pas installé — voir docs/STEAM.md."
+		_raison = _pourquoi_pas_de_singleton()
 		return false
 
 	# Steam veut connaître l'App ID AVANT l'initialisation. Par l'environnement
@@ -108,6 +108,28 @@ static func disponible() -> bool:
 	if steam.has_method("loggedOn"):
 		return bool(steam.call("loggedOn"))
 	return true
+
+
+## Pourquoi le singleton manque — et c'est rarement « pas installé ».
+##
+## Le cas fréquent est l'extension PRÉSENTE mais non chargée : les versions de
+## GodotSteam sont publiées par version de Godot, et une archive prévue pour une
+## autre échoue au chargement sans rien dire de compréhensible. Le dossier est
+## là, le singleton non. Répondre « pas installé » à quelqu'un qui vient de
+## l'installer l'envoie chercher au mauvais endroit — c'est le genre de message
+## qui coûte une soirée.
+static func _pourquoi_pas_de_singleton() -> String:
+	if not DirAccess.dir_exists_absolute("res://addons/godotsteam"):
+		return "GodotSteam n'est pas installé — voir docs/STEAM.md."
+	return ("GodotSteam est présent mais ne s'est pas chargé. "
+		+ "Vérifie que l'archive est celle de Godot %s, "
+		+ "et redémarre l'éditeur — une extension ne se charge qu'au démarrage.") \
+		% _version_de_godot()
+
+
+static func _version_de_godot() -> String:
+	var v: Dictionary = Engine.get_version_info()
+	return "%d.%d" % [int(v.get("major", 4)), int(v.get("minor", 0))]
 
 
 static func raison() -> String:
