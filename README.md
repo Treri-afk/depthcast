@@ -176,6 +176,42 @@ Le découpage `resources/` sépare **la donnée du comportement** : ajouter un s
 
 ---
 
+## Outils de développement
+
+Présents en build de développement uniquement, et absents du jeu livré.
+
+**La console** — touche à gauche du `1` (`` ` `` en QWERTY, `²` en AZERTY).
+Elle marche partout : menu, hub, donjon, terrain d'essai. `aide` liste tout ;
+Tab complète, ↑ rappelle. Hors ligne elle met le jeu en pause pendant qu'on
+tape ; en ligne elle le laisse tourner, sinon la connexion tomberait.
+
+| Commande | Sert à |
+|---|---|
+| `etat` | graine, étage, PV de chacun, monstres restants |
+| `graine <n>` / `graine libre` | figer ou relâcher la graine des prochaines runs |
+| `rejoue [rang]` | relancer une run passée — `rejoue` seul reprend la dernière |
+| `tel` / `tel ecrit` | résumé de la run en cours, ou son rapport JSON |
+| `etage`, `vie`, `tue`, `resonance`, `eclats`, `sorts` | forcer une situation |
+| `vitesse <x>` | ralentir pour voir un impact, accélérer pour traverser un étage |
+| `perf` | images par seconde, appels de rendu, mémoire |
+| `scene menu\|hub\|jeu\|labo\|salon` | changer d'écran sans repasser par les menus |
+
+**Le rejeu par graine** — une graine forcée l'emporte sur celle du salon comme
+sur le tirage du solo, et l'hôte l'impose à toute l'équipe. L'écran de fin
+propose « Rejouer cette graine » d'un clic, l'historique des vingt dernières
+survit à une fermeture du jeu, et un bandeau au menu rappelle qu'une graine est
+figée — c'est le piège de l'outil, pas un détail.
+
+**La télémétrie** — compte par étage (durée, dégâts subis et infligés, morts,
+Résonance, rerolls, verrous) et retient quel effet a été lancé combien de fois.
+Le rapport part dans `user://telemetrie/` à la fin d'une run jouée. Rien ne sort
+de la machine.
+
+Les cinq raccourcis d'urgence restent : `P` sauter l'étage, `O` +Résonance,
+`I` +Éclats, `L` se soigner, `M` mourir.
+
+---
+
 ## Les cinq règles à connaître avant de coder
 
 Détaillées et testables dans [ARCHITECTURE.md](docs/ARCHITECTURE.md). En résumé :
@@ -194,6 +230,6 @@ Le co-op est dans le scope V1. Ces règles ne sont pas des précautions : les en
 
 ## État du projet
 
-**Pré-production.** Le backlog V1 est posé (83 tâches, 9 cycles). Le développement démarre par les fondations techniques et le pipeline de collaboration.
+**Prototype jouable.** Boucle de run complète en solo et en co-op, réseau local et Steam branchés, 331 vérifications automatisées. Le backlog est suivi dans Plane.
 
 **Non tranché :** la direction artistique et la direction sonore. 13 tâches en dépendent — c'est le plus gros déblocage disponible.

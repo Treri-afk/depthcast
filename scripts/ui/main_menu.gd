@@ -80,6 +80,7 @@ func _ready() -> void:
 
 	_statut = ScreenUtils.sous_titre("", Color(1, 0.6, 0.5, 0.9))
 	col.add_child(_statut)
+	_ajoute_l_avis_de_rejeu(col)
 	col.add_child(_espace(14))
 
 	var quitter := ScreenUtils.bouton("Quitter")
@@ -133,6 +134,28 @@ func _ajoute_le_bloc_steam(col: VBoxContainer) -> void:
 
 	if not pret:
 		col.add_child(ScreenUtils.sous_titre(pourquoi, Color(1, 0.72, 0.4, 0.85)))
+
+
+## Une graine forcée doit se voir depuis le menu, et se relâcher d'un clic.
+##
+## C'est le piège de l'outil : on force une graine pour reproduire un bug, on
+## l'oublie, et trois jours plus tard on croit que le donjon ne change plus.
+## Un bandeau permanent coûte moins cher que cette demi-journée-là.
+func _ajoute_l_avis_de_rejeu(col: VBoxContainer) -> void:
+	if not Rejeu.actif():
+		return
+	var bloc := VBoxContainer.new()
+	bloc.add_theme_constant_override("separation", 8)
+	col.add_child(bloc)
+	bloc.add_child(ScreenUtils.sous_titre(
+		"Rejeu actif — toutes les runs partiront sur la graine %d"
+			% Rejeu.graine_forcee, Color(1, 0.78, 0.35, 0.95)))
+	var liberer := ScreenUtils.bouton("Libérer la graine")
+	liberer.custom_minimum_size = Vector2(340, 34)
+	liberer.pressed.connect(func() -> void:
+		Rejeu.libere()
+		bloc.queue_free())
+	bloc.add_child(liberer)
 
 
 func _identifiant_saisi() -> int:

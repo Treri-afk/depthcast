@@ -62,4 +62,5 @@ func aide() -> String:
 	if not actif():
 		return ""
 	return ("[color=#7fd0ff][b]Debug[/b]  P sauter l'étage · O +Résonance\n"
-		+ "I +Éclats · L se soigner · M mourir[/color]")
+		+ "I +Éclats · L se soigner · M mourir\n"
+		+ "² ou ` ouvre la console — `aide` pour tout le reste[/color]")

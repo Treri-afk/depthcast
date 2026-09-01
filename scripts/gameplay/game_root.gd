@@ -34,7 +34,9 @@ func _ready() -> void:
 	# que pour que deux machines génèrent le même donjon. Hors ligne on passe
 	# zéro, et la run en tire une — sinon une partie solo lancée après un salon
 	# rejouerait le même étage indéfiniment.
-	var graine: int = Net.graine if Net.en_ligne() else 0
+	# Le rejeu passe DEVANT : forcer une graine n'a de sens que si elle gagne
+	# contre celle que la situation aurait choisie.
+	var graine: int = Rejeu.graine_a_utiliser(Net.graine if Net.en_ligne() else 0)
 	_terrain.monte(graine)
 	_joueur = _terrain.joueur
 	_hud = _terrain.hud

@@ -43,6 +43,7 @@ Ce document traduit la [section 11 du GDD](GDD.md#11-notes-techniques--architect
 - Flux séparés par usage : génération de donjon, re-roll (**un flux par joueur**), loot, comportements.
 - Le flux de re-roll d'un joueur dérive de `seed de run + player_id` — déterministe, reproductible, jamais influencé par les autres joueurs ([D4](DECISIONS.md#d4--builds-indépendants-par-joueur)).
 - La seed de run est affichée, copiable, et loggée à chaque étage.
+- Elle est **rejouable** : `Rejeu` la force au démarrage d'une run et garde les vingt dernières ([D19](DECISIONS.md#d19--les-outils-de-débogage-nont-pas-le-droit-de-toucher-au-jeu)).
 - Aucun appel direct à `randi()`, `randf()` ou `RandomNumberGenerator` non seedé.
 
 **Test.** Deux clients qui reçoivent la même seed produisent-ils le même donjon ? Rejouer une seed avec la même équipe redonne-t-il les mêmes re-rolls ?

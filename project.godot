@@ -27,6 +27,9 @@ EffectResolver="*res://scripts/core/effect_resolver.gd"
 Net="*res://scripts/net/net_session.gd"
 Repl="*res://scripts/net/net_replication.gd"
 SteamNet="*res://scripts/net/steam_lobby.gd"
+Telemetrie="*res://scripts/debug/run_telemetry.gd"
+Rejeu="*res://scripts/debug/seed_replay.gd"
+Console="*res://scripts/debug/debug_console.gd"
 
 [display]
 

@@ -198,7 +198,9 @@ func description() -> String:
 func lance_la_partie() -> void:
 	if not peut_lancer():
 		return
-	var tirage: int = randi()
+	# Une graine forcée par l'hôte part avec l'ordre de descente : sinon il
+	# rejouerait sa run pendant que ses invités en découvrent une autre.
+	var tirage: int = Rejeu.graine_a_utiliser(randi())
 	if en_ligne():
 		_recois_le_depart.rpc(tirage)
 	else:

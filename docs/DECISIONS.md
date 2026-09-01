@@ -565,6 +565,55 @@ arriver deux fois.
 
 ---
 
+## D19 — Les outils de débogage n'ont pas le droit de toucher au jeu
+*Décidé le 1er septembre 2026 · met en œuvre R1, R3 et R5*
+
+Trois outils, trois autoloads, un seul dossier : `scripts/debug/`.
+
+- **`Console`** — une console de développement, ouverte par la touche à gauche
+  du 1 (`` ` `` en QWERTY, `²` en AZERTY). Elle prend des arguments, ce que les
+  raccourcis clavier ne savent pas faire.
+- **`Rejeu`** — force une graine de run, et garde les vingt dernières jouées.
+- **`Telemetrie`** — enregistre ce qui s'est passé, étage par étage, et le pose
+  dans un fichier JSON à la fin de la run.
+
+### La règle qui les rend utilisables
+
+**Ils écoutent, ils n'écrivent jamais en dessous du jeu.** La télémétrie
+s'abonne au bus (R5) et rien dans `scripts/gameplay` ni `scripts/core` n'a le
+droit de l'appeler : le jour où un système lirait un de ses compteurs, la mesure
+deviendrait de l'état de jeu, et l'état de jeu vit dans `GameState` (R1). La
+console, elle, appelle les mêmes méthodes que le jeu — `Repl.demande_descente()`
+pour descendre, pas une régénération maison. Une commande qui emprunterait un
+autre chemin ne prouverait rien du vrai chemin.
+
+### Pourquoi le rejeu par graine, et pas seulement l'affichage de la graine
+
+R3 promet qu'une graine redonne la même run. Cette promesse ne servait à rien :
+l'écran de fin affichait la graine, et il fallait la recopier à la main dans un
+code qui n'avait aucun moyen de la reprendre. Elle est maintenant branchée aux
+deux seuls endroits où une run naît — `GameRoot` et `Net.lance_la_partie()` —
+et l'historique survit à une fermeture du jeu, **parce que le plantage qu'on
+veut rejouer est justement celui qui a emporté le processus**.
+
+Une graine forcée se voit : bandeau au menu, et un bouton pour la relâcher.
+L'outil se retourne sinon contre son propriétaire — on force une graine pour
+reproduire un bug, on l'oublie, et trois jours plus tard on croit que la
+génération de donjon est cassée.
+
+### Ce qu'on n'a pas fait
+
+Pas de rejeu par enregistrement d'entrées. Une graine rejoue le **monde** —
+donjon, rerolls, butin — pas les gestes du joueur. Rejouer une partie image par
+image demanderait une boucle déterministe de bout en bout, y compris la
+physique Jolt, et ce n'est vrai d'aucun moteur sans y consacrer un trimestre.
+Le monde suffit à reproduire la quasi-totalité de ce qu'on cherche.
+
+Rien ne sort de la machine. `user://`, et c'est tout : c'est de l'outillage,
+pas de la collecte.
+
+---
+
 ## Q1 — Le multiplicateur cumulatif de verrous : par joueur ou par équipe ?
 *Ouverte depuis le 27 août 2026 — conséquence directe de D3*
 

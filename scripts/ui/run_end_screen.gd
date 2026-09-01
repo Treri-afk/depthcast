@@ -37,7 +37,22 @@ func _ready() -> void:
 		copier.text = "Seed copiée")
 	col.add_child(copier)
 
+	# Rejouer À L'IDENTIQUE, sans repasser par le hub : la composition d'écoles
+	# vit dans GameState et survit au changement de scène, donc la run repart
+	# avec la même graine ET le même grimoire. C'est la seule façon de revoir
+	# ce qui vient de se passer plutôt que quelque chose qui y ressemble.
+	if OS.is_debug_build():
+		var rejouer := ScreenUtils.bouton("Rejouer cette graine")
+		rejouer.custom_minimum_size = Vector2(340, 36)
+		rejouer.pressed.connect(func() -> void:
+			Rejeu.force(seed_run)
+			get_tree().change_scene_to_file(ScreenUtils.CHEMIN_JEU))
+		col.add_child(rejouer)
+
 	var hub := ScreenUtils.bouton("Retour au hub")
 	hub.pressed.connect(func() -> void:
+		# Revenir au hub sort du rejeu : sans ça, la partie suivante repartirait
+		# sur la graine figée sans que rien ne l'ait demandé.
+		Rejeu.libere()
 		get_tree().change_scene_to_file(ScreenUtils.CHEMIN_HUB))
 	col.add_child(hub)

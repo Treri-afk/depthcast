@@ -16,6 +16,7 @@ func _suites() -> Array[TestSuite]:
 		LabTests.new(),
 		CoopTests.new(),
 		StatusTests.new(),
+		DebugTests.new(),
 	]
 
 
@@ -25,7 +26,7 @@ func _suites() -> Array[TestSuite]:
 ## plante s'interrompt en silence, et sans ce garde le lanceur annoncerait
 ## « tout passe » en ayant sauté la moitié des tests. Si ce nombre baisse après
 ## une suppression volontaire, ajuste-le — mais regarde d'abord POURQUOI.
-const MINIMUM_ATTENDU: int = 230
+const MINIMUM_ATTENDU: int = 260
 
 
 func _ready() -> void:
