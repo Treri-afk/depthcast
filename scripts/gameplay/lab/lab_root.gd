@@ -57,12 +57,25 @@ func _physics_process(delta: float) -> void:
 	_terrain.seme_la_trainee(delta)
 	_maj_interaction()
 
-	if Input.is_action_just_pressed(InputActions.INTERAGIR) and _poste_vise != null:
-		var message: String = _poste_vise.interagit()
-		if message != "":
-			_terrain.hud.journalise(message)
+	if Input.is_action_just_pressed(InputActions.INTERAGIR):
+		if _poste_vise != null:
+			var message: String = _poste_vise.interagit()
+			if message != "":
+				_terrain.hud.journalise(message)
+		else:
+			_active_ce_qu_on_tient()
 
 	_empeche_la_mort()
+
+
+## Même geste qu'en jeu : rien d'autre à portée, E sert les mains. C'est ici
+## qu'on essaiera d'allumer un tonneau avant de le lancer.
+func _active_ce_qu_on_tient() -> void:
+	var tenu: PropDestructible = _terrain.joueur.objet_porte()
+	if tenu != null and tenu.libelle_activation() != "":
+		var message: String = tenu.active_par(_terrain.joueur)
+		if message != "":
+			_terrain.hud.journalise(message)
 
 
 func _unhandled_input(event: InputEvent) -> void:

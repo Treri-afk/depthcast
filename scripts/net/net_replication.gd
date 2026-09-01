@@ -131,6 +131,8 @@ signal objet_amorce(index: int)
 signal objet_detruit(index: int)
 signal balise_activee(index: int)
 signal portage_change(player_id: int, index: int, elan: Vector3)
+## Quelqu'un vient d'activer l'objet qu'il tient.
+signal objet_active(player_id: int, index: int)
 ## Quelqu'un a pris ou rendu une école au hub.
 signal ecoles_changees(player_id: int)
 ## Un socle du marchand vient d'être consommé, chez tout le monde.
@@ -219,6 +221,30 @@ func annonce_portage(player_id: int, corps: PropDestructible, elan: Vector3) -> 
 		_recois_un_portage.rpc(player_id, index, elan)
 	else:
 		portage_change.emit(player_id, index, elan)
+
+
+## L'activation est une ACTION de joueur, comme prendre et lancer : elle part de
+## celui qui la fait, pas de l'hôte. Ce qu'elle déclenche — une mèche, une
+## balise — reste ensuite arbitré par l'hôte comme le reste du mobilier.
+func annonce_activation(player_id: int, corps: PropDestructible) -> void:
+	var index: int = index_de(corps)
+	if index < 0:
+		return
+	if Net.en_ligne():
+		_recois_une_activation.rpc(player_id, index)
+	else:
+		objet_active.emit(player_id, index)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _recois_une_activation(player_id: int, index: int) -> void:
+	var expediteur: int = multiplayer.get_remote_sender_id()
+	var vrai_id: int = player_id
+	if expediteur != 0:
+		var declare: int = Net.player_id_de(expediteur)
+		if declare >= 0:
+			vrai_id = declare
+	objet_active.emit(vrai_id, index)
 
 
 func _annonce_sur_objet(corps: PropDestructible, quoi: StringName) -> void:

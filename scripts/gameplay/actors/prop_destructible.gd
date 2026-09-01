@@ -40,6 +40,25 @@ func _process(delta: float) -> void:
 			couleur.lerp(Content.palette.lisere_blanc, _teinte))
 
 
+## Ce que l'objet fait quand on l'active dans la main.
+##
+## Point d'extension, et le SEUL endroit où un objet décide de son propre
+## usage : allumer une mèche, armer une balise, déployer un piège. Un objet
+## ordinaire n'en fait rien, et c'est très bien — la caisse n'a rien à activer.
+##
+## Ici une méthode virtuelle et non une table de données, contrairement aux
+## états et aux allures : ces actions-là diffèrent en NATURE, pas en réglage.
+## Un vocabulaire de facteurs ne saurait pas exprimer « allume une mèche » sans
+## devenir un langage de programmation déguisé.
+func active_par(_joueur: Node3D) -> String:
+	return ""
+
+
+## Ce que le HUD propose. Vide = cet objet ne s'active pas.
+func libelle_activation() -> String:
+	return ""
+
+
 ## Point d'extension : appelé au moment où le joueur le relâche. Un objet
 ## ordinaire n'en fait rien ; une balise de leurre s'en sert pour s'armer.
 func lache_par_le_joueur(_joueur: Node3D) -> void:

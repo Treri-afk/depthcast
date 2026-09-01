@@ -135,6 +135,7 @@ func _branche_les_evenements() -> void:
 	# Il l'annonce, et chacun crée le projectile chez soi.
 	_spawner.monstre_veut_tirer.connect(Repl.annonce_tir)
 	Repl.tir_ennemi.connect(_sur_tir_monstre)
+	Repl.objet_active.connect(_sur_objet_active)
 	Repl.objet_amorce.connect(_sur_objet_amorce)
 	Repl.objet_detruit.connect(_sur_objet_detruit)
 	Repl.balise_activee.connect(_sur_balise_activee)
@@ -194,6 +195,12 @@ func _interagit() -> void:
 		return
 	if _socle_vise != null:
 		Repl.demande_achat(_marchand.index_du_socle(_socle_vise))
+		return
+	# Rien d'autre à portée : E sert alors les mains. Même priorité que
+	# l'invite du HUD, donc ce qui est proposé est ce qui se produit.
+	var tenu: PropDestructible = _joueur.objet_porte()
+	if tenu != null and tenu.libelle_activation() != "":
+		Repl.annonce_activation(_joueur.player_id, tenu)
 
 
 ## L'achat est arbitré par l'hôte, puis rejoué partout : le socle se vide sur
@@ -248,6 +255,18 @@ func _sur_tir_monstre(depuis: Vector3, direction: Vector3, degats: int) -> void:
 
 ## Le mobilier obéit à l'hôte : chez un client, ces trois-là sont les seuls
 ## chemins par lesquels une caisse s'amorce, se casse ou s'allume.
+## L'activation est rejouée chez tout le monde : la mèche s'allume sur tous les
+## écrans, et pas seulement dans les mains de celui qui a appuyé.
+func _sur_objet_active(player_id: int, index: int) -> void:
+	var corps: PropDestructible = Repl.objet_a(index)
+	if corps == null:
+		return
+	var porteur: PlayerAvatar = _terrain.avatar_de(player_id)
+	var message: String = corps.active_par(porteur)
+	if message != "" and GameState.est_local(player_id):
+		_hud.journalise(message)
+
+
 func _sur_objet_amorce(index: int) -> void:
 	var tonneau := Repl.objet_a(index) as ExplosiveProp
 	if tonneau != null and not Net.est_host():

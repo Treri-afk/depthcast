@@ -604,9 +604,16 @@ func porte_quelque_chose() -> bool:
 
 
 ## Ce que le HUD affiche. Vide quand il n'y a rien à faire des mains.
+## L'objet dans les mains, ou null.
+func objet_porte() -> PropDestructible:
+	return _porte if porte_quelque_chose() else null
+
+
 func invite_portage() -> String:
 	if porte_quelque_chose():
-		return "[F] poser   ·   [G] lancer"
+		var activation: String = _porte.libelle_activation()
+		return ("%s\n[F] poser   ·   [G] lancer" % activation) if activation != "" \
+			else "[F] poser   ·   [G] lancer"
 	var vise: PropDestructible = objet_a_portee()
 	return "[F] ramasser" if vise != null else ""
 

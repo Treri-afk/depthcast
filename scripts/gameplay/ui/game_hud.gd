@@ -33,6 +33,7 @@ func _ready() -> void:
 		+ "Clic ou 1-4 — lancer un sort\n"
 		+ "[color=#ffd24a]E — interagir (marchand, portail)[/color]\n"
 		+ "[color=#ffd24a]F — ramasser / poser  ·  G — lancer[/color]\n"
+		+ "[color=#ffd24a]E — activer ce qu'on tient (mèche, balise)[/color]\n"
 		+ "[color=#ffd24a]Maj + 1-4 — changer l'école du slot[/color]\n"
 		+ "Échap — libérer le curseur\n"
 		+ "Clic droit — reprendre la visée")

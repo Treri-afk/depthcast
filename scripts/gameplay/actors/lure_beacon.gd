@@ -37,6 +37,34 @@ func _ready() -> void:
 	body_entered.connect(_sur_contact)
 
 
+## Armée à la main plutôt qu'au lâcher. Ça change tout : on l'allume à couvert,
+## on choisit son moment, et on la jette quand le paquet est bien placé — au
+## lieu de découvrir où elle atterrit en la lançant.
+func active_par(_joueur: Node3D) -> String:
+	if _armee:
+		return ""
+	_armee = true
+	_montre_qu_elle_est_armee()
+	return "Balise armée. Elle appellera là où tu la poseras."
+
+
+func libelle_activation() -> String:
+	return "" if _armee else "[E] armer la balise"
+
+
+## Une lueur faible tant qu'elle est armée sans être posée : on doit voir dans
+## sa main qu'elle est vivante, sinon on oublie qu'on la porte.
+func _montre_qu_elle_est_armee() -> void:
+	if _lampe != null:
+		return
+	_lampe = OmniLight3D.new()
+	_lampe.light_color = Content.palette.balise_leurre
+	_lampe.omni_range = 3.0
+	_lampe.light_energy = 1.2
+	_lampe.shadow_enabled = false
+	add_child(_lampe)
+
+
 ## Lâchée par un joueur : à partir de maintenant, le prochain contact compte.
 func lache_par_le_joueur(_joueur: Node3D) -> void:
 	_armee = true
@@ -60,12 +88,13 @@ func declenche_sans_annonce() -> void:
 	freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 	freeze = true
 
-	_lampe = OmniLight3D.new()
+	if _lampe == null:
+		_lampe = OmniLight3D.new()
+		_lampe.shadow_enabled = false
+		add_child(_lampe)
 	_lampe.light_color = Content.palette.balise_leurre
 	_lampe.omni_range = rayon * 0.5
 	_lampe.light_energy = 4.0
-	_lampe.shadow_enabled = false
-	add_child(_lampe)
 
 	# Le groupe plutôt que le registre des monstres : une balise posée au sol
 	# n'a pas de raison de connaître l'état de la run, exactement comme un

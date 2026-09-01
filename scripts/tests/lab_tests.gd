@@ -104,6 +104,23 @@ func _check_tonneaux() -> void:
 	verifie("et elle reste courte", t.tonneau_meche <= 1.0)
 	verifie("le rayon dépasse largement la taille du tonneau", t.tonneau_rayon > 2.0)
 
+	# Activer dans la main : c'est le seul endroit où un objet décide de son
+	# propre usage, et il doit ANNONCER cet usage avant qu'on appuie.
+	verifie("un tonneau propose d'allumer sa mèche",
+		baril.libelle_activation() != "")
+	var dit: String = (baril as ExplosiveProp).active_par(null)
+	verifie("et l'allumer dit ce qui se passe", dit != "", dit)
+	# Rallumer une mèche déjà allumée ne la raccourcit pas et ne la double pas.
+	verifie("rallumer ne fait plus rien", (baril as ExplosiveProp).active_par(null) == "")
+	verifie("et l'objet cesse de le proposer", baril.libelle_activation() == "")
+
+	var simple := PropFactory.cree(PropFactory.Genre.CAISSE, Vector3.ZERO)
+	# Une caisse n'a rien à activer, et elle ne doit rien proposer : une invite
+	# qui ne fait rien est pire que pas d'invite du tout.
+	verifie("une caisse ne propose rien", simple.libelle_activation() == ""
+		and simple.active_par(null) == "")
+	simple.free()
+
 	# Le câblage Tuning → tonneau. C'est ce qui casse en silence le jour où l'on
 	# règle une valeur dans l'inspecteur sans qu'elle arrive jusqu'au baril.
 	var explosif := baril as ExplosiveProp

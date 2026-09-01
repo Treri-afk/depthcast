@@ -40,6 +40,19 @@ func _casse() -> void:
 	amorce()
 
 
+## Allumé dans la main. C'est un vrai pari : la mèche court pendant qu'on
+## approche, et rien n'oblige à lâcher à temps.
+func active_par(_joueur: Node3D) -> String:
+	if _meche_restante >= 0.0:
+		return ""
+	amorce()
+	return "Mèche allumée. Tu as %.1f seconde(s)." % meche
+
+
+func libelle_activation() -> String:
+	return "" if _meche_restante >= 0.0 else "[E] allumer la mèche"
+
+
 func amorce() -> void:
 	if _meche_restante >= 0.0:
 		return
