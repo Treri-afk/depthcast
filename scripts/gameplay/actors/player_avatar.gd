@@ -27,6 +27,9 @@ const CULBUTE_MAX: float = 0.95
 ## souffle rasant vous recolle au sol au lieu de vous faire décoller, et vous ne
 ## quittez jamais le bord d'une estrade.
 const SNAP_SOL: float = 0.5
+## Position des mains au repos, sous la caméra. La charge d'un lancer les
+## ramène en arrière à partir de là.
+const MAINS_AU_REPOS := Vector3(0.5, -0.5, -1.25)
 ## Si l'on n'a toujours pas décollé après ce délai, c'est qu'on ne décollera
 ## pas — souffle rasant, plafond bas, corps coincé dans un angle. On considère
 ## alors la projection terminée plutôt que d'attendre un envol qui ne vient pas.
@@ -62,6 +65,8 @@ var _mains: Node3D
 var _porte: PropDestructible = null
 ## Ses couches de collision d'origine, à rendre au moment de le lâcher.
 var _couches_portees: Array[int] = [0, 0]
+## Temps de maintien de la touche de lancer. Négatif = on ne charge pas.
+var _charge_de_lancer: float = -1.0
 
 ## Cooldown restant par slot, en secondes.
 var _cooldowns: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
@@ -126,7 +131,7 @@ func _ready() -> void:
 
 	_mains = Node3D.new()
 	_mains.name = "Mains"
-	_mains.position = Vector3(0.5, -0.5, -1.25)
+	_mains.position = MAINS_AU_REPOS
 	_secousse.add_child(_mains)
 
 	if local:
@@ -217,7 +222,7 @@ func _physics_process(delta: float) -> void:
 	_releve_restant = maxf(0.0, _releve_restant - delta)
 
 	_deplace(delta)
-	_ecoute_le_portage()
+	_ecoute_le_portage(delta)
 	_suit_l_objet_porte()
 	_ecoute_les_sorts()
 
@@ -612,8 +617,8 @@ func objet_porte() -> PropDestructible:
 func invite_portage() -> String:
 	if porte_quelque_chose():
 		var activation: String = _porte.libelle_activation()
-		return ("%s\n[F] poser   ·   [G] lancer" % activation) if activation != "" \
-			else "[F] poser   ·   [G] lancer"
+		return ("%s\n[F] poser   ·   [G] lancer (maintenir)" % activation) if activation != "" \
+			else "[F] poser   ·   [G] lancer (maintenir pour envoyer loin)"
 	var vise: PropDestructible = objet_a_portee()
 	return "[F] ramasser" if vise != null else ""
 
@@ -650,8 +655,9 @@ func objet_a_portee() -> PropDestructible:
 	return meilleur
 
 
-func _ecoute_le_portage() -> void:
+func _ecoute_le_portage(delta: float) -> void:
 	if not local or not MouseLook.est_capture() or est_projete() or est_a_terre():
+		_charge_de_lancer = -1.0
 		return
 
 	if Input.is_action_just_pressed(InputActions.PORTER):
@@ -662,8 +668,33 @@ func _ecoute_le_portage() -> void:
 			if vise != null:
 				ramasse(vise)
 
-	if Input.is_action_just_pressed(InputActions.LANCER) and porte_quelque_chose():
-		lance_l_objet()
+	# La charge se mesure au MAINTIEN, et le jet part au relâchement. Une
+	# pression brève pose l'objet devant soi ; un maintien l'envoie loin. Le
+	# même bouton, deux gestes, et rien à apprendre — on découvre le second en
+	# gardant le doigt appuyé par hasard.
+	if not porte_quelque_chose():
+		_charge_de_lancer = -1.0
+		return
+	if Input.is_action_just_pressed(InputActions.LANCER):
+		_charge_de_lancer = 0.0
+	elif Input.is_action_pressed(InputActions.LANCER) and _charge_de_lancer >= 0.0:
+		_charge_de_lancer = minf(_charge_de_lancer + delta, _tuning.portage_charge_duree)
+	elif Input.is_action_just_released(InputActions.LANCER) and _charge_de_lancer >= 0.0:
+		lance_l_objet(_charge_de_lancer)
+		_charge_de_lancer = -1.0
+
+	_arme_le_bras()
+
+
+## Le bras se ramène en arrière à mesure qu'on charge. C'est la seule chose qui
+## dise au joueur que le maintien sert à quelque chose : sans elle, il n'a
+## aucune raison de le découvrir.
+func _arme_le_bras() -> void:
+	if _mains == null:
+		return
+	var part: float = 0.0 if _charge_de_lancer < 0.0 \
+		else _charge_de_lancer / maxf(_tuning.portage_charge_duree, 0.01)
+	_mains.position = MAINS_AU_REPOS + Vector3(0.12, -0.1, 0.45) * part
 
 
 ## L'objet suit les mains sans être reparenté.
@@ -705,10 +736,19 @@ func pose() -> void:
 ## L'envoie devant soi. L'impulsion est divisée par la masse : une caisse part
 ## loin, un tonneau tombe presque à ses pieds. C'est ce qui fait qu'on choisit
 ## ce qu'on ramasse.
-func lance_l_objet() -> void:
+## Force d'un lancer selon le temps de maintien. Fonction pure, à part, pour
+## être vérifiable sans moteur — et pour que la courbe se lise d'un seul coup
+## d'œil plutôt qu'au milieu du code d'entrée.
+static func part_de_charge(charge: float, tuning: Tuning) -> float:
+	var t: float = clampf(charge / maxf(tuning.portage_charge_duree, 0.01), 0.0, 1.0)
+	return lerpf(tuning.portage_force_minimale, 1.0, t)
+
+
+func lance_l_objet(charge: float = -1.0) -> void:
 	if not porte_quelque_chose():
 		return
-	var force: float = _tuning.portage_force_de_lancer / maxf(_porte.mass, 0.5)
+	var part: float = 1.0 if charge < 0.0 else part_de_charge(charge, _tuning)
+	var force: float = _tuning.portage_force_de_lancer * part / maxf(_porte.mass, 0.5)
 	var sens: Vector3 = (direction_visee() + Vector3.UP * _tuning.portage_arc).normalized()
 	lache(velocity + sens * force)
 

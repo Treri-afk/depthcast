@@ -218,6 +218,22 @@ func _check_portage() -> void:
 	verifie("porter ralentit", t.portage_ralentissement < 1.0)
 	verifie("et lancer envoie quelque part", t.portage_force_de_lancer > 0.0)
 
+	# Le même bouton, deux gestes : une pression brève POSE, un maintien LANCE.
+	# Si les deux extrémités se ressemblent, personne ne découvrira la charge.
+	var bref: float = PlayerAvatar.part_de_charge(0.0, t)
+	var plein: float = PlayerAvatar.part_de_charge(t.portage_charge_duree, t)
+	verifie("une pression brève pose l'objet devant soi", bref < 0.5,
+		"%.2f de la force" % bref)
+	verifie("un maintien complet l'envoie à pleine force",
+		is_equal_approx(plein, 1.0))
+	verifie("et l'écart entre les deux se sent", plein > bref * 2.0,
+		"%.2f contre %.2f" % [plein, bref])
+	# Au-delà du temps de charge on ne gagne plus rien : une charge sans plafond
+	# récompense la patience plutôt que la décision.
+	verifie("charger plus longtemps n'ajoute rien",
+		is_equal_approx(PlayerAvatar.part_de_charge(t.portage_charge_duree * 4.0, t),
+			plein))
+
 	var balise := PropFactory.cree(PropFactory.Genre.BALISE_LEURRE, Vector3.ZERO)
 	verifie("la balise de leurre est bien une LureBeacon", balise is LureBeacon)
 	var caisse := PropFactory.cree(PropFactory.Genre.CAISSE, Vector3.ZERO)

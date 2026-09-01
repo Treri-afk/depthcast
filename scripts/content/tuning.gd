@@ -149,6 +149,13 @@ extends Resource
 ## que quatre mètres. Un peu d'arc rend le lancer utile ; viser vers le haut
 ## reste le vrai levier, et c'est celui qui récompense le joueur.
 @export_range(0.0, 1.0, 0.05) var portage_arc: float = 0.25
+## Temps de charge d'un lancer, en secondes. Au-delà, on ne gagne plus rien :
+## une charge sans plafond récompense la patience plutôt que la décision.
+@export_range(0.1, 3.0, 0.05) var portage_charge_duree: float = 0.75
+## Part de la force appliquée à charge nulle. Une pression brève doit POSER
+## l'objet devant soi, pas le catapulter — c'est la différence entre lâcher et
+## lancer, et elle doit se sentir dès la première fois.
+@export_range(0.0, 1.0, 0.05) var portage_force_minimale: float = 0.22
 @export var portage_bloque_les_sorts: bool = true
 
 @export_group("Ressenti")
