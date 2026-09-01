@@ -332,7 +332,28 @@ func _maj_ciblage(delta: float) -> void:
 	if _delai_de_ciblage > 0.0 and is_instance_valid(cible):
 		return
 	_delai_de_ciblage = RECIBLAGE
-	cible = _la_plus_proche()
+	# Une provocation l'emporte sur la proximité — c'est tout son objet. Sans
+	# elle, la cible se décide à la distance et aucun joueur ne peut prendre un
+	# coup à la place d'un autre.
+	var provocateur: Node3D = _le_provocateur()
+	cible = provocateur if provocateur != null else _la_plus_proche()
+
+
+## L'avatar du joueur qui a provoqué ce monstre, ou null.
+func _le_provocateur() -> Node3D:
+	if not GameState.is_in_run():
+		return null
+	var etat: MonsterState = GameState.run.get_monster(monster_id)
+	if etat == null:
+		return null
+	var qui: int = etat.statuts.provocateur()
+	if qui < 0:
+		return null
+	for candidat: Node3D in cibles:
+		var avatar := candidat as PlayerAvatar
+		if avatar != null and avatar.player_id == qui and _est_poursuivable(avatar):
+			return avatar
+	return null
 
 
 func _la_plus_proche() -> Node3D:
@@ -392,13 +413,22 @@ func _montre_les_degats(degats: int, fatal: bool) -> void:
 		global_position + Vector3(0, stats.taille.y * 0.55, 0), fatal))
 
 
+## La vitesse d'un monstre combine le gel des sorts de zone — porté par le corps,
+## parce qu'il est bref et purement local — et les états de l'état de jeu.
+func _vitesse_des_statuts() -> float:
+	if not GameState.is_in_run():
+		return 1.0
+	var etat: MonsterState = GameState.run.get_monster(monster_id)
+	return 1.0 if etat == null else etat.statuts.vitesse()
+
+
 func _maj_ralentissement(delta: float) -> void:
 	if _ralenti_restant <= 0.0:
-		_facteur_vitesse = 1.0
+		_facteur_vitesse = _vitesse_des_statuts()
 		return
 	_ralenti_restant -= delta
 	if _ralenti_restant <= 0.0:
-		_facteur_vitesse = 1.0
+		_facteur_vitesse = _vitesse_des_statuts()
 		if _telegraphe <= 0.0:
 			_teinte_shader(Color.BLACK, 0.0)
 

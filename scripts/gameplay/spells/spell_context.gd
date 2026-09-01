@@ -70,6 +70,50 @@ func soin(slot_index: int, montant: int, rayon: float = 0.0) -> void:
 	EffectResolver.submit(intent)
 
 
+## Pose l'état d'un sort sur des joueurs. Rayon nul = le lanceur seul.
+func pose_un_etat_sur_les_joueurs(slot_index: int, effet: SpellEffect,
+		rayon: float) -> void:
+	var cibles: Array[int] = []
+	for avatar in _avatars():
+		if not is_instance_valid(avatar):
+			continue
+		if avatar == joueur or (rayon > 0.0
+				and avatar.global_position.distance_to(joueur.global_position) <= rayon):
+			cibles.append(avatar.player_id)
+	if not cibles.is_empty():
+		_soumets_un_etat(slot_index, effet, cibles, [])
+
+
+func pose_un_etat_sur_les_monstres(slot_index: int, effet: SpellEffect,
+		rayon: float) -> void:
+	var cibles: Array = monstres_dans_rayon(joueur.global_position, maxf(rayon, 1.0))
+	if not cibles.is_empty():
+		_soumets_un_etat(slot_index, effet, [], cibles)
+
+
+## Les facteurs voyagent dans la charge utile de l'intention : le resolver
+## reconstruit l'état à l'arrivée, et rien d'autre n'a besoin de savoir ce que
+## contient un état.
+func _soumets_un_etat(slot_index: int, effet: SpellEffect, joueurs: Array,
+		monstres_cibles: Array) -> void:
+	var intent := EffectIntent.new()
+	intent.source_player_id = joueur.player_id
+	intent.source_slot = slot_index
+	intent.kind = EffectIntent.Kind.APPLY_STATUS
+	intent.effect_id = effet.statut_id
+	intent.amount = effet.statut_duree
+	intent.origine = joueur.global_position
+	intent.target_ids = PackedInt64Array(joueurs)
+	intent.target_monsters = PackedInt64Array(monstres_cibles)
+	intent.payload = {
+		"degats_recus": effet.statut_degats_recus,
+		"degats_infliges": effet.statut_degats_infliges,
+		"vitesse": effet.statut_vitesse,
+		"provoque": effet.statut_provoque,
+	}
+	EffectResolver.submit(intent)
+
+
 # ── Recherche de cibles ───────────────────────────────────────────────────
 
 func monstres_dans_rayon(centre: Vector3, rayon: float) -> Array:

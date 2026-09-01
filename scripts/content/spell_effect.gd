@@ -25,6 +25,7 @@ enum Comportement {
 	VOILE,        ## les monstres perdent notre trace
 	LEURRE,       ## un mannequin attire les monstres à sa place
 	PERMUTATION,  ## on échange sa place avec la créature visée
+	ETAT,         ## pose un état temporaire : protection, provocation, hâte…
 }
 
 @export var nom: String = "Nouvel effet"
@@ -47,6 +48,27 @@ enum Comportement {
 ## Recul de la vue au lancer. Une boule de feu et un soin ne se lancent pas
 ## pareil, et c'est ce nombre qui le dit — pas une ligne de code par sort.
 @export_range(0.0, 6.0, 0.05) var recul: float = 0.9
+
+@export_group("État appliqué")
+## Nom de l'état posé. Vide = ce sort n'en pose aucun.
+##
+## Le moteur ne connaît AUCUN de ces noms : il ne lit que les facteurs
+## ci-dessous. « Protection », « Provocation », « Hâte » sont des mots que la
+## donnée choisit, et un nouvel état ne demande donc pas une ligne de code (R6).
+@export var statut_id: StringName = &""
+@export_range(0.0, 60.0, 0.5) var statut_duree: float = 0.0
+## Qui le reçoit.
+@export_enum("Soi", "Alliés à portée", "Ennemis à portée") var statut_cible: int = 0
+## Multiplie les dégâts REÇUS par le porteur. Sous 1, c'est une protection ;
+## au-dessus, une vulnérabilité.
+@export_range(0.0, 3.0, 0.05) var statut_degats_recus: float = 1.0
+## Multiplie les dégâts INFLIGÉS par le porteur.
+@export_range(0.0, 3.0, 0.05) var statut_degats_infliges: float = 1.0
+@export_range(0.0, 3.0, 0.05) var statut_vitesse: float = 1.0
+## Le monstre touché poursuit le lanceur tant que ça dure. C'est la provocation,
+## et c'est ce qui rend le rôle de tank possible : sans elle, la cible d'un
+## monstre se décide à la distance, donc c'est la géométrie qui joue.
+@export var statut_provoque: bool = false
 
 @export_group("Durée")
 @export var cooldown: float = 1.0

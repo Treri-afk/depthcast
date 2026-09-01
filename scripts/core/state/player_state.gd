@@ -31,6 +31,11 @@ var eclats: int = 0
 ## « par équipe ». Les deux sont maintenus, un seul sera utilisé après playtest.
 var locks_bought_this_floor: int = 0
 
+## Les états temporaires portés. Dans l'état, donc sérialisés, donc répliqués
+## gratuitement par la photo du host (R1).
+var statuts := StatusHolder.new()
+
+
 
 func _init(p_player_id: int = 0, p_display_name: String = "") -> void:
 	player_id = p_player_id
@@ -58,6 +63,7 @@ func to_dict() -> Dictionary:
 		"hp": hp,
 		"eclats": eclats,
 		"locks_bought_this_floor": locks_bought_this_floor,
+		"statuts": statuts.to_array(),
 	}
 
 
@@ -70,4 +76,5 @@ static func from_dict(d: Dictionary) -> PlayerState:
 	var slot_dicts: Array = d.get("slots", [])
 	for sd: Variant in slot_dicts:
 		p.slots.append(SpellSlot.from_dict(sd as Dictionary))
+	p.statuts.depuis_array(d.get("statuts", []))
 	return p

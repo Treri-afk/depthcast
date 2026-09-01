@@ -93,8 +93,10 @@ func _apply(intent: EffectIntent) -> void:
 			_apply_damage(intent)
 		EffectIntent.Kind.HEAL:
 			_apply_heal(intent)
-		EffectIntent.Kind.MOVE, EffectIntent.Kind.SPAWN, EffectIntent.Kind.APPLY_STATUS:
-			# À implémenter avec le combat (cycle C3) et les écoles (C4).
+		EffectIntent.Kind.APPLY_STATUS:
+			_apply_status(intent)
+		EffectIntent.Kind.MOVE, EffectIntent.Kind.SPAWN:
+			# À implémenter avec les écoles qui en auront besoin.
 			pass
 
 
@@ -109,8 +111,9 @@ func _apply_damage(intent: EffectIntent) -> void:
 		var target: PlayerState = GameState.run.get_player(target_id)
 		if target != null:
 			var debout: bool = target.is_alive()
-			target.hp = maxi(0, target.hp - int(intent.amount))
-			EventBus.player_damaged.emit(target_id, int(intent.amount), intent.origine)
+			var recu: int = _montant(intent, target.statuts)
+			target.hp = maxi(0, target.hp - recu)
+			EventBus.player_damaged.emit(target_id, recu, intent.origine)
 			# Tomber n'est pas mourir. On le dit ici, au seul endroit qui voit
 			# la transition — ailleurs, il faudrait comparer avec un état
 			# précédent que personne ne garde.
@@ -123,13 +126,51 @@ func _apply_damage(intent: EffectIntent) -> void:
 		var monster: MonsterState = GameState.run.get_monster(monster_id)
 		if monster == null:
 			continue
-		var tue: bool = monster.take_damage(int(intent.amount))
+		var tue: bool = monster.take_damage(_montant(intent, monster.statuts))
 		EventBus.monster_damaged.emit(monster_id, monster.hp, int(intent.amount))
 		if tue:
 			GameState.add_resonance(monster.resonance_reward)
 			EventBus.monster_died.emit(
 				monster_id, intent.source_player_id, monster.resonance_reward
 			)
+
+
+## Le montant réellement encaissé, une fois les états des deux côtés appliqués.
+##
+## C'est le SEUL endroit où protection et vulnérabilité agissent. Les mettre
+## ailleurs — sur le corps, dans le sort — donnerait deux chemins de calcul, et
+## un sort finirait par ignorer une protection sans que personne ne le remarque.
+##
+## Le lanceur peut être un monstre ou le décor (`source_player_id` négatif) :
+## ceux-là n'ont pas d'états de dégâts infligés, et c'est très bien.
+func _montant(intent: EffectIntent, cible: StatusHolder) -> int:
+	var facteur: float = cible.degats_recus()
+	var source: PlayerState = GameState.run.get_player(intent.source_player_id)
+	if source != null:
+		facteur *= source.statuts.degats_infliges()
+	return maxi(0, int(round(intent.amount * facteur)))
+
+
+## Pose l'état décrit par l'intention. Le resolver ne sait pas ce que l'état
+## VEUT DIRE : il recopie des facteurs, et les systèmes concernés les lisent.
+func _apply_status(intent: EffectIntent) -> void:
+	if not GameState.is_in_run() or intent.amount <= 0.0:
+		return
+	for target_id: int in intent.target_ids:
+		GameState.pose_statut_joueur(target_id, _fabrique(intent))
+	for monster_id: int in intent.target_monsters:
+		GameState.pose_statut_monstre(monster_id, _fabrique(intent))
+
+
+## Un état NEUF par porteur : partager l'objet ferait qu'un seul décompte de
+## durée éteindrait la protection de toute l'équipe.
+func _fabrique(intent: EffectIntent) -> Status:
+	var etat := Status.cree(intent.effect_id, intent.amount, intent.source_player_id)
+	etat.degats_recus = float(intent.payload.get("degats_recus", 1.0))
+	etat.degats_infliges = float(intent.payload.get("degats_infliges", 1.0))
+	etat.vitesse = float(intent.payload.get("vitesse", 1.0))
+	etat.provoque = bool(intent.payload.get("provoque", false))
+	return etat
 
 
 func _apply_heal(intent: EffectIntent) -> void:

@@ -51,6 +51,10 @@ signal player_downed(player_id: int)
 ## Relevé par un soin. `par` est celui dont le sort a rendu les points de vie.
 signal player_revived(player_id: int, par: int)
 
+## Un état vient d'être posé. L'un des deux identifiants vaut -1 : un état est
+## porté par un joueur OU par un monstre, jamais par les deux.
+signal status_applied(player_id: int, monster_id: int, statut: StringName)
+
 # ── Décor ─────────────────────────────────────────────────────────────────
 ## Une explosion vient de partir — un tonneau aujourd'hui, un piège demain. Le
 ## son écoute ; rien d'autre n'a besoin de savoir d'où elle venait.

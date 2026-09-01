@@ -85,6 +85,36 @@ func est_local(player_id: int) -> bool:
 	return player_id == local_player_id
 
 
+## Les états s'écoulent ici, une fois par frame physique, et CHEZ L'HÔTE SEUL.
+##
+## Le temps qui passe est de l'état comme le reste (R1) : un client qui
+## décompterait le sien verrait sa protection s'éteindre à un moment différent
+## de celui où elle s'éteint vraiment. La photo le tient à jour.
+func _physics_process(delta: float) -> void:
+	if run == null or not Net.est_host():
+		return
+	for p: PlayerState in run.players:
+		p.statuts.avance(delta)
+	for m: MonsterState in run.monsters:
+		m.statuts.avance(delta)
+
+
+## Pose un état sur un joueur. Passe par ici et pas par le porteur directement :
+## c'est le seul endroit qui a le droit d'écrire dans l'état (R1).
+func pose_statut_joueur(player_id: int, etat: Status) -> void:
+	var p: PlayerState = null if run == null else run.get_player(player_id)
+	if p != null:
+		p.statuts.pose(etat)
+		EventBus.status_applied.emit(player_id, -1, etat.id)
+
+
+func pose_statut_monstre(monster_id: int, etat: Status) -> void:
+	var m: MonsterState = null if run == null else run.get_monster(monster_id)
+	if m != null:
+		m.statuts.pose(etat)
+		EventBus.status_applied.emit(-1, monster_id, etat.id)
+
+
 func is_in_run() -> bool:
 	return run != null and not run.is_over
 

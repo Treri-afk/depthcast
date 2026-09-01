@@ -238,6 +238,12 @@ func _deplace(delta: float) -> void:
 	# d'un coéquipier, jamais assez pour fuir un combat.
 	if est_a_terre():
 		allure *= _tuning.a_terre_vitesse
+	# Hâte et lenteur passent par les états, comme tout le reste : jamais par
+	# une valeur écrite sur le corps.
+	if GameState.is_in_run():
+		var etat: PlayerState = GameState.run.get_player(player_id)
+		if etat != null:
+			allure *= etat.statuts.vitesse()
 	var voulu: Vector3 = (transform.basis * Vector3(entree.x, 0.0, entree.y)) * allure
 	var vitesse_verticale: float = velocity.y
 

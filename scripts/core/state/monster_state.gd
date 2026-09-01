@@ -23,6 +23,11 @@ var hp: int = 10
 ## jamais d'une valeur en dur dans le code (R7).
 var resonance_reward: int = 0
 
+## Les états temporaires portés. Dans l'état, donc sérialisés, donc répliqués
+## gratuitement par la photo du host (R1).
+var statuts := StatusHolder.new()
+
+
 
 func _init(p_id: int = 0, p_max_hp: int = 10, p_reward: int = 0,
 		p_archetype: StringName = &"dummy") -> void:
@@ -53,6 +58,7 @@ func to_dict() -> Dictionary:
 		"max_hp": max_hp,
 		"hp": hp,
 		"resonance_reward": resonance_reward,
+		"statuts": statuts.to_array(),
 	}
 
 
@@ -64,4 +70,5 @@ static func from_dict(d: Dictionary) -> MonsterState:
 		StringName(d.get("archetype_id", "dummy")),
 	)
 	m.hp = int(d.get("hp", m.max_hp))
+	m.statuts.depuis_array(d.get("statuts", []))
 	return m
