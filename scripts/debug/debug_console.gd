@@ -186,7 +186,7 @@ func _declare_les_commandes() -> void:
 	_ajoute("graine", "`graine`, `graine <n>`, `graine libre`", _cmd_graine)
 	_ajoute("rejoue", "`rejoue [rang]` relance la run sur une graine passée", _cmd_rejoue)
 	_ajoute("historique", "les dernières graines jouées", _cmd_historique)
-	_ajoute("tel", "`tel`, `tel ecrit|raz|coupe|actif|marque <texte>`", _cmd_tel)
+	_ajoute("tel", "`tel`, `tel ecrit|csv|raz|coupe|actif|marque <texte>`", _cmd_tel)
 	_ajoute("etage", "descend d'un étage", _cmd_etage)
 	_ajoute("resonance", "`resonance <n>` ajoute au pot commun", _cmd_resonance)
 	_ajoute("eclats", "`eclats <n>` ajoute à la monnaie méta", _cmd_eclats)
@@ -265,6 +265,9 @@ func _cmd_tel(a: Array[String]) -> String:
 		"ecrit":
 			var chemin: String = Telemetrie.ecrit()
 			return chemin if chemin != "" else "rien à écrire"
+		"csv":
+			var csv: String = Telemetrie.ecrit_csv()
+			return csv if csv != "" else "rien à écrire"
 		"raz":
 			Telemetrie.remet_a_zero()
 			return "compteurs remis à zéro"
@@ -278,7 +281,7 @@ func _cmd_tel(a: Array[String]) -> String:
 			var texte: String = " ".join(a.slice(1))
 			Telemetrie.marque(texte)
 			return "marque posée : %s" % texte
-	return "`tel ecrit|raz|coupe|actif|marque <texte>`"
+	return "`tel ecrit|csv|raz|coupe|actif|marque <texte>`"
 
 
 func _cmd_etage(_a: Array[String]) -> String:
@@ -290,9 +293,21 @@ func _cmd_etage(_a: Array[String]) -> String:
 	return "descente demandée"
 
 
-func _cmd_resonance(a: Array[String]) -> String:
+## Écrire dans la run depuis un client ne tient pas : la photo de l'hôte
+## repasse dessus au tick suivant (R8). Mieux vaut refuser en le disant que
+## laisser croire que la commande a marché pendant une demi-seconde.
+func _autorite() -> String:
 	if not GameState.is_in_run():
 		return "il faut être en run"
+	if Net.en_ligne() and not Net.est_host():
+		return "l'hôte seul écrit dans la run — demande-lui de taper la commande"
+	return ""
+
+
+func _cmd_resonance(a: Array[String]) -> String:
+	var refus: String = _autorite()
+	if refus != "":
+		return refus
 	var montant: int = a[0].to_int() if not a.is_empty() and a[0].is_valid_int() else 100
 	GameState.add_resonance(montant)
 	return "+%d Résonance — pot à %d" % [montant, GameState.run.resonance_pool]
@@ -305,18 +320,19 @@ func _cmd_eclats(a: Array[String]) -> String:
 
 
 func _cmd_vie(a: Array[String]) -> String:
+	var refus: String = _autorite()
+	if refus != "":
+		return refus
 	var p: PlayerState = GameState.local_player()
-	if p == null:
-		return "il faut être en run"
 	p.hp = a[0].to_int() if not a.is_empty() and a[0].is_valid_int() else p.max_hp
 	return "%d/%d PV" % [p.hp, p.max_hp]
 
 
 func _cmd_tue(_a: Array[String]) -> String:
-	var p: PlayerState = GameState.local_player()
-	if p == null:
-		return "il faut être en run"
-	p.hp = 0
+	var refus: String = _autorite()
+	if refus != "":
+		return refus
+	GameState.local_player().hp = 0
 	return "0 PV — la chute suit au prochain tick"
 
 

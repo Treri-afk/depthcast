@@ -115,6 +115,16 @@ func _check_telemetrie() -> void:
 		relu is Dictionary and int((relu as Dictionary).get("graine", 0)) == 31415)
 	DirAccess.remove_absolute(Telemetrie.DOSSIER.path_join(chemin.get_file()))
 
+	var csv: String = Telemetrie.ecrit_csv()
+	var texte: String = FileAccess.get_file_as_string(
+		Telemetrie.DOSSIER.path_join(csv.get_file()))
+	var lignes: PackedStringArray = texte.strip_edges().split("\n")
+	verifie("le CSV a un en-tête et une ligne par étage", lignes.size() == 3,
+		"trouvé %d ligne(s)" % lignes.size())
+	verifie("et autant de colonnes partout",
+		lignes[0].split(",").size() == lignes[1].split(",").size())
+	DirAccess.remove_absolute(Telemetrie.DOSSIER.path_join(csv.get_file()))
+
 	Telemetrie.remet_a_zero()
 	verifie("la remise à zéro efface tout", not Telemetrie.en_cours()
 		and (Telemetrie.rapport()["etages"] as Array).is_empty())
@@ -167,3 +177,12 @@ func _check_console() -> void:
 		Console.execute("sorts").contains("run"))
 	verifie("hors run, `etage` refuse", Console.execute("etage").contains("run"))
 	verifie("`net` répond toujours", not Console.execute("net").is_empty())
+
+	# Une commande qui écrit dans la run n'existe que chez l'hôte : chez un
+	# client, la photo repasserait dessus sans rien dire (R8).
+	GameState.start_run(5, 1)
+	verifie("hôte ou solo, la commande passe",
+		Console.execute("vie 30").contains("30/"))
+	verifie("et `resonance` crédite le pot",
+		Console.execute("resonance 40").contains("40"))
+	GameState.run = null

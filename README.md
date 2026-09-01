@@ -190,7 +190,7 @@ tape ; en ligne elle le laisse tourner, sinon la connexion tomberait.
 | `etat` | graine, étage, PV de chacun, monstres restants |
 | `graine <n>` / `graine libre` | figer ou relâcher la graine des prochaines runs |
 | `rejoue [rang]` | relancer une run passée — `rejoue` seul reprend la dernière |
-| `tel` / `tel ecrit` | résumé de la run en cours, ou son rapport JSON |
+| `tel` / `tel ecrit` / `tel csv` | résumé de la run, son rapport JSON, ou la grille par étage en CSV |
 | `etage`, `vie`, `tue`, `resonance`, `eclats`, `sorts` | forcer une situation |
 | `vitesse <x>` | ralentir pour voir un impact, accélérer pour traverser un étage |
 | `perf` | images par seconde, appels de rendu, mémoire |
@@ -204,7 +204,7 @@ figée — c'est le piège de l'outil, pas un détail.
 
 **La télémétrie** — compte par étage (durée, dégâts subis et infligés, morts,
 Résonance, rerolls, verrous) et retient quel effet a été lancé combien de fois.
-Le rapport part dans `user://telemetrie/` à la fin d'une run jouée. Rien ne sort
+Le rapport part dans `user://telemetrie/` à la fin d'une run jouée — en JSON, et en CSV sur demande, pour comparer dix runs dans un tableur. Rien ne sort
 de la machine.
 
 Les cinq raccourcis d'urgence restent : `P` sauter l'étage, `O` +Résonance,
@@ -230,6 +230,6 @@ Le co-op est dans le scope V1. Ces règles ne sont pas des précautions : les en
 
 ## État du projet
 
-**Prototype jouable.** Boucle de run complète en solo et en co-op, réseau local et Steam branchés, 331 vérifications automatisées. Le backlog est suivi dans Plane.
+**Prototype jouable.** Boucle de run complète en solo et en co-op, réseau local et Steam branchés, 335 vérifications automatisées. Le backlog est suivi dans Plane.
 
 **Non tranché :** la direction artistique et la direction sonore. 13 tâches en dépendent — c'est le plus gros déblocage disponible.

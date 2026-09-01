@@ -169,6 +169,36 @@ func ecrit() -> String:
 	return ProjectSettings.globalize_path(chemin)
 
 
+## Le même tableau, en CSV.
+##
+## Le JSON garde tout, y compris le journal ; le CSV ne garde que la grille
+## étage par étage — parce que c'est elle qu'on ouvre dans un tableur pour
+## comparer dix runs, et qu'un JSON imbriqué n'entre pas dans une colonne.
+func ecrit_csv() -> String:
+	if not enregistre or not en_cours():
+		return ""
+	const COLONNES: PackedStringArray = ["etage", "duree_ms", "degats_subis",
+		"degats_infliges", "monstres_tues", "resonance_gagnee",
+		"resonance_depensee", "chutes", "releves", "rerolls", "verrous_achetes",
+		"sorts_lances", "explosions"]
+
+	DirAccess.make_dir_recursive_absolute(DOSSIER)
+	var chemin: String = "%s/run_%d_%s.csv" % [DOSSIER, _graine,
+		Time.get_datetime_string_from_system().replace(":", "-")]
+	var f := FileAccess.open(chemin, FileAccess.WRITE)
+	if f == null:
+		push_warning("Télémétrie : impossible d'écrire %s" % chemin)
+		return ""
+	f.store_line(",".join(COLONNES))
+	for etage: Dictionary in rapport()["etages"]:
+		var ligne := PackedStringArray()
+		for colonne: String in COLONNES:
+			ligne.append(str(int(etage.get(colonne, 0))))
+		f.store_line(",".join(ligne))
+	f.close()
+	return ProjectSettings.globalize_path(chemin)
+
+
 func remet_a_zero() -> void:
 	_debut_run_ms = 0
 	_debut_etage_ms = 0
