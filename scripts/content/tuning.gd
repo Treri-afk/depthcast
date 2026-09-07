@@ -114,6 +114,47 @@ extends Resource
 @export_range(0.0, 1.0, 0.05) var leurre_chance_par_salle: float = 0.35
 @export var leurre_cout: int = 30
 
+## LA PAGE D'ÉCOLE.
+##
+## Cher, et volontairement. On n'achète pas un sort mais une ÉCOLE : le sort est
+## tiré dans son pool et rerollera comme les autres. C'est donc une incertitude
+## qu'on paie, pas une garantie — et le prix doit se sentir, sinon la troisième
+## page devient un automatisme et cesse d'être une décision.
+@export var page_cout: int = 120
+
+@export_group("Bâton")
+## LE PLANCHER DE DÉGÂTS.
+##
+## Les sorts se rerollent : rien n'empêche de tirer deux soins et une
+## protection, donc de n'avoir aucun moyen de blesser. Le bâton garantit qu'un
+## étage reste finissable. Il doit rester FAIBLE — le jour où on le préfère à
+## ses sorts, ce sont les sorts qu'il faut relever, pas lui qu'il faut baisser.
+@export var baton_frappe_degats: int = 9
+@export var baton_frappe_recharge: float = 0.55
+## Durée de l'animation de frappe. Le coup part au début du geste, pas à sa fin.
+@export var baton_frappe_geste: float = 0.26
+## Recul appliqué à ce qu'on touche. Faible : le bâton bouscule, il ne projette pas.
+@export var baton_frappe_poussee: float = 3.5
+
+## Le trait porte loin et fait peu : c'est le complément de la frappe, pas son
+## remplaçant. Les deux ensemble couvrent toutes les distances sans qu'aucun
+## des deux ne suffise.
+@export var baton_trait_degats: int = 5
+@export var baton_trait_recharge: float = 0.85
+@export var baton_trait_geste: float = 0.3
+@export var baton_trait_portee: float = 26.0
+
+## LE TEMPS D'INVOCATION.
+##
+## Le délai entre l'appui et le départ du sort, pendant lequel le bâton se lève
+## et le diagramme s'ouvre. Il existe pour que la chaîne se lise — geste,
+## cercle, effet — et non pour ralentir le jeu.
+##
+## Court à dessein. Au-delà d'un cinquième de seconde, le sort cesse de répondre
+## à l'appui et l'on croit à une entrée perdue ; en dessous d'un dixième, le
+## diagramme n'a pas le temps de s'ouvrir et ne sert plus à rien.
+@export_range(0.0, 0.4, 0.01) var sort_invocation_delai: float = 0.14
+
 @export_group("À terre")
 ## Vitesse en rampant, en multiple de la vitesse normale. On se traîne : assez
 ## pour se mettre à couvert ou se rapprocher d'un coéquipier, jamais assez pour

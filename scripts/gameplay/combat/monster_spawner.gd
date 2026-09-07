@@ -126,14 +126,17 @@ func _installe(stats: MonsterStats, pos: Vector3, cibles: Array,
 	forme.shape = boite
 	avatar.add_child(forme)
 
-	var visuel := MeshInstance3D.new()
-	visuel.name = "Mesh"
-	var mesh := BoxMesh.new()
-	mesh.size = stats.taille
-	visuel.mesh = mesh
-	visuel.set_surface_override_material(0,
-		MaterialLibrary.aplat(stats.couleur, MaterialLibrary.Role.CREATURE))
-	avatar.add_child(visuel)
+	# UNE ANATOMIE, ET NON UNE BOÎTE.
+	#
+	# Le corps était une boîte à la taille de la boîte de collision : trois
+	# espèces qui ne différaient que par leur volume et leur teinte. Or la
+	# couleur est ce qu'on lit en DERNIER, après la silhouette et le mouvement —
+	# donc on ne savait pas ce qui chargeait avant qu'il n'arrive.
+	#
+	# La collision, elle, reste une boîte : elle n'a pas à épouser la forme, et
+	# une capsule par membre coûterait cher pour une précision dont le combat
+	# n'a aucun besoin.
+	avatar.add_child(MonsterBody.cree(stats))
 
 	# Le volant démarre déjà en l'air, sinon on le voit décoller bêtement.
 	var hauteur: float = stats.hauteur_vol if stats.vole else stats.taille.y * 0.5 + 0.2

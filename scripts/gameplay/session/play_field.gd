@@ -131,12 +131,7 @@ func _cree_avatar(player_id: int) -> PlayerAvatar:
 	# partent en gerbe au premier tick physique.
 	avatar.position = Vector3(float(player_id) * 1.6, 1.2, 0)
 
-	var forme := CollisionShape3D.new()
-	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.5
-	capsule.height = 2.0
-	forme.shape = capsule
-	avatar.add_child(forme)
+	# La capsule de collision appartient à l'avatar : voir _se_donne_un_corps().
 	racine.add_child(avatar)
 
 	# Le post-traitement s'accroche à la SEULE caméra active : c'est un quad de
@@ -191,6 +186,15 @@ func _services() -> void:
 	joueur.a_lance.connect(func(slot: int, dir: Vector3) -> void:
 		Repl.annonce_lancer(joueur.player_id, slot, dir))
 	Repl.sort_lance.connect(_joue_un_sort)
+
+	# Le bâton passe par le réseau comme les sorts : on ANNONCE le geste, et
+	# chaque machine le rejoue chez elle. Les dégâts, eux, ne sont comptés
+	# qu'une fois — le resolver s'en charge, exactement comme pour un sort.
+	joueur.a_frappe_au_baton.connect(func(dir: Vector3) -> void:
+		Repl.annonce_baton(joueur.player_id, dir, true))
+	joueur.a_tire_au_baton.connect(func(dir: Vector3) -> void:
+		Repl.annonce_baton(joueur.player_id, dir, false))
+	Repl.baton_frappe.connect(_joue_un_coup_de_baton)
 	Repl.portage_change.connect(_joue_un_portage)
 	for avatar: PlayerAvatar in avatars:
 		avatar.portage_change.connect(
@@ -218,6 +222,25 @@ func _branche_le_ressenti() -> void:
 
 
 ## Rejoue le sort de n'importe quel joueur, y compris le nôtre.
+## Rejoue un coup de bâton chez soi, quel qu'en soit l'auteur.
+##
+## Le geste part de l'avatar du LANCEUR et non du nôtre : c'est ce qui fait
+## qu'on voit un coéquipier frapper, au bon endroit, dans la bonne direction.
+func _joue_un_coup_de_baton(player_id: int, direction: Vector3,
+		frappe: bool) -> void:
+	var avatar: PlayerAvatar = avatar_de(player_id)
+	if avatar == null or not is_instance_valid(avatar):
+		return
+	# Le geste du bâton n'est joué que pour les AUTRES : le nôtre a déjà bougé
+	# au moment de l'appui, et le rejouer ici le ferait frapper deux fois.
+	if not GameState.est_local(player_id):
+		avatar.rejoue_le_baton(frappe)
+	if frappe:
+		StaffStrike.frappe(contexte, avatar, direction)
+	else:
+		StaffStrike.tire(contexte, avatar, direction)
+
+
 func _joue_un_sort(player_id: int, slot_index: int, direction: Vector3) -> void:
 	var lanceur: PlayerAvatar = avatar_de(player_id)
 	if lanceur != null:
@@ -268,6 +291,7 @@ func _seme_pour(avatar: PlayerAvatar, delta: float) -> void:
 	zone.source_slot = int(flaque["slot"])
 	zone.couleur = flaque["couleur"]
 	zone.allure = flaque["allure"]
+	zone.signature = flaque["signature"]
 	racine.add_child(zone)
 
 
@@ -318,7 +342,15 @@ func change_ecole(slot_index: int, pas: int) -> void:
 	var total: int = Content.ecoles.size()
 	if total == 0 or not GameState.is_in_run():
 		return
-	var slot: SpellSlot = GameState.local_player().slots[slot_index]
+	# BORNÉ SUR LE GRIMOIRE RÉEL.
+	#
+	# Le raccourci Ctrl+1..N existe pour autant de touches que le plafond, mais
+	# le grimoire n'en tient que deux au départ. Sans cette borne, Ctrl+3 sur
+	# une partie neuve sortait du tableau — un crash à un raccourci de distance.
+	var p: PlayerState = GameState.local_player()
+	if p == null or slot_index < 0 or slot_index >= p.slots.size():
+		return
+	var slot: SpellSlot = p.slots[slot_index]
 	var index: int = (Content.index_ecole(slot.school_id) + pas + total) % total
 	var suivante: School = Content.ecoles[index]
 	GameState.set_slot_school(GameState.local_player_id, slot_index,
@@ -334,7 +366,7 @@ static func definitions_de(player_id: int) -> Array:
 	var ids: Array = GameState.ecoles_de(player_id)
 	if ids.is_empty():
 		for ecole: School in Meta.ecoles_disponibles():
-			if ids.size() < PlayerState.SLOT_COUNT:
+			if ids.size() < PlayerState.ECOLES_DEPART:
 				ids.append(ecole.id)
 	var out: Array = []
 	for id: StringName in ids:

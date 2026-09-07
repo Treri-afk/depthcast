@@ -8,6 +8,7 @@ func nom() -> String:
 
 
 func execute() -> void:
+	verifie_le_grimoire()
 	_check_verrou_un_seul_etage()
 	_check_decouverte_portee_etage()
 
@@ -90,3 +91,54 @@ func _resolve_two_casts(inverser: bool) -> int:
 		_cast(1, 0, 30, [1])
 	EffectResolver.resolve_tick()
 	return cible.hp
+
+
+## LE GRIMOIRE : deux pages au départ, trois au plus.
+##
+## Ces bornes sont du design, pas de la technique. Les vérifier ici évite qu'un
+## refactor les fasse dériver en silence — ce qui vient d'arriver une fois, quand
+## le nombre de slots et le nombre d'écoles étaient la même constante.
+func verifie_le_grimoire() -> void:
+	GameState.start_run(4242, 1)
+	var p: PlayerState = GameState.run.get_player(0)
+
+	verifie("on part avec deux pages",
+		p.slots.size() == PlayerState.SLOTS_DEPART, "%d" % p.slots.size())
+	verifie("et une seule école",
+		PlayerState.ECOLES_DEPART == 1)
+
+	var ecole: School = Content.ecoles[0]
+	GameState.set_player_schools(0, [{"id": ecole.id,
+		"pool_size": ecole.taille_pool()}])
+	verifie("les deux pages viennent de la même école",
+		p.slots[0].school_id == ecole.id and p.slots[1].school_id == ecole.id)
+
+	# La page achetée : une école de plus, un sort tiré dedans.
+	var autre: School = Content.ecoles[1]
+	var index: int = GameState.ajoute_une_page(0, autre.id, autre.taille_pool())
+	verifie("une page s'ajoute au bout du grimoire", index == 2
+		and p.slots.size() == 3 and p.slots[2].school_id == autre.id)
+	verifie("son sort est tiré dans le pool de son école",
+		p.slots[2].effect_index >= 0
+			and p.slots[2].effect_index < autre.taille_pool())
+
+	# Le plafond tient.
+	verifie("le grimoire refuse une quatrième page",
+		GameState.ajoute_une_page(0, autre.id, autre.taille_pool()) == -1
+			and p.slots.size() == PlayerState.SLOTS_MAX)
+
+	# Et la page rerolle comme les deux autres : c'est la décision qui a été
+	# prise, et c'est ce qui distingue une page d'un objet.
+	var avant: int = p.slots[2].effect_index
+	var mute: bool = false
+	for essai: int in 12:
+		GameState.reroll_slots(0)
+		if p.slots[2].effect_index != avant:
+			mute = true
+			break
+	verifie("une page achetée rerolle comme les autres",
+		mute or autre.taille_pool() <= 1,
+		"pool de %d" % autre.taille_pool())
+
+	GameState.end_run(false)
+	GameState.run = null

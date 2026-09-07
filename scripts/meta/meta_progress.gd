@@ -107,11 +107,18 @@ func charge() -> void:
 		_premiere_partie()
 
 
-## Une première partie ouvre assez d'écoles pour composer une équipe, et pas
-## une de plus : le premier déblocage doit rester un évènement.
+## Combien d'écoles sont ouvertes à la toute première partie.
+##
+## Plus qu'une, sinon il n'y a aucun choix de spécialisation ; pas toutes,
+## sinon le premier déblocage n'est plus un évènement. Ce nombre n'a AUCUN
+## rapport avec la taille du grimoire — il l'a eu, et les deux ont dérivé
+## ensemble par accident le jour où l'un des deux a changé.
+const ECOLES_AU_DEPART: int = 3
+
+
 func _premiere_partie() -> void:
 	ecoles_debloquees.clear()
-	for e: School in Content.ecoles.slice(0, PlayerState.SLOT_COUNT):
+	for e: School in Content.ecoles.slice(0, ECOLES_AU_DEPART):
 		ecoles_debloquees.append(e.id)
 	sauve()
 

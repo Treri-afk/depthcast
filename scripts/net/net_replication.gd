@@ -122,6 +122,9 @@ signal descente_ordonnee()
 ## Quelqu'un vient de lancer un sort. Émis chez TOUT LE MONDE, y compris chez
 ## le lanceur : chaque machine rejoue le comportement pour son propre écran.
 signal sort_lance(player_id: int, slot_index: int, direction: Vector3)
+## Un coup de bâton. Deux gestes, un seul signal : `frappe` dit lequel, et
+## ajouter un troisième geste un jour ne demandera pas un signal de plus.
+signal baton_frappe(player_id: int, direction: Vector3, frappe: bool)
 ## Un monstre vient de tirer. Seul l'hôte fait tourner les cerveaux, donc seul
 ## lui sait qu'un tir part : sans cette annonce, un client encaisse des
 ## projectiles qu'il ne voit jamais quitter le canon.
@@ -185,6 +188,32 @@ func _recois_un_lancer(player_id: int, slot_index: int, direction: Vector3) -> v
 		if declare >= 0:
 			vrai_id = declare
 	sort_lance.emit(vrai_id, slot_index, direction)
+
+
+## Le bâton suit exactement le chemin des sorts.
+##
+## Il ne l'a pas toujours suivi : il est resté local le temps d'un jalon, et un
+## coéquipier ne voyait alors ni le geste ni les dégâts. C'est le genre de dette
+## qui ne se voit qu'à deux, donc jamais pendant le développement solo — d'où
+## cette note, pour qu'aucune action de joueur ne reparte sans réplication.
+func annonce_baton(player_id: int, direction: Vector3, frappe: bool) -> void:
+	if Net.en_ligne():
+		_recois_un_coup.rpc(player_id, direction, frappe)
+	else:
+		baton_frappe.emit(player_id, direction, frappe)
+
+
+## `any_peer`, comme les sorts : chacun frappe pour soi, et l'identifiant
+## annoncé est réécrit d'après l'expéditeur.
+@rpc("any_peer", "call_local", "reliable")
+func _recois_un_coup(player_id: int, direction: Vector3, frappe: bool) -> void:
+	var expediteur: int = multiplayer.get_remote_sender_id()
+	var vrai_id: int = player_id
+	if expediteur != 0:
+		var declare: int = Net.player_id_de(expediteur)
+		if declare >= 0:
+			vrai_id = declare
+	baton_frappe.emit(vrai_id, direction, frappe)
 
 
 ## Annonces de l'hôte vers tout le monde. Toutes suivent le même patron que les

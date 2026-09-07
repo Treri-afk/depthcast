@@ -38,6 +38,9 @@ const FOV_BASE: float = 78.0
 const DELAI_DECOLLAGE: float = 0.25
 
 signal a_lance(slot_index: int, direction: Vector3)
+## Le bâton a frappé, ou tiré. Le terrain résout ; l'avatar ne fait que le geste.
+signal a_frappe_au_baton(direction: Vector3)
+signal a_tire_au_baton(direction: Vector3)
 ## Les mains ont changé. `prend` distingue ramasser de lâcher ; l'élan ne vaut
 ## que pour un lancer. Émis seulement par l'avatar local : c'est une intention
 ## de joueur, pas une conséquence.
@@ -63,6 +66,7 @@ var _secousse: Node3D
 ## Le point où l'on tient ce qu'on porte. Sous le nœud de secousse, donc ce
 ## qu'on transporte culbute avec la vue quand on est projeté.
 var _mains: Node3D
+var _baton: Staff
 ## L'objet dans les mains, ou null.
 var _porte: PropDestructible = null
 ## Ses couches de collision d'origine, à rendre au moment de le lâcher.
@@ -71,7 +75,9 @@ var _couches_portees: Array[int] = [0, 0]
 var _charge_de_lancer: float = -1.0
 
 ## Cooldown restant par slot, en secondes.
-var _cooldowns: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
+## Une entrée par page POSSIBLE, pas par page tenue : le grimoire grandit en
+## cours de run, et un tableau redimensionné en vol perdrait les recharges.
+var _cooldowns := _recharges_vides()
 ## Charge en cours (Ruée) : direction et temps restant.
 var _dash: Vector3 = Vector3.ZERO
 var _dash_restant: float = 0.0
@@ -125,6 +131,7 @@ var _tampon_de_saut: float = 0.0
 func _ready() -> void:
 	_tuning = Content.tuning
 	_trainee = TrailEmitter.new()
+	_se_donne_un_corps()
 
 	tete = Node3D.new()
 	tete.name = "Tete"
@@ -148,6 +155,13 @@ func _ready() -> void:
 	_mains.position = MAINS_AU_REPOS
 	_secousse.add_child(_mains)
 
+	# Le bâton est dans les mains de TOUT LE MONDE, y compris des coéquipiers :
+	# voir un allié armer un coup est la moitié de ce qui rend le co-op lisible.
+	_baton = Staff.cree(Content.palette.lisere_blanc)
+	_mains.add_child(_baton)
+	_baton.a_frappe.connect(func(d: Vector3) -> void: a_frappe_au_baton.emit(d))
+	_baton.a_tire.connect(func(d: Vector3) -> void: a_tire_au_baton.emit(d))
+
 	_endurance = _tuning.endurance_max
 	if local:
 		_regard = MouseLook.new(self, tete, _tuning.sensibilite_souris)
@@ -167,6 +181,26 @@ func _ready() -> void:
 	floor_max_angle = deg_to_rad(50.0)
 	if local:
 		MouseLook.capture(true)
+
+
+## La capsule de collision, construite PAR L'AVATAR.
+##
+## Elle vivait dans `PlayField`, c'est-à-dire chez celui qui assemblait la
+## partie. Tout avatar construit ailleurs — la galerie de sorts du terrain
+## d'essai — naissait donc sans corps et traversait le sol. Un `CharacterBody3D`
+## sans forme de collision est un bug silencieux : rien ne proteste, il tombe.
+##
+## Ce qu'un corps est ne regarde que lui.
+func _se_donne_un_corps() -> void:
+	for enfant: Node in get_children():
+		if enfant is CollisionShape3D:
+			return
+	var forme := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.5
+	capsule.height = 2.0
+	forme.shape = capsule
+	add_child(forme)
 
 
 ## Le corps d'un coéquipier. Une capsule à sa couleur et un repère de regard :
@@ -415,12 +449,23 @@ func _ecoute_les_sorts() -> void:
 	if Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META):
 		return
 
-	for i: int in PlayerState.SLOT_COUNT:
+	for i: int in _pages_tenues():
 		if Input.is_action_just_pressed(InputActions.sort(i)) and _cooldowns[i] <= 0.0:
 			a_lance.emit(i, direction_visee())
-	# Le clic gauche lance aussi le slot 1 : c'est le réflexe naturel en FPS.
-	if Input.is_action_just_pressed(InputActions.TIRER) and _cooldowns[0] <= 0.0:
-		a_lance.emit(0, direction_visee())
+
+	# Les clics appartiennent au BÂTON, plus aux sorts.
+	#
+	# Le clic gauche lançait le premier sort, par réflexe FPS. Mais le premier
+	# sort peut être un soin après un reroll, et le réflexe le plus profond du
+	# genre — cliquer pour attaquer — ne doit jamais se solder par un soin lancé
+	# sur soi au milieu d'un combat. Ce que le clic fait doit être invariable ;
+	# c'est précisément ce que le bâton apporte.
+	if _baton != null and porte_quelque_chose() == false:
+		if Input.is_action_just_pressed(InputActions.TIRER):
+			_baton.frappe(direction_visee())
+		elif Input.is_action_just_pressed(InputActions.TRAIT) \
+				and MouseLook.est_capture():
+			_baton.tire(direction_visee())
 
 
 # ── Ce que les sorts pilotent ─────────────────────────────────────────────
@@ -902,6 +947,61 @@ func consomme_flaque(delta: float) -> Dictionary:
 
 func souris_capturee() -> bool:
 	return MouseLook.est_capture()
+
+## Un tableau de recharges au plafond du grimoire, tout de suite.
+##
+## Dimensionné au PLAFOND et non au grimoire courant : acheter une page en
+## cours de run ne doit pas redimensionner un tableau qu'on est en train de
+## décompter, et une entrée inutilisée ne coûte rien.
+static func _recharges_vides() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	out.resize(PlayerState.SLOTS_MAX)
+	return out
+
+
+## Combien de pages le joueur tient VRAIMENT, borné par le tableau de recharges.
+##
+## Hors run — le hub, le menu — il n'y a pas de grimoire : on retourne zéro
+## plutôt que de laisser une touche lancer un sort qui n'existe pas.
+func _pages_tenues() -> int:
+	if not GameState.is_in_run():
+		return 0
+	var etat: PlayerState = GameState.run.get_player(player_id)
+	return 0 if etat == null else mini(etat.slots.size(), _cooldowns.size())
+
+
+
+
+## Lève le bâton et ouvre le diagramme. Appelée pour TOUS les lanceurs, y
+## compris distants : voir un coéquipier invoquer est ce qui rend son sort
+## attribuable, au lieu d'un effet qui apparaît tout seul.
+func invoque_au_baton(effet: SpellEffect, couleur: Color, duree: float) -> void:
+	if _baton == null or _mains == null:
+		return
+	_baton.invoque(duree)
+
+	# Le cercle est accroché aux MAINS et non au bâton : sous le bâton il
+	# héritait de l'inclinaison du fût et du geste de levée, donc il basculait
+	# hors du champ. Ici sa place est fixe, et seul le bâton bouge dessous.
+	var sceau := SpellSigil.cree(effet, couleur, duree + 0.30)
+	sceau.position = Vector3(-0.06, 0.50, -0.60)
+	# À peine incliné : un quad regarde vers +Z, donc vers la caméra. Quelques
+	# degrés suffisent à lui donner l'assiette d'un plan posé devant soi.
+	sceau.rotation = Vector3(deg_to_rad(-14.0), 0.0, 0.0)
+	_mains.add_child(sceau)
+
+
+## Rejoue un geste de bâton décidé ailleurs — chez un coéquipier.
+##
+## Sépare le GESTE de sa résolution : le geste est cosmétique et se joue
+## partout, les dégâts ne sont comptés qu'une fois par le resolver.
+func rejoue_le_baton(frappe: bool) -> void:
+	if _baton == null:
+		return
+	if frappe:
+		_baton.frappe(direction_visee())
+	else:
+		_baton.tire(direction_visee())
 
 
 func demarre_cooldown(slot_index: int, duree: float) -> void:

@@ -63,6 +63,16 @@ enum Comportement {
 ## même image.
 @export var impact: FxLibrary.Impact = FxLibrary.Impact.ECLAT
 
+## LE GESTE PROPRE DE CE SORT.
+##
+## L'allure ci-dessus est un choix parmi cinq formes génériques ; celle-ci est
+## la géométrie et l'animation faites POUR ce sort. Une onde de choc qui chasse
+## des blocs vers l'extérieur ne se paramètre pas depuis une flaque qui tourne :
+## il fallait une classe par geste.
+##
+## `NAPPE` est le repli. Un sort qui la garde est un sort qu'on n'a pas fini.
+@export var signature: SpellSignature.Genre = SpellSignature.Genre.NAPPE
+
 @export_group("État appliqué")
 ## Nom de l'état posé. Vide = ce sort n'en pose aucun.
 ##
@@ -133,6 +143,8 @@ const NOMS_FAMILLE: Dictionary = {
 	Comportement.TOTEM: "totem de soin",
 	Comportement.VOILE: "invisibilité",
 	Comportement.LEURRE: "leurre",
+	Comportement.PERMUTATION: "permutation",
+	Comportement.ETAT: "état",
 }
 
 

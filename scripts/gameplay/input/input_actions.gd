@@ -15,6 +15,9 @@ const SAUTER := &"sauter"
 const INTERAGIR := &"interagir"
 const LIBERER_CURSEUR := &"liberer_curseur"
 const TIRER := &"tirer"
+## Le trait du bâton, au clic droit. Voir `declare()` pour pourquoi il partage
+## la touche avec la reprise de visée.
+const TRAIT := &"trait_baton"
 const PORTER := &"porter"
 const LANCER := &"lancer"
 const COURIR := &"courir"
@@ -38,11 +41,12 @@ const TOUCHES: Dictionary = {
 	&"lancer_sort_1": [KEY_1, KEY_KP_1],
 	&"lancer_sort_2": [KEY_2, KEY_KP_2],
 	&"lancer_sort_3": [KEY_3, KEY_KP_3],
-	&"lancer_sort_4": [KEY_4, KEY_KP_4],
 }
 
-## Touches numériques, dans l'ordre des slots. Sert aux raccourcis à modificateur.
-const TOUCHES_SLOTS: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4]
+## Touches numériques, dans l'ordre des slots. Sert aux raccourcis à
+## modificateur. Elle en compte autant que le grimoire peut tenir de pages —
+## une touche de plus désignerait une page qui n'existe pas.
+const TOUCHES_SLOTS: Array[Key] = [KEY_1, KEY_2, KEY_3]
 
 
 static func declare() -> void:
@@ -59,3 +63,13 @@ static func declare() -> void:
 	var clic := InputEventMouseButton.new()
 	clic.button_index = MOUSE_BUTTON_LEFT
 	InputMap.action_add_event(TIRER, clic)
+
+	# Le clic droit sert à DEUX choses, et jamais en même temps : reprendre la
+	# visée quand le curseur est libre, tirer au bâton quand il est capturé.
+	# C'est la convention du genre, et elle évite de sacrifier une touche pour
+	# une commande qu'on n'utilise qu'en sortant du jeu.
+	if not InputMap.has_action(TRAIT):
+		InputMap.add_action(TRAIT)
+	var clic_droit := InputEventMouseButton.new()
+	clic_droit.button_index = MOUSE_BUTTON_RIGHT
+	InputMap.action_add_event(TRAIT, clic_droit)

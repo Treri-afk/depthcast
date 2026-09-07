@@ -12,7 +12,11 @@ func lance(ctx: SpellContext, _slot_index: int, effet: SpellEffect,
 	var leurre := Node3D.new()
 	leurre.add_to_group("leurre")
 	leurre.position = ctx.joueur.global_position + plat * effet.distance
-	leurre.add_child(ctx.fx.sphere_lumineuse(0.7, couleur))
+	# La signature vit aussi longtemps que le leurre : elle est son corps, et
+	# c'est elle qui doit se faire prendre pour quelqu'un.
+	var geste := SpellSignature.cree(effet.signature, couleur,
+		SpellGesture.dimensions_de(effet), effet.duree)
+	leurre.add_child(geste)
 	ctx.monde.add_child(leurre)
 
 	# La diversion et son retour sont tenus par le monstre lui-même : le sort

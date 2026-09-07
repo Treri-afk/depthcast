@@ -15,5 +15,11 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 		couleur: Color, _direction: Vector3) -> void:
 	var rayon: float = maxf(effet.rayon, RAYON_MINIMAL)
 	ctx.soin(slot_index, effet.soin, rayon)
-	ctx.fx.anneau(ctx.joueur.global_position, rayon, couleur)
+	if effet.signature == SpellSignature.Genre.NAPPE:
+		ctx.fx.anneau(ctx.joueur.global_position, rayon, couleur)
+	else:
+		var geste := SpellSignature.cree(effet.signature, couleur,
+			Vector3(rayon, 2.0, 0), 1.1)
+		geste.position = ctx.joueur.global_position
+		ctx.monde.add_child(geste)
 	ctx.fx.eclair(ctx.joueur.global_position + Vector3(0, 1.0, 0), couleur, 0.35, 4.0, 7.0)

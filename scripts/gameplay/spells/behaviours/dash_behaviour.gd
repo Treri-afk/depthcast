@@ -29,5 +29,8 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 
 	ctx.degats(slot_index, effet.degats, touches)
 	ctx.frappe_objets_devant(origine, plat, effet.distance, deg_to_rad(28.0), effet.degats)
-	ctx.fx.anneau(origine, 2.0, couleur)
+	# Orienté dans le sens de la charge : un sillage perpendiculaire à la
+	# course dirait exactement le contraire de ce qui vient de se passer.
+	SpellGesture.pose(ctx, effet, couleur, origine, 0.8,
+		atan2(plat.x, plat.z))
 	ctx.fx.eclair(origine + Vector3(0, 1.0, 0), couleur, 0.2, 4.0, 8.0)

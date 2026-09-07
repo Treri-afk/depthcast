@@ -8,6 +8,7 @@ func nom() -> String:
 
 
 func execute() -> void:
+	verifie_les_signatures()
 	_check_contenu()
 
 
@@ -78,3 +79,38 @@ func _resolve_two_casts(inverser: bool) -> int:
 		_cast(1, 0, 30, [1])
 	EffectResolver.resolve_tick()
 	return cible.hp
+
+## Chaque sort doit avoir SON geste. C'est le défaut qu'on vient de corriger :
+## dix-sept sorts se partageaient cinq allures, on lançait un sort sans savoir
+## lequel, et personne ne s'en apercevait parce que rien ne le mesurait.
+##
+## Deux sorts qui partagent une signature repassent donc au rouge ici, et pas
+## trois mois plus tard en jeu.
+func verifie_les_signatures() -> void:
+	verifie("chaque geste déclaré a sa classe",
+		SignatureRegistry.gestes_manquants().is_empty(),
+		str(SignatureRegistry.gestes_manquants()))
+
+	var par_geste: Dictionary = {}
+	var sans_geste: Array = []
+	for ecole: School in Content.ecoles:
+		for i: int in ecole.taille_pool():
+			var effet: SpellEffect = ecole.effet(i)
+			if effet == null:
+				continue
+			if effet.signature == SpellSignature.Genre.NAPPE:
+				sans_geste.append(effet.nom)
+				continue
+			var deja: Array = par_geste.get(effet.signature, [])
+			deja.append(effet.nom)
+			par_geste[effet.signature] = deja
+
+	verifie("aucun sort n'est resté sur le visuel de repli",
+		sans_geste.is_empty(), str(sans_geste))
+
+	var partages: Array = []
+	for genre: int in par_geste:
+		if (par_geste[genre] as Array).size() > 1:
+			partages.append(str(par_geste[genre]))
+	verifie("deux sorts ne partagent jamais le même geste",
+		partages.is_empty(), str(partages))

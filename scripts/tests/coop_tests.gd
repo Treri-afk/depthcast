@@ -13,6 +13,7 @@ func nom() -> String:
 
 
 func execute() -> void:
+	verifie_que_tout_est_replique()
 	_check_joueur_local()
 	_check_etat_partage()
 	_check_flux_independants()
@@ -285,3 +286,30 @@ func _check_reprise() -> void:
 	# Hors run, il n'y a rien à rejoindre.
 	GameState.end_run(false)
 	verifie("hors partie, personne ne rejoint", GameState.ajoute_joueur(2) == null)
+
+
+## TOUTE ACTION DE JOUEUR PASSE PAR LE RÉSEAU.
+##
+## Le bâton est parti local le temps d'un jalon : un coéquipier ne voyait ni le
+## geste ni les dégâts. Ce genre de dette ne se voit qu'à deux, donc jamais
+## pendant le développement solo — d'où cette vérification, qui la ferait
+## réapparaître en rouge au lieu d'attendre une partie à plusieurs.
+func verifie_que_tout_est_replique() -> void:
+	for nom: StringName in [&"sort_lance", &"baton_frappe", &"portage_change",
+			&"objet_active", &"descente_ordonnee", &"achat_confirme"]:
+		verifie("`%s` existe sur Repl" % nom, Repl.has_signal(nom))
+
+	# Hors ligne, l'annonce doit quand même émettre : c'est ce qui fait qu'une
+	# partie solo emprunte exactement le même chemin qu'une partie à plusieurs,
+	# et qu'un bug de réplication se voit tout de suite.
+	var recus: Array = []
+	var oreille := func(id: int, _d: Vector3, frappe: bool) -> void:
+		recus.append([id, frappe])
+	Repl.baton_frappe.connect(oreille)
+	Repl.annonce_baton(0, Vector3.FORWARD, true)
+	Repl.annonce_baton(0, Vector3.FORWARD, false)
+	Repl.baton_frappe.disconnect(oreille)
+
+	verifie("hors ligne, un coup de bâton passe quand même par l'annonce",
+		recus.size() == 2 and recus[0][1] == true and recus[1][1] == false,
+		str(recus))

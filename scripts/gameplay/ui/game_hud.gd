@@ -27,18 +27,19 @@ func _ready() -> void:
 	_statut = HudPanel.cree(16, 14, 452, 116, false)
 	add_child(_statut)
 
-	_aide = HudPanel.cree(-346, 14, 330, 168, true)
+	_aide = HudPanel.cree(-346, 14, 330, 182, true)
 	add_child(_aide)
 	_aide.texte.text = ("[b]Commandes[/b]\n"
 		+ "ZQSD / WASD — se déplacer\n"
 		+ "Espace — sauter  ·  Souris — viser\n"
-		+ "Clic ou 1-4 — lancer un sort\n"
+		+ "[color=#a9e5ff]Clic gauche — frapper au bâton[/color]\n"
+		+ "[color=#a9e5ff]Clic droit — trait du bâton[/color]\n"
+		+ "1-3 — lancer un sort\n"
 		+ "[color=#ffd24a]E — interagir (marchand, portail)[/color]\n"
 		+ "[color=#ffd24a]F — ramasser / poser  ·  G — lancer[/color]\n"
 		+ "[color=#ffd24a]E — activer ce qu'on tient (mèche, balise)[/color]\n"
-		+ "[color=#ffd24a]Maj — courir  ·  Ctrl + 1-4 — changer l'école[/color]\n"
-		+ "Échap — libérer le curseur\n"
-		+ "Clic droit — reprendre la visée")
+		+ "[color=#ffd24a]Maj — courir  ·  Ctrl + 1-3 — changer l'école[/color]\n"
+		+ "Échap — libérer le curseur (clic droit pour revenir)")
 
 	_journal = _etiquette(Vector2(24, 140), 14, Color(1, 0.85, 0.45))
 	add_child(_journal)
@@ -70,7 +71,10 @@ func _construit_les_cartes() -> void:
 	barre.add_theme_constant_override("separation", 12)
 	add_child(barre)
 
-	for i: int in PlayerState.SLOT_COUNT:
+	# Une carte par page POSSIBLE, masquée tant que la page n'existe pas. Les
+	# créer à la volée à l'achat obligerait à refaire la mise en page en plein
+	# combat, au moment précis où le HUD doit rester stable.
+	for i: int in PlayerState.SLOTS_MAX:
 		var carte := HudSlotCard.cree(i)
 		carte.ecole_demandee.connect(func(index: int, pas: int) -> void:
 			ecole_changee.emit(index, pas))
@@ -166,9 +170,15 @@ func _process(_delta: float) -> void:
 			_ligne_de_session()]
 
 	_maj_la_jauge()
+	# Une carte n'existe que si la page existe. Les cartes au-delà du grimoire
+	# restent construites — la barre ne se remet jamais en page en plein
+	# combat — mais elles ne s'affichent pas.
 	for carte: HudSlotCard in _cartes:
-		carte.rafraichit(p.slots[carte.slot_index], etage,
-			joueur.cooldown_restant(carte.slot_index) if joueur != null else 0.0)
+		var tenue: bool = carte.slot_index < p.slots.size()
+		carte.visible = tenue
+		if tenue:
+			carte.rafraichit(p.slots[carte.slot_index], etage,
+				joueur.cooldown_restant(carte.slot_index) if joueur != null else 0.0)
 
 
 ## L'état réseau, affiché en jeu et pas seulement au salon.

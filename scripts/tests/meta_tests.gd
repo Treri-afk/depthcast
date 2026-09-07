@@ -23,8 +23,8 @@ func _check_meta() -> void:
 	verifie("une victoire vaut plus qu'une mort au même étage",
 		Meta.recompense(3, true) > loin)
 
-	verifie("une première partie ouvre de quoi composer une équipe",
-		Meta.ecoles_disponibles().size() >= PlayerState.SLOT_COUNT,
+	verifie("une première partie laisse un choix de spécialisation",
+		Meta.ecoles_disponibles().size() > PlayerState.ECOLES_DEPART,
 		"%d école(s)" % Meta.ecoles_disponibles().size())
 	verifie("les Éclats ne sont pas la Résonance",
 		not ("resonance" in Meta), "Meta ne doit connaître que la monnaie méta")
@@ -115,24 +115,25 @@ func _check_hub() -> void:
 	GameState.ecoles_choisies.clear()
 
 	var disponibles: Array[School] = Meta.ecoles_disponibles()
-	verifie("assez d'écoles débloquées pour composer une équipe",
-		disponibles.size() >= PlayerState.SLOT_COUNT)
+	verifie("assez d'écoles débloquées pour avoir le choix",
+		disponibles.size() > PlayerState.ECOLES_DEPART)
 
 	# La composition est PAR JOUEUR : en co-op chacun compose la sienne, et
 	# c'est le sujet même de la préparation.
 	for ecole: School in disponibles:
 		GameState.bascule_ecole(0, ecole.id)
-	verifie("une équipe complète tient exactement dans les slots",
-		GameState.ecoles_de(0).size() == PlayerState.SLOT_COUNT)
-	verifie("et la cinquième école est refusée",
+	verifie("on ne part qu'avec une école, quoi qu'on clique",
+		GameState.ecoles_de(0).size() == PlayerState.ECOLES_DEPART)
+	verifie("et la suivante est refusée",
 		GameState.bascule_ecole(0, &"une_de_plus") == GameState.Bascule.REFUSEE)
 
 	# Deux joueurs composent indépendamment : prendre une école ne la retire à
 	# personne, et voir qui a pris quoi est ce qui permet de se répartir.
-	var premiere: StringName = disponibles[0].id
+	# Le premier ne garde qu'une école : celle qu'il a prise en premier.
+	var premiere: StringName = GameState.ecoles_de(0)[0]
 	GameState.bascule_ecole(1, premiere)
 	verifie("un second joueur compose sans toucher au premier",
-		GameState.ecoles_de(0).size() == PlayerState.SLOT_COUNT
+		GameState.ecoles_de(0).size() == PlayerState.ECOLES_DEPART
 			and GameState.ecoles_de(1).size() == 1)
 	var porteurs: Array = GameState.porteurs_de(premiere)
 	verifie("et l'on sait qui a pris quoi",

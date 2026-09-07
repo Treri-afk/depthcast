@@ -72,7 +72,7 @@ func _construit_les_cartes() -> void:
 	add_child(barre)
 
 	var joueur: PlayerState = GameState.local_player()
-	for i: int in PlayerState.SLOT_COUNT:
+	for i: int in joueur.slots.size():
 		var carte := HudSlotCard.cree(i)
 		carte.rafraichit(joueur.slots[i], GameState.run.floor_index, 0.0)
 		# Elles arrivent en retrait : chacune se révèle à son tour.

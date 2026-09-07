@@ -36,6 +36,11 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 
 	# Les deux extrémités sont marquées : sans ça on se retrouve ailleurs sans
 	# comprendre ce qui vient d'arriver, ni où l'on a envoyé la cible.
+	var geste := SpellGesture.pose(ctx, effet, couleur, ici, 0.55)
+	if geste is LinkedRingsSignature:
+		# Le geste doit connaître les DEUX bouts : c'est une symétrie, pas un
+		# effet posé quelque part.
+		(geste as LinkedRingsSignature).relie(la_bas)
 	ctx.fx.marqueur(ici, couleur)
 	ctx.fx.marqueur(la_bas, couleur)
 

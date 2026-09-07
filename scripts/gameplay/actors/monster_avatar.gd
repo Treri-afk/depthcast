@@ -62,8 +62,10 @@ var _distraction_restante: float = 0.0
 ## Temps avant de reconsidérer qui poursuivre. Rechoisir à chaque frame ferait
 ## hésiter le monstre entre deux joueurs à distance égale.
 var _delai_de_ciblage: float = 0.0
-var _mesh: MeshInstance3D = null
-var _materiau: ShaderMaterial = null
+## Le corps articulé. Il porte plusieurs pièces : l'éclat d'encaisse et la
+## dissolution s'appliquent donc à TOUTES, sinon un monstre touché ne
+## clignoterait que du tronc.
+var _corps: MonsterBody = null
 
 
 func _ready() -> void:
@@ -74,9 +76,7 @@ func _ready() -> void:
 	floor_snap_length = 0.5
 	floor_max_angle = deg_to_rad(50.0)
 
-	_mesh = get_node_or_null("Mesh") as MeshInstance3D
-	if _mesh != null:
-		_materiau = _mesh.get_surface_override_material(0) as ShaderMaterial
+	_corps = get_node_or_null("Corps") as MonsterBody
 
 	_cerveau = _cree_cerveau()
 	_cerveau.veut_frapper.connect(_frappe)
@@ -282,16 +282,20 @@ func _arme_la_vrille(vecteur: Vector3) -> void:
 
 
 func _maj_vrille(delta: float) -> void:
-	if _mesh == null:
+	if _corps == null:
 		return
+	# La démarche : cadencée par la vitesse au sol, donc rien à déclarer pour
+	# passer du repos à la course.
+	_corps.anime(delta, Vector2(velocity.x, velocity.z).length())
+
 	if _envol_restant > 0.0:
-		_mesh.rotation += _vrille * delta
+		_corps.rotation += _vrille * delta
 		return
-	if _mesh.rotation.length_squared() < 0.0001:
+	if _corps.rotation.length_squared() < 0.0001:
 		return
 	# Retombé : il se remet d'aplomb. Vite, mais pas instantanément — un
 	# redressement sec annulerait la culbute qu'on vient de regarder.
-	_mesh.rotation = _mesh.rotation.lerp(Vector3.ZERO, minf(delta * 7.0, 1.0))
+	_corps.rotation = _corps.rotation.lerp(Vector3.ZERO, minf(delta * 7.0, 1.0))
 
 
 ## Détourné vers un leurre pour un temps. Le leurre redirige la menace, il ne
@@ -437,16 +441,29 @@ func _maj_teinte(delta: float) -> void:
 	if _teinte_restante <= 0.0:
 		return
 	_teinte_restante = maxf(0.0, _teinte_restante - delta * 4.0)
-	if _materiau != null:
-		_materiau.set_shader_parameter("albedo",
-			stats.couleur.lerp(Color.WHITE, _teinte_restante))
+	# CHAQUE pièce garde SA teinte de départ : le corps a deux valeurs, le tronc
+	# et les membres. Les blanchir depuis une teinte commune les aplatirait sur
+	# une seule, et le monstre perdrait sa silhouette au moment précis où on le
+	# regarde le plus.
+	for piece: MeshInstance3D in _pieces():
+		var mat := piece.get_surface_override_material(0) as ShaderMaterial
+		if mat == null:
+			continue
+		var base: Color = mat.get_meta(&"teinte_base", stats.couleur)
+		mat.set_shader_parameter("albedo", base.lerp(Color.WHITE, _teinte_restante))
 
 
 func _teinte_shader(couleur: Color, force: float) -> void:
-	if _materiau == null:
-		return
-	_materiau.set_shader_parameter("couleur_lisere", couleur)
-	_materiau.set_shader_parameter("force_lisere", maxf(force, 0.55))
+	for piece: MeshInstance3D in _pieces():
+		var mat := piece.get_surface_override_material(0) as ShaderMaterial
+		if mat != null:
+			mat.set_shader_parameter("couleur_lisere", couleur)
+			mat.set_shader_parameter("force_lisere", maxf(force, 0.55))
+
+
+func _pieces() -> Array[MeshInstance3D]:
+	var vide: Array[MeshInstance3D] = []
+	return vide if _corps == null else _corps.pieces
 
 
 ## Désagrégation à la mort. Un ennemi qui disparaît d'un coup laisse un doute —
@@ -464,12 +481,16 @@ func meurt_en_se_dissolvant() -> void:
 		if enfant is CollisionShape3D:
 			(enfant as CollisionShape3D).disabled = true
 
-	if _mesh == null:
+	if _corps == null or _corps.pieces.is_empty():
 		queue_free()
 		return
 
+	# Un seul matériau partagé par toutes les pièces : la dissolution avance
+	# ainsi d'un bloc sur le corps entier, au lieu d'un membre après l'autre.
 	var mat := MaterialLibrary.dissolution(stats.couleur)
-	_mesh.set_surface_override_material(0, mat)
+	for piece: MeshInstance3D in _corps.pieces:
+		if is_instance_valid(piece):
+			piece.set_surface_override_material(0, mat)
 
 	var tween := create_tween()
 	tween.tween_method(func(v: float) -> void:

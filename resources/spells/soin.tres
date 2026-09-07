@@ -8,3 +8,4 @@ nom = "Soin"
 comportement = 10
 soin = 34
 cooldown = 5.0
+signature = 8

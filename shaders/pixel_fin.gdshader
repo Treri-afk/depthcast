@@ -57,6 +57,29 @@ group_uniforms Trame;
 // Côté d'un bloc en pixels d'écran. 2 accroche discrètement, 4 est un parti pris.
 uniform float taille_bloc : hint_range(1.0, 8.0) = 2.0;
 
+group_uniforms Quantification;
+// NIVEAUX PAR CANAL.
+//
+// C'est ce qui sépare une image calculée d'une image dessinée en palette. Sans
+// quantification, deux surfaces censées partager une valeur diffèrent d'un
+// millième et le contour ne les distingue pas — alors qu'à l'oeil elles sont
+// identiques. En quantifiant, une valeur EST une valeur.
+//
+// 0 désactive. 6 à 10 tiennent la ligne claire ; en dessous de 4 on bascule
+// dans le rendu console, ce qui est un autre jeu.
+uniform int niveaux : hint_range(0, 32) = 8;
+
+// TRAMAGE ORDONNÉ.
+//
+// Quantifier seul produit des bandes franches sur toute pente restante — la
+// portée d'une lampe, la brume. Le tramage casse la bande avec un MOTIF au
+// lieu d'un dégradé : c'est exactement la solution de l'imprimeur, et la seule
+// qui n'introduit pas une troisième valeur.
+//
+// Le motif est ancré sur les blocs de la trame, pas sur les pixels d'écran :
+// sinon il vibre à chaque mouvement de caméra au lieu de tenir avec l'image.
+uniform float tramage : hint_range(0.0, 1.5) = 0.75;
+
 group_uniforms Contour;
 uniform vec4 contour_couleur : source_color = vec4(0.09, 0.08, 0.14, 1.0);
 // Épaisseur en blocs. Le trait suit donc la trame au lieu de la contredire.
@@ -104,6 +127,64 @@ float bruit_fixe(vec2 p) {
 	uint n = q.x * 1597334673u ^ q.y * 3812015801u;
 	n = n * (n * n * 15731u + 789221u) + 1376312589u;
 	return float(n & 2147483647u) / float(2147483647u);
+}
+
+
+// Matrice de Bayer, calculée plutôt que stockée : un tableau constant en GLSL
+// demande un accès indexé dynamique, que certains pilotes déroulent mal.
+// La 2x2 de base : 0 2 / 3 1. Écrite en arithmétique et non en tableau, pour
+// la même raison que la 4x4.
+int bayer2(int x, int y) {
+	return (3 * y + 2 * x) & 3;
+}
+
+
+// La 4x4 par récurrence : M4 = 4 * M2(quadrant) + M2(position dans le quadrant).
+// Les seize valeurs 0..15 y sont présentes une fois chacune, ce qui est la
+// seule propriété qui compte : c'est elle qui répartit l'erreur uniformément.
+float bayer4(vec2 bloc) {
+	ivec2 q = ivec2(bloc) & ivec2(3);
+	int v = 4 * bayer2(q.x >> 1, q.y >> 1) + bayer2(q.x & 1, q.y & 1);
+	return float(v) / 16.0 - 0.46875;
+}
+
+
+// Réduit la couleur à un nombre fini de niveaux, en cassant la bande par le
+// motif. Le seuil est appliqué AVANT l'arrondi : c'est ce qui fait que deux
+// blocs voisins d'une même pente tombent de part et d'autre du palier, donc
+// que le motif apparaît là où la bande serait née, et nulle part ailleurs.
+vec3 quantifie(vec3 couleur, vec2 bloc, float pente) {
+	if (niveaux <= 0) {
+		return couleur;
+	}
+	float pas = 1.0 / float(niveaux);
+
+	// LE TRAMAGE EST CONDITIONNÉ À LA PENTE, et c'est tout l'enjeu.
+	//
+	// Tramé sans condition, il déchire aussi les APLATS : une grande surface
+	// unie dont la valeur tombe près d'un palier part en damier sur toute son
+	// étendue. C'est ce qui arrivait au ciel, dont la valeur est justement
+	// voisine d'un palier — l'image entière devenait une trame, au lieu d'une
+	// image dessinée qui a une trame.
+	//
+	// `fwidth` mesure la variation de la couleur d'un pixel au suivant. Elle
+	// vaut zéro sur un aplat et grandit sur un dégradé : exactement la bande
+	// que le tramage doit casser, et rien d'autre.
+	float actif = clamp(pente * float(niveaux) * 2.0, 0.0, 1.0);
+	float seuil = bayer4(bloc) * pas * tramage * actif;
+
+	// EN PERCEPTUEL, PAS EN LINÉAIRE.
+	//
+	// Le tampon d'écran est linéaire : une valeur affichée à 0.11 y vaut 0.011.
+	// Des paliers réguliers en linéaire écrasent donc TOUS les sombres sur zéro
+	// et gaspillent la moitié des niveaux dans les hautes lumières — le ciel
+	// tombait au noir et les murs viraient au bleu saturé.
+	//
+	// Une palette se compte à l'oeil. On quantifie donc dans l'espace où l'oeil
+	// voit des écarts réguliers, puis on revient.
+	vec3 perceptuel = pow(clamp(couleur, 0.0, 1.0), vec3(1.0 / 2.2));
+	perceptuel = floor(clamp(perceptuel + seuil, 0.0, 1.0) * float(niveaux) + 0.5) * pas;
+	return pow(perceptuel, vec3(2.2));
 }
 
 
@@ -167,6 +248,9 @@ void fragment() {
 	vec2 uv = accroche(SCREEN_UV, grille);
 
 	vec3 couleur = texture(ecran, uv).rgb;
+	// Mesurée en perceptuel comme la quantification, sinon le seuil d'activation
+	// ne voudrait rien dire dans les sombres.
+	float pente_locale = fwidth(pow(luminance(couleur), 1.0 / 2.2));
 
 	if (contour_epaisseur > 0.0) {
 		vec2 pas = (1.0 / taille_ecran) * max(contour_epaisseur, 0.5);
@@ -198,6 +282,15 @@ void fragment() {
 		// se faire oublier. Proportionnel, il garde le même poids partout.
 		couleur *= 1.0 + g * grain_force * 2.0;
 	}
+
+	// En DERNIER, après contour et grain. Quantifier avant les laisserait
+	// réintroduire des valeurs intermédiaires — le trait est un mélange, le
+	// grain une multiplication : les deux sortent de la palette.
+	//
+	// La pente est mesurée AVANT le contour et le grain : tous deux créent des
+	// variations d'un pixel à l'autre, et les inclure ferait croire à une pente
+	// le long de chaque trait, donc tramerait les contours eux-mêmes.
+	couleur = quantifie(couleur, floor(SCREEN_UV * grille), pente_locale);
 
 	ALBEDO = applique_filtre(couleur);
 }

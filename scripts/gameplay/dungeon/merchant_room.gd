@@ -39,14 +39,27 @@ func installe(salle: FloorPlan.Salle) -> void:
 
 	_silhouette(centre + Vector3(0, 1.2, -cote * 0.28))
 
+	# UN SOCLE PAR PAGE POSSIBLE, ET NON PAR PAGE TENUE.
+	#
+	# Le grimoire grandit en cours de run et n'a pas la même taille chez tous
+	# les joueurs. Bâtir la rangée sur le grimoire local donnerait un magasin
+	# différent d'une machine à l'autre — or c'est le RANG du socle qui le
+	# désigne à travers le réseau (voir `index_du_socle`). On bâtit donc
+	# toujours la même rangée, et on éteint les socles sans page derrière eux.
 	var largeur: float = cote * 0.62
-	for i: int in PlayerState.SLOT_COUNT:
+	var tenues: int = _pages_du_joueur_local()
+	for i: int in PlayerState.SLOTS_MAX:
 		var pos: Vector3 = centre + Vector3(
-			-largeur * 0.5 + largeur * (float(i) / float(PlayerState.SLOT_COUNT - 1)),
+			-largeur * 0.5 + largeur * (float(i) / float(PlayerState.SLOTS_MAX - 1)),
 			0.0, cote * 0.06)
 		var socle := ShopPedestal.cree(_fx, pos, ShopPedestal.Genre.SCEAU,
 			_couleur_ecole(i))
 		socle.slot_index = i
+		if i >= tenues:
+			# Pas de page à sceller : le socle reste en place pour que les rangs
+			# concordent, mais il n'est ni visible ni achetable.
+			socle.visible = false
+			socle.achete = true
 		_ajoute(socle)
 
 	# Deux consommables : sans usage concurrent de la Résonance, sceller serait
@@ -70,6 +83,19 @@ func installe(salle: FloorPlan.Salle) -> void:
 	balise.cout = _tuning.leurre_cout
 	_ajoute(balise)
 
+	# LA PAGE. Elle n'apparaît que s'il reste de la place au grimoire : un socle
+	# qu'on ne peut pas acheter et qui ne dit pas pourquoi est pire qu'un socle
+	# absent.
+	if _peut_vendre_une_page():
+		var ecole: School = _ecole_de_la_page()
+		if ecole != null:
+			var page := ShopPedestal.cree(_fx,
+				centre + Vector3(largeur * 0.18, 0, cote * 0.34),
+				ShopPedestal.Genre.PAGE, ecole.couleur)
+			page.cout = _tuning.page_cout
+			page.ecole_id = ecole.id
+			_ajoute(page)
+
 	portail = Portal.cree(centre + Vector3(0, 0, -cote * 0.42))
 	_parent.add_child(portail)
 
@@ -77,6 +103,44 @@ func installe(salle: FloorPlan.Salle) -> void:
 ## Les socles sont construits dans le même ordre sur toutes les machines : leur
 ## rang suffit donc à les désigner à travers le réseau, sans identifiant à
 ## inventer ni à synchroniser.
+## Reste-t-il de la place pour une page ?
+func _peut_vendre_une_page() -> bool:
+	var p: PlayerState = GameState.local_player()
+	return p != null and p.peut_ajouter_une_page()
+
+
+## L'école proposée à cet étage.
+##
+## Tirée dans le flux d'étage et non au hasard : deux clients doivent voir la
+## MÊME page sur le socle, sinon l'un achète Givre et l'autre Braise au même
+## rang de socle. Et jamais une école qu'on porte déjà — le sujet de la page est
+## d'ouvrir le grimoire à autre chose.
+func _ecole_de_la_page() -> School:
+	var p: PlayerState = GameState.local_player()
+	if p == null:
+		return null
+	var deja: Array[StringName] = []
+	for slot: SpellSlot in p.slots:
+		if not deja.has(slot.school_id):
+			deja.append(slot.school_id)
+
+	var possibles: Array[School] = []
+	for ecole: School in Content.ecoles:
+		if not deja.has(ecole.id):
+			possibles.append(ecole)
+	if possibles.is_empty():
+		return null
+
+	var rng: RandomNumberGenerator = RngService.floor_stream(
+		RngService.STREAM_LOOT, GameState.run.floor_index)
+	return possibles[rng.randi_range(0, possibles.size() - 1)]
+
+
+func _pages_du_joueur_local() -> int:
+	var p: PlayerState = GameState.local_player()
+	return PlayerState.SLOTS_DEPART if p == null else p.slots.size()
+
+
 func index_du_socle(socle: ShopPedestal) -> int:
 	return socles.find(socle)
 
@@ -118,8 +182,10 @@ func distance_au_portail(depuis: Vector3) -> float:
 func libelle(socle: ShopPedestal) -> String:
 	match socle.genre:
 		ShopPedestal.Genre.SCEAU:
-			var ecole: School = Content.ecole(
-				GameState.local_player().slots[socle.slot_index].school_id)
+			var p: PlayerState = GameState.local_player()
+			if p == null or socle.slot_index >= p.slots.size():
+				return ""
+			var ecole: School = Content.ecole(p.slots[socle.slot_index].school_id)
 			return "[E] Sceller le slot %d (%s) — %d Résonance" % [
 				socle.slot_index + 1, ecole.nom if ecole != null else "?",
 				cout_du_prochain_sceau()]
@@ -130,6 +196,10 @@ func libelle(socle: ShopPedestal) -> String:
 				socle.valeur, socle.cout]
 		ShopPedestal.Genre.LEURRE:
 			return "[E] Balise de leurre — %d Résonance" % socle.cout
+		ShopPedestal.Genre.PAGE:
+			var page: School = Content.ecole(socle.ecole_id)
+			return "[E] Page de %s — %d Résonance (sort inconnu)" % [
+				page.nom if page != null else "?", socle.cout]
 	return ""
 
 
@@ -141,7 +211,30 @@ func achete(socle: ShopPedestal) -> bool:
 			return _achete_consommable(socle)
 		ShopPedestal.Genre.LEURRE:
 			return _achete_balise(socle)
+		ShopPedestal.Genre.PAGE:
+			return _achete_page(socle)
 	return false
+
+
+## Acheter une page : une école de plus au grimoire, un sort tiré dedans.
+##
+## Le sort n'est PAS annoncé. On sait quelle école on ajoute, jamais lequel de
+## ses sorts on obtient — et il rerollera dès l'étage suivant comme les deux
+## autres. C'est la promesse du jeu appliquée à l'économie.
+func _achete_page(socle: ShopPedestal) -> bool:
+	var ecole: School = Content.ecole(socle.ecole_id)
+	if ecole == null:
+		return false
+	if not GameState.try_spend_resonance(GameState.local_player_id, socle.cout):
+		return false
+	var index: int = GameState.ajoute_une_page(GameState.local_player_id,
+		ecole.id, ecole.taille_pool())
+	if index < 0:
+		return false
+	socle.consomme()
+	achat_effectue.emit("Page de %s ajoutée au grimoire — slot %d. Ce qu'elle "
+		% [ecole.nom, index + 1] + "contient, tu le découvriras en le lançant.")
+	return true
 
 
 func _achete_sceau(socle: ShopPedestal) -> bool:
@@ -187,9 +280,18 @@ func _ajoute(socle: ShopPedestal) -> void:
 	socles.append(socle)
 
 
+## La couleur du socle d'un rang donné.
+##
+## La rangée compte toujours `SLOTS_MAX` socles pour que les rangs concordent
+## entre machines, mais le grimoire, lui, en tient moins au début. Les rangs
+## sans page derrière eux existent donc bel et bien — ils sont simplement
+## éteints — et lire leur école faisait sortir du tableau au montage du
+## marchand, avant même que le socle ne soit désactivé.
 func _couleur_ecole(slot_index: int) -> Color:
-	var ecole: School = Content.ecole(
-		GameState.local_player().slots[slot_index].school_id)
+	var p: PlayerState = GameState.local_player()
+	if p == null or slot_index < 0 or slot_index >= p.slots.size():
+		return Content.palette.lisere_blanc
+	var ecole: School = Content.ecole(p.slots[slot_index].school_id)
 	return ecole.couleur if ecole != null else Color.WHITE
 
 

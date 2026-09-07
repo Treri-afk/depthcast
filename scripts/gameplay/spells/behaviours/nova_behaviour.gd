@@ -15,5 +15,6 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 	ctx.degats(slot_index, effet.degats, ctx.monstres_dans_rayon(centre, effet.rayon))
 	ctx.souffle(centre, effet.rayon, ctx.tuning.puissance_souffle_nova, true,
 		effet.degats)
-	ctx.fx.anneau(centre, effet.rayon, couleur)
+	if SpellGesture.pose(ctx, effet, couleur, centre, 0.6) == null:
+		ctx.fx.anneau(centre, effet.rayon, couleur)
 	ctx.fx.eclair(centre + Vector3(0, 1.0, 0), couleur, 0.25, 6.0, effet.rayon * 2.2)

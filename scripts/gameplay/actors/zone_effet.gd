@@ -31,6 +31,10 @@ var couleur: Color = Color.WHITE
 ## en ligne claire, deux surfaces de même couleur sont indiscernables, donc la
 ## silhouette est le SEUL levier disponible.
 var allure: ZoneVisual.Allure = ZoneVisual.Allure.NAPPE
+## Le geste propre du sort. Il REMPLACE l'allure quand il vaut autre chose que
+## la flaque : l'allure reste pour les zones que le décor pose lui-même — une
+## flaque de braise laissée par un tonneau n'est le sort de personne.
+var signature: SpellSignature.Genre = SpellSignature.Genre.NAPPE
 ## Mémorisées à la construction : le visuel n'est monté qu'à l'entrée dans
 ## l'arbre, une fois que l'appelant a fini de régler la couleur et l'allure.
 var dimensions: Vector3 = Vector3.ONE
@@ -38,6 +42,7 @@ var dimensions: Vector3 = Vector3.ONE
 var _restant: float = 0.0
 var _prochain_battement: float = 0.0
 var _apparence: ZoneVisual
+var _signature: SpellSignature
 var _lampe: OmniLight3D
 
 
@@ -83,8 +88,14 @@ func _ready() -> void:
 
 	# Monté ici et pas à la construction : l'appelant règle la couleur et
 	# l'allure entre les deux, et un visuel bâti trop tôt les ignorerait.
-	_apparence = ZoneVisual.cree(allure, dimensions, couleur)
-	add_child(_apparence)
+	# La signature d'abord, l'allure en repli : c'est ce qui permet de donner
+	# son geste à un sort sans toucher aux zones du décor.
+	if signature != SpellSignature.Genre.NAPPE:
+		_signature = SpellSignature.cree(signature, couleur, dimensions)
+		add_child(_signature)
+	else:
+		_apparence = ZoneVisual.cree(allure, dimensions, couleur)
+		add_child(_apparence)
 
 
 func _physics_process(delta: float) -> void:
@@ -97,6 +108,8 @@ func _physics_process(delta: float) -> void:
 	var reste: float = clampf(_restant / maxf(duree, 0.01), 0.0, 1.0)
 	if _apparence != null:
 		_apparence.fondu(0.12 + 0.30 * reste)
+	if _signature != null:
+		_signature.fondu(0.35 + 0.65 * reste)
 	if _lampe != null:
 		_lampe.light_energy = Content.palette.lumiere_sort_energie * reste
 

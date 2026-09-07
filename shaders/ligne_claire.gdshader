@@ -1,4 +1,6 @@
 shader_type spatial;
+
+#include "res://shaders/bruit.gdshaderinc"
 render_mode cull_back, specular_disabled, ambient_light_disabled, diffuse_lambert;
 
 // LIGNE CLAIRE — deux valeurs par surface, jamais trois.
@@ -44,6 +46,25 @@ uniform float brume_fin : hint_range(1.0, 120.0) = 46.0;
 uniform int brume_paliers : hint_range(1, 6) = 3;
 uniform float brume_force : hint_range(0.0, 1.0) = 0.75;
 
+group_uniforms Ombres_de_nuages;
+// LES NUAGES PROJETÉS AU SOL.
+//
+// Des masses d'ombre qui balaient les salles, tirées du MÊME bruit que le ciel
+// et poussées par le même vent : ce qui passe au-dessus de la tête est ce qui
+// passe sous les pieds.
+//
+// L'ombre ne pose aucune valeur nouvelle. Elle éteint la lumière directionnelle,
+// et la surface retombe exactement sur `ombre_de()` — la même valeur qu'une
+// ombre géométrique. Deux valeurs, toujours, quelle qu'en soit la cause.
+uniform float nuage_ombre : hint_range(0.0, 1.0) = 0.0;
+// Taille des masses au sol, en mètres. Indépendante de celle du ciel : ce sont
+// deux espaces différents, la coupole n'a pas d'échelle métrique.
+uniform float nuage_taille : hint_range(2.0, 80.0) = 26.0;
+uniform float nuage_couverture : hint_range(0.0, 1.0) = 0.52;
+uniform float nuage_vitesse : hint_range(0.0, 2.0) = 0.35;
+// Dureté du bord de l'ombre, en fraction de seuil. Petit = découpé au ciseau.
+uniform float nuage_nettete : hint_range(0.001, 0.3) = 0.035;
+
 
 // L'ombre d'une teinte donnée. UNE seule définition, appelée par fragment() et
 // par light() : les deux doivent poser exactement la même valeur, sinon la
@@ -62,6 +83,36 @@ uniform float brume_force : hint_range(0.0, 1.0) = 0.75;
 // La relative applique alors la couleur d'ombre en multiplicateur : la surface
 // garde sa teinte, l'unité chromatique est préservée, et l'ombre reste plus
 // sombre que la lumière — ce qui est la seule chose qu'une ombre doit faire.
+// La position dans le monde, pour y projeter les ombres de nuages.
+//
+// Calculée au sommet et interpolée : une position est LINÉAIRE sur un triangle,
+// donc l'interpolation est exacte, pas approchée. Échantillonner le bruit au
+// sommet, en revanche, serait faux — un sol de quatorze mètres n'a que quatre
+// coins, et le motif s'étirerait en dégradé entre eux.
+varying vec3 monde;
+
+
+void vertex() {
+	monde = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+
+// Part de l'ombre de nuage à cet endroit du monde. 0 en plein jour, 1 dessous.
+float sous_le_nuage() {
+	if (nuage_ombre <= 0.0) {
+		return 0.0;
+	}
+	// Même vent que le ciel, à l'échelle du monde : la dérive est ici en
+	// mètres par seconde, là-haut en unités de coupole.
+	vec2 p = monde.xz / nuage_taille
+		+ vent_nuage(TIME, nuage_vitesse / nuage_taille);
+	float n = masses_nuage(p);
+	// Pas `seuil` : c'est déjà le nom de l'uniforme de bascule lumière/ombre.
+	float bascule = 1.0 - nuage_couverture;
+	return smoothstep(bascule, bascule + nuage_nettete, n) * nuage_ombre;
+}
+
+
 vec3 ombre_de(vec3 teinte) {
 	vec3 absolue = mix(couleur_ombre.rgb, couleur_ombre.rgb * teinte * 2.0,
 		melange_ombre);
@@ -113,6 +164,15 @@ void light() {
 
 	vec3 teinte_lumiere = ALBEDO * LIGHT_COLOR;
 
+	// L'ombre de nuage n'assombrit RIEN : elle retire de la lumière. Sous une
+	// masse, l'apport tombe à zéro et la surface se retrouve sur son socle
+	// d'ombre — exactement la valeur qu'elle aurait derrière un mur.
+	//
+	// Réservée au soleil. Une torche qui faiblirait au passage d'un nuage
+	// n'aurait aucun sens, et les lumières de sort sont précisément celles
+	// qu'on regarde.
+	float decouvert = LIGHT_IS_DIRECTIONAL ? 1.0 - sous_le_nuage() : 1.0;
+
 	DIFFUSE_LIGHT += max(teinte_lumiere - ombre_de(ALBEDO), vec3(0.0))
-		* eclaire * ATTENUATION;
+		* eclaire * ATTENUATION * decouvert;
 }

@@ -19,7 +19,14 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 	sphere.radius = RAYON
 	forme.shape = sphere
 	bille.add_child(forme)
-	bille.add_child(ctx.fx.sphere_lumineuse(RAYON, couleur))
+	# La signature remplace la sphère lumineuse : deux projectiles qui se
+	# ressemblent sont deux sorts qu'on confond en vol, donc deux sorts qu'on
+	# n'apprend jamais à distinguer.
+	if effet.signature != SpellSignature.Genre.NAPPE:
+		bille.add_child(SpellSignature.cree(effet.signature, couleur,
+			Vector3(RAYON, 0, 0)))
+	else:
+		bille.add_child(ctx.fx.sphere_lumineuse(RAYON, couleur))
 	bille.add_child(ctx.fx.lampe(couleur))
 	ctx.monde.add_child(bille)
 
@@ -48,6 +55,7 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 		ctx.fx.impact(effet.impact, bille.global_position, couleur,
 			(bille.global_position - avatar.global_position).normalized())
 		_a_touche(ctx, slot_index, effet)
+		_a_l_impact(ctx, effet, couleur, bille.global_position)
 		bille.queue_free()
 	)
 
@@ -59,4 +67,12 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 
 ## Point d'extension : ne fait rien pour un projectile ordinaire.
 func _a_touche(_ctx: SpellContext, _slot_index: int, _effet: SpellEffect) -> void:
+	pass
+
+
+## Second point d'extension, pour ce qui doit se dessiner AU POINT TOUCHÉ.
+## Séparé du premier parce qu'il reçoit une position et non un slot : mélanger
+## les deux obligerait chaque sous-classe à ignorer la moitié des arguments.
+func _a_l_impact(_ctx: SpellContext, _effet: SpellEffect, _couleur: Color,
+		_ou: Vector3) -> void:
 	pass

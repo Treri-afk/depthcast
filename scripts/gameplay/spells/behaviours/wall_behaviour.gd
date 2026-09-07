@@ -21,4 +21,5 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 	zone.source_slot = slot_index
 	zone.couleur = couleur
 	zone.allure = effet.allure
+	zone.signature = effet.signature
 	ctx.monde.add_child(zone)

@@ -90,3 +90,10 @@ static func _applique_regles(mat: ShaderMaterial, couleur: Color) -> void:
 	mat.set_shader_parameter("brume_fin", p.brume_fin)
 	mat.set_shader_parameter("brume_paliers", p.brume_paliers)
 	mat.set_shader_parameter("brume_force", p.brume_force)
+	# Les nuages ne s'arrêtent pas au sol : ils balaient aussi les murs et le
+	# mobilier. Les exclure ferait des murs éclairés sous une salle à l'ombre.
+	mat.set_shader_parameter("nuage_ombre", p.nuage_ombre)
+	mat.set_shader_parameter("nuage_taille", p.nuage_taille)
+	mat.set_shader_parameter("nuage_couverture", p.nuage_couverture)
+	mat.set_shader_parameter("nuage_vitesse", p.nuage_vitesse)
+	mat.set_shader_parameter("nuage_nettete", p.nuage_nettete)

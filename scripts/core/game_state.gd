@@ -44,7 +44,7 @@ func bascule_ecole(player_id: int, id: StringName) -> Bascule:
 	if miennes.has(id):
 		miennes.erase(id)
 		return Bascule.RETIREE
-	if miennes.size() >= PlayerState.SLOT_COUNT:
+	if miennes.size() >= PlayerState.ECOLES_DEPART:
 		return Bascule.REFUSEE
 	miennes.append(id)
 	return Bascule.PRISE
@@ -199,35 +199,74 @@ func ajoute_joueur(player_id: int, nom: String = "") -> PlayerState:
 
 func _register_player(player_id: int, display_name: String) -> PlayerState:
 	var p := PlayerState.new(player_id, display_name)
-	# Les 4 écoles seront choisies avant la run. Placeholder tant que les
-	# Resources d'écoles n'existent pas (tâche du cycle C2).
-	for slot_index: int in PlayerState.SLOT_COUNT:
+	# Deux pages, remplacées par `set_player_schools()` juste avant la descente.
+	for slot_index: int in PlayerState.SLOTS_DEPART:
 		p.slots.append(SpellSlot.new(&"placeholder", 0))
 	run.players.append(p)
 	EventBus.player_registered.emit(player_id)
 	return p
 
 
-## Affecte les écoles choisies aux slots d'un joueur, avant la descente.
+## Compose le grimoire de départ, avant la descente.
 ##
 ## `schools` est une liste de dictionnaires {id: StringName, pool_size: int}.
-## Le tirage initial passe par le flux du joueur : deux joueurs qui prennent la
-## même école ne démarrent pas forcément sur le même effet.
+## On n'en lit que la PREMIÈRE : le joueur part avec une seule école et deux
+## sorts tirés dedans. La liste reste une liste parce que l'appelant, lui, peut
+## en proposer plusieurs — et parce que les pages du marchand viendront s'y
+## ajouter par un autre chemin.
+##
+## Les deux pages peuvent tomber sur le même effet, et c'est voulu : l'école a
+## deux à cinq sorts, forcer deux tirages distincts sur un pool de deux
+## reviendrait à supprimer le hasard là où il compte le plus.
+##
+## Le tirage passe par le flux du joueur : deux joueurs qui prennent la même
+## école ne démarrent pas forcément sur les mêmes sorts.
 func set_player_schools(player_id: int, schools: Array) -> void:
 	var p: PlayerState = run.get_player(player_id) if run != null else null
-	if p == null:
+	if p == null or schools.is_empty():
 		return
 	var rng: RandomNumberGenerator = RngService.player_stream(
 		RngService.STREAM_REROLL, player_id
 	)
-	for i: int in mini(schools.size(), p.slots.size()):
-		var def: Dictionary = schools[i]
+	var def: Dictionary = schools[0]
+	var id := StringName(def.get("id", "inconnue"))
+	var pool: int = clampi(int(def.get("pool_size", 3)),
+		School.POOL_MIN, School.POOL_MAX)
+
+	for i: int in p.slots.size():
 		var slot: SpellSlot = p.slots[i]
-		slot.school_id = StringName(def.get("id", "inconnue"))
-		slot.pool_size = clampi(int(def.get("pool_size", 3)), 2, 5)
-		slot.effect_index = rng.randi_range(0, slot.pool_size - 1)
+		slot.school_id = id
+		slot.pool_size = pool
+		slot.effect_index = rng.randi_range(0, pool - 1)
 		slot.locked_until_floor = SpellSlot.NOT_SET
 		slot.discovered_on_floor = SpellSlot.NOT_SET
+
+
+## Ajoute une page d'école au grimoire d'un joueur.
+##
+## C'est ce que vend le marchand. On achète une ÉCOLE, pas un sort : le sort
+## est tiré au hasard dans son pool, et il rerollera comme les autres à chaque
+## étage. Acheter une page, c'est donc élargir son grimoire sans jamais savoir
+## ce qu'on y met — ce qui est exactement la promesse du jeu, appliquée à
+## l'économie plutôt qu'au seul changement d'étage.
+##
+## Retourne l'index de la page ajoutée, ou -1 si le grimoire est plein.
+func ajoute_une_page(player_id: int, school_id: StringName,
+		pool_size: int) -> int:
+	var p: PlayerState = run.get_player(player_id) if run != null else null
+	if p == null or not p.peut_ajouter_une_page():
+		return -1
+	var rng: RandomNumberGenerator = RngService.player_stream(
+		RngService.STREAM_REROLL, player_id
+	)
+	var pool: int = clampi(pool_size, School.POOL_MIN, School.POOL_MAX)
+	var slot: SpellSlot = p.ajoute_une_page(school_id, pool,
+		rng.randi_range(0, pool - 1))
+	if slot == null:
+		return -1
+	var index: int = p.slots.size() - 1
+	EventBus.page_ajoutee.emit(player_id, index, school_id)
+	return index
 
 
 ## Change l'école d'un seul slot, en cours de run.

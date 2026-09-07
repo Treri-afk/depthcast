@@ -36,6 +36,8 @@ static func _materiau(palette: Palette) -> ShaderMaterial:
 	mat.render_priority = 100
 
 	mat.set_shader_parameter("taille_bloc", palette.pixel_taille)
+	mat.set_shader_parameter("niveaux", palette.pixel_niveaux)
+	mat.set_shader_parameter("tramage", palette.pixel_tramage)
 	mat.set_shader_parameter("contour_couleur", palette.encre)
 	mat.set_shader_parameter("contour_epaisseur", palette.contour_epaisseur)
 	mat.set_shader_parameter("contour_seuil", palette.contour_seuil)

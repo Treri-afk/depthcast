@@ -133,10 +133,10 @@ func _maj_interaction() -> void:
 		_portail.global_position) < PORTEE_INTERACTION and _cible == null
 
 	if _portail_a_portee:
-		var manquantes: int = PlayerState.SLOT_COUNT \
+		var manquantes: int = PlayerState.ECOLES_DEPART \
 			- GameState.ecoles_de(GameState.local_player_id).size()
 		if manquantes > 0:
-			_hud.invite("Il te manque %d école(s) pour descendre" % manquantes)
+			_hud.invite("Choisis ton école avant de descendre")
 		elif Net.est_host():
 			_hud.invite("[E] Descendre — tout le monde part avec toi")
 		else:
@@ -149,7 +149,7 @@ func _maj_interaction() -> void:
 
 func _interagit() -> void:
 	if _portail_a_portee:
-		if GameState.ecoles_de(GameState.local_player_id).size() < PlayerState.SLOT_COUNT:
+		if GameState.ecoles_de(GameState.local_player_id).size() < PlayerState.ECOLES_DEPART:
 			Audio.joue(&"refus")
 			return
 		# On demande, on ne part pas : le changement de scène viendra de

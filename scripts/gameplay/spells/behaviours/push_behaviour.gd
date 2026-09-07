@@ -27,5 +27,20 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 	var cibles: Array = ctx.souffle(centre, effet.rayon, effet.puissance,
 		repousse, 2, true)
 	ctx.degats(slot_index, effet.degats, cibles)
-	ctx.fx.anneau(centre, effet.rayon, couleur)
+	# L'anneau générique disparaît au profit du geste du sort : une onde qui
+	# chasse des blocs vers l'extérieur, ou une spirale qui les avale. Les deux
+	# occupent le même volume et ne se ressemblent en rien — c'est le but.
+	_pose(ctx, effet, couleur, centre)
 	ctx.fx.eclair(centre + Vector3(0, 1.0, 0), couleur, 0.2, 4.5, effet.rayon * 1.8)
+
+
+## La signature du sort, ou l'anneau d'autrefois si aucune n'est déclarée.
+func _pose(ctx: SpellContext, effet: SpellEffect, couleur: Color,
+		centre: Vector3) -> void:
+	if effet.signature == SpellSignature.Genre.NAPPE:
+		ctx.fx.anneau(centre, effet.rayon, couleur)
+		return
+	var geste := SpellSignature.cree(effet.signature, couleur,
+		Vector3(effet.rayon, 0, 0), 0.55)
+	geste.position = centre
+	ctx.monde.add_child(geste)

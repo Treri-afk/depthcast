@@ -33,6 +33,14 @@ signal slot_kept(player_id: int, slot_index: int)
 ## L'effet vient d'être lancé pour la première fois de l'étage : il sort de l'état `???`.
 signal slot_discovered(player_id: int, slot_index: int)
 
+## Une page a été ajoutée au grimoire. Le HUD écoute pour ajouter une carte, et
+## la séquence de reroll pour la faire apparaître avec les autres.
+##
+## On annonce l'ÉCOLE et pas l'effet : la page est une école, son sort est tiré
+## et rerollera comme les autres. Dire lequel a été tiré reviendrait à révéler
+## ce que le jeu se réserve de faire découvrir.
+signal page_ajoutee(player_id: int, slot_index: int, school_id: StringName)
+
 ## Le joueur vient d'encaisser. `origine` est le point d'où vient le coup, ce
 ## qui permet à l'interface de dire OÙ regarder — en vue subjective, prendre
 ## des dégâts hors champ sans indication est illisible.

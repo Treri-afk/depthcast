@@ -8,3 +8,4 @@ nom = "Rempart"
 comportement = 10
 soin = 26
 cooldown = 4.0
+signature = 7

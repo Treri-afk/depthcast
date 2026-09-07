@@ -8,3 +8,4 @@ nom = "Voile"
 comportement = 13
 cooldown = 8.0
 duree = 4.0
+signature = 10

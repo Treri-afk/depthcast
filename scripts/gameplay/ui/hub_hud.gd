@@ -56,9 +56,9 @@ func ligne_de_session() -> String:
 
 func rafraichit(choisies: int) -> void:
 	_entete.texte.text = ("[b]Éclats : %d[/b]\n"
-		+ "Ton équipe : %d / %d écoles\n"
+		+ "Ton école : %d / %d\n"
 		+ "Prochain déblocage : %d Éclats%s") % [
-			Meta.eclats, choisies, PlayerState.SLOT_COUNT, Meta.cout_deblocage(),
+			Meta.eclats, choisies, PlayerState.ECOLES_DEPART, Meta.cout_deblocage(),
 			ligne_de_session()]
 
 

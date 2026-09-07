@@ -13,7 +13,10 @@ extends Node3D
 ##
 ## On n'y meurt pas. Une mort ici n'apprend rien et coûte un rechargement.
 
-const COTE_SALLE: float = 52.0
+## La salle contient la grille de la galerie (six colonnes de neuf mètres)
+## EN PLUS des autres postes. Trop petite, la grille sortait par le mur du
+## fond et les lanceurs tombaient hors du sol.
+const COTE_SALLE: float = 78.0
 
 var _terrain: PlayField
 var _spawner: MonsterSpawner
@@ -28,7 +31,7 @@ func _ready() -> void:
 	# les monstres n'existent qu'à l'intérieur d'une run (R1), et le banc
 	# d'essai ne fait pas exception — sinon il testerait un autre état.
 	_terrain.monte(1)
-	_terrain.joueur.position = Vector3(0, 1.2, 18.0)
+	_terrain.joueur.position = Vector3(0, 1.2, 26.0)
 
 	_batit_la_salle()
 
@@ -113,6 +116,12 @@ func _installe_les_postes() -> void:
 	_ajoute(PropsStation.new(), Vector3(-14, 0, 6))
 	_ajoute(RerollStation.new(), Vector3(14, 0, 6))
 	_ajoute(RangeStation.new(), Vector3(-18, 0, 18))
+
+	# La galerie occupe tout le fond de la salle : elle est large par nature,
+	# et on doit pouvoir reculer assez pour voir la rangée entière d'un coup.
+	var galerie := SpellGalleryStation.new()
+	galerie.spawner = _spawner
+	_ajoute(galerie, Vector3(0, 0, -24))
 
 
 func _ajoute(poste: LabStation, pos: Vector3) -> void:

@@ -41,6 +41,7 @@ func consomme(delta: float, position: Vector3) -> Dictionary:
 	return {
 		"effet": effet,
 		"allure": effet.allure,
+		"signature": effet.signature,
 		"couleur": couleur,
 		"slot": slot_index,
 		"position": position,

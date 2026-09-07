@@ -30,7 +30,17 @@ extends Resource
 
 @export_group("Post-traitement")
 ## Côté d'un bloc en pixels d'écran. 2 accroche discrètement, 4 est un parti pris.
-@export_range(1.0, 8.0, 0.5) var pixel_taille: float = 2.0
+@export_range(1.0, 8.0, 0.5) var pixel_taille: float = 4.0
+## NIVEAUX PAR CANAL. 0 désactive.
+##
+## C'est ce qui sépare une image calculée d'une image dessinée en palette. Sans
+## quantification, deux surfaces censées partager une valeur diffèrent d'un
+## millième : identiques à l'oeil, distinctes pour le contour.
+@export_range(0, 32, 1) var pixel_niveaux: int = 10
+## Tramage ordonné. Casse la bande de quantification par un MOTIF plutôt que par
+## un dégradé — la solution de l'imprimeur, et la seule qui n'ajoute pas de
+## troisième valeur.
+@export_range(0.0, 1.5, 0.05) var pixel_tramage: float = 0.6
 ## Épaisseur du contour, en blocs de trame. Le trait suit donc la grille.
 @export_range(0.0, 6.0, 0.25) var contour_epaisseur: float = 1.25
 ## Écart de luminance à partir duquel on trace. Bas = trait partout, y compris
@@ -91,6 +101,24 @@ var filtre: int = 0
 @export_range(0.001, 0.2, 0.001) var ciel_bord: float = 0.014
 ## Épaisseur de la face à l'ombre du nuage.
 @export_range(0.02, 0.4, 0.01) var ciel_epaisseur_ombre: float = 0.13
+
+## LES NUAGES PROJETÉS AU SOL.
+##
+## Tirés du même bruit que le ciel et poussés par le même vent : ce qui passe
+## au-dessus de la tête est ce qui passe sous les pieds.
+##
+## L'ombre ne pose aucune valeur nouvelle — elle éteint le soleil, et la surface
+## retombe sur la teinte d'ombre, la même que derrière un mur. Elle n'agit que
+## sur le directionnel : une torche qui faiblirait au passage d'un nuage n'aurait
+## aucun sens.
+@export_range(0.0, 1.0, 0.05) var nuage_ombre: float = 0.85
+## Taille des masses au sol, en mètres.
+@export_range(2.0, 80.0, 1.0) var nuage_taille: float = 26.0
+@export_range(0.0, 1.0, 0.01) var nuage_couverture: float = 0.52
+## Dérive au sol, en mètres par seconde.
+@export_range(0.0, 2.0, 0.05) var nuage_vitesse: float = 0.35
+## Dureté du bord. Petit = découpé au ciseau.
+@export_range(0.001, 0.3, 0.001) var nuage_nettete: float = 0.035
 
 @export_group("Décor")
 ## Les valeurs sont volontairement ÉCARTÉES les unes des autres. Le contour se

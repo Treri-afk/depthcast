@@ -70,11 +70,41 @@ func lance(slot_index: int, direction: Vector3, lanceur: PlayerAvatar = null) ->
 	if joueur.local:
 		joueur.recul(effet.recul)
 
-	# Le comportement lit `ctx.joueur` pour savoir d'où partir. On le bascule
-	# le temps du lancer, puis on le remet : sans ça, le sort d'un coéquipier
-	# partirait de nos propres mains.
+	# LE DIAGRAMME D'ABORD, LE SORT ENSUITE.
+	#
+	# Un sort partait de nulle part : on appuyait, un effet apparaissait à dix
+	# mètres, et rien entre les deux ne disait que c'était nous. Le bâton se
+	# lève, le cercle s'ouvre, puis le sort en sort — la chaîne devient lisible.
+	#
+	# Joué pour TOUS les lanceurs, y compris distants : c'est ce qui rend le
+	# sort d'un coéquipier attribuable.
+	var delai: float = Content.tuning.sort_invocation_delai
+	joueur.invoque_au_baton(effet, couleur, delai)
+
+	if delai <= 0.0:
+		_execute(comportement, joueur, slot_index, effet, couleur, direction)
+		return true
+
+	# Le sort part APRÈS le geste. La recharge, elle, a déjà démarré : le délai
+	# est une mise en scène, il ne doit pas se payer deux fois.
+	#
+	# Le lanceur est revérifié à l'échéance — il a pu mourir, se déconnecter ou
+	# quitter la scène pendant ces cent millisecondes.
+	_contexte.monde.get_tree().create_timer(delai).timeout.connect(
+		func() -> void:
+			if is_instance_valid(joueur):
+				_execute(comportement, joueur, slot_index, effet, couleur,
+					direction))
+	return true
+
+
+## Bascule le contexte sur le lanceur, exécute, et le remet.
+##
+## Sans cette bascule, le sort d'un coéquipier partirait de nos propres mains.
+func _execute(comportement: SpellBehaviour, joueur: PlayerAvatar,
+		slot_index: int, effet: SpellEffect, couleur: Color,
+		direction: Vector3) -> void:
 	var precedent: PlayerAvatar = _contexte.joueur
 	_contexte.joueur = joueur
 	comportement.lance(_contexte, slot_index, effet, couleur, direction)
 	_contexte.joueur = precedent
-	return true

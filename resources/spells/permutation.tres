@@ -9,3 +9,4 @@ comportement = 15
 description = "Échange ta place avec la créature visée. Ce qui te menaçait se retrouve où tu étais."
 portee = 18.0
 cooldown = 6.0
+signature = 14

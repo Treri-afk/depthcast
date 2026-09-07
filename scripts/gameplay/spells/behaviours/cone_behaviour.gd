@@ -15,6 +15,15 @@ func lance(ctx: SpellContext, slot_index: int, effet: SpellEffect,
 	ctx.degats(slot_index, effet.degats,
 		ctx.monstres_dans_cone(origine, plat, effet.portee, demi_angle))
 	ctx.frappe_objets_devant(origine, plat, effet.portee, demi_angle, effet.degats)
-	ctx.fx.cone(origine, plat, effet.portee, couleur)
+	if effet.signature == SpellSignature.Genre.NAPPE:
+		ctx.fx.cone(origine, plat, effet.portee, couleur)
+	else:
+		# Un cône ne se dessine pas, il se REMPLIT : ce qu'on doit voir, ce sont
+		# les éclats qu'il emporte, pas le volume qui les contient.
+		var geste := SpellSignature.cree(effet.signature, couleur,
+			Vector3(0.0, effet.angle, effet.portee), 0.5)
+		geste.position = origine
+		geste.rotation.y = atan2(plat.x, plat.z)
+		ctx.monde.add_child(geste)
 	ctx.fx.eclair(origine + plat * (effet.portee * 0.4) + Vector3(0, 1.0, 0),
 		couleur, 0.25, 5.0, effet.portee)
